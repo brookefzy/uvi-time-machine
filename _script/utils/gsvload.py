@@ -28,7 +28,11 @@ class GSVSummary:
     def __init__(self, city):
         self.city = city
         self.citylower = city.lower().replace(" ", "")
-        self.generalgsv = "./data/gsv_rgb/{citylower}".format(citylower=self.citylower)
+        self.generalgsv = (
+            "/lustre1/g/geog_pyloo/05_timemachine/GSV/gsv_rgb/{citylower}".format(
+                citylower=self.citylower
+            )
+        )
         self.imgfolder = self.generalgsv + "/img_rgb"
         self.metafolder = self.generalgsv + "/gsvmeta"
         self.roadfolder = self.generalgsv + "/road"
