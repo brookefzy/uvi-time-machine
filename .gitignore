@@ -5,4 +5,5 @@
 *.sh
 */**/.ipynb_checkpoints
 *.pyc
+**/_archived/*
 google_drive*

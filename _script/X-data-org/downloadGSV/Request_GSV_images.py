@@ -100,6 +100,7 @@ def load_data(args):
     city = args.city
     cityabbr = city.replace(" ", "").lower()
     filename = args.file
+    traverse = args.traverse
     
     generalgsv = '/lustre1/g/geog_pyloo/05_timemachine/GSV/gsv_rgb/{cityabbr}'.format(cityabbr=cityabbr)
     # load the panoid file
@@ -135,8 +136,13 @@ def load_data(args):
         
     # finished = glob.glob(imgfolder+"/*/*/*/*.jpg")
     # finished_pano = [i.split('/')[-1][:22] for i in finished]
-    if os.path.exists(os.path.join(dirsave, "gsv_path.csv")):
-        finished_pano = load_finish_from_file(dirsave)
+    if traverse == False:
+        print("Check whether file path exists")
+        if os.path.exists(os.path.join(dirsave, "gsv_path.csv")):
+            finished_pano = load_finish_from_file(dirsave)
+        else:
+            print("gsv path file does not exists, start from folder")
+            finished_pano = load_finshed(imgfolder)
     else:
         finished_pano = load_finshed(imgfolder)
     print("Finished: ", len(finished_pano))
@@ -164,6 +170,7 @@ def main():
     parser = argparse.ArgumentParser(description='GSV image download')
     parser.add_argument('--city', type=str, default='Hong Kong', help='city name')
     parser.add_argument('--file', type=str, default='gsv_pano.csv', help='panoid file')
+    parser.add_argument('--traverse', type = bool, default = True, help ='if true, read the gsv path file directly')
     args = parser.parse_args()
     
     pool = Pool(10)
