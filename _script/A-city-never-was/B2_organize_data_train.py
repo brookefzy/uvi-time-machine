@@ -3,6 +3,7 @@ import shutil
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+import glob
 import logging
 logging.basicConfig(filename='label_data.log', format='%(asctime)s %(message)s', filemode='w') 
 logger=logging.getLogger() 
@@ -36,10 +37,15 @@ DATACAP = {
     "test":1000
 }
 
+
+
 for folder in ['train', 'test']:
     print(f"working on the {folder} data")
     logger.info(f"working on the {folder} data")
     data = dataset[folder]
+    finished = glob.glob(os.path.join(YOLOFOLDER, folder, "*.jpg"))
+    finished_names = [x.split("/")[-1] for x in finished]
+    print("Total finished images: ", len(finished_names))
     for city in tqdm(train_df['city'].unique()):
         city_folder = os.path.join(YOLOFOLDER, folder, city)
         if not os.path.exists(city_folder):
@@ -52,7 +58,10 @@ for folder in ['train', 'test']:
                 temp = temp[:cap].reset_index(drop = True)
             for path in tqdm(temp['path'].values):
                 img_name = path.split("/")[-1]
-                shutil.copy(path, city_folder)
+                if img_name in finished_names:
+                    continue
+                else:
+                    shutil.copy(path, city_folder)
             print(f"{city} is done")
             logger.info(f"{city} is done")
             print("*"*100)
