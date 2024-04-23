@@ -43,7 +43,7 @@ for folder in ['train', 'test']:
     print(f"working on the {folder} data")
     logger.info(f"working on the {folder} data")
     data = dataset[folder]
-    finished = glob.glob(os.path.join(YOLOFOLDER, folder, "*.jpg"))
+    finished = glob.glob(os.path.join(YOLOFOLDER, folder, "*/*.jpg"))
     finished_names = [x.split("/")[-1] for x in finished]
     print("Total finished images: ", len(finished_names))
     for city in tqdm(train_df['city'].unique()):
