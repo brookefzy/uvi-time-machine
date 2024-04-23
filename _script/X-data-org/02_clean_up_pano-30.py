@@ -108,6 +108,8 @@ def get_gsv_file_size(citylower, meta_folder):
                     file_sizes[file] = 0  # the file is removed
 
         path_df["size"] = path_df["path"].apply(lambda x: file_sizes[x])
+        path_df['panoid'] = path_df['path'].apply(lambda x: x.split("/")[-1][:22])
+        path_df["angle"] = path_df["path"].apply(lambda x: x.split("/")[-1][23:-4])
         path_df.to_csv(os.path.join(meta_folder, PATH_FILE), index = False)
         print("Finished calculating the file size")
         return path_df
@@ -182,12 +184,7 @@ def run_city(city):
 def main():
     cityls = list_city()
     for city in [
-        # "Boston","Capetown", "Chicago", 
-        #          "Dubai", "New York", 
-                #  "Kampala", "Istanbul", "Kyiv", "Moscow",
-                # "Philadelphia", "Madrid", "Los Angeles", 
-        "London", "Johannesburg", "Seoul", "Singapore", 
-                 "Taipei", ""]:
+        "Toronto","Kualalumpur"]:
         run_city(city)
         print("Finished processing: ", city)
         print("*"*100)

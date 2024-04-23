@@ -75,9 +75,9 @@ class GSVSummary:
             panodf["panoid"] = panodf["path"].apply(
                 lambda x: x.split("/")[-1].split(".")[0][:22]
             )
-            panodf.to_csv(
-                os.path.join(self.metafolder, f"gsv_path_{self.today}.csv"), index=False
-            )
+            # panodf.to_csv(
+            #     os.path.join(self.metafolder, f"gsv_path_{self.today}.csv"), index=False
+            # )
         return panodf
 
     def load_gsv_sel_meta(self):

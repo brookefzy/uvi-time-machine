@@ -1,0 +1,214 @@
+2024-04-13 18:30:17,244 Using json encoder/decoder
+2024-04-13 18:30:17,642 start to copy data for city Kaunas
+2024-04-13 18:34:16,579 Kaunas is done
+2024-04-13 18:34:16,588 start to copy data for city Munich
+2024-04-13 18:44:21,579 Munich is done
+2024-04-13 18:44:21,699 start to copy data for city Jerusalem
+2024-04-13 18:51:22,629 Jerusalem is done
+2024-04-13 18:51:22,710 start to copy data for city Kozhikode
+2024-04-13 18:56:24,786 Kozhikode is done
+2024-04-13 18:56:24,903 start to copy data for city Cleveland
+2024-04-13 19:06:24,016 Cleveland is done
+2024-04-13 19:06:24,016 start to copy data for city Saint Petersburg
+2024-04-13 19:19:25,171 Saint Petersburg is done
+2024-04-13 19:19:25,253 start to copy data for city Killeen
+2024-04-13 19:26:19,423 Killeen is done
+2024-04-13 19:26:19,435 start to copy data for city Okayama
+2024-04-13 19:36:35,006 Okayama is done
+2024-04-13 19:36:35,007 start to copy data for city Bangkok
+2024-04-13 19:47:15,200 Bangkok is done
+2024-04-13 19:47:15,226 start to copy data for city Budapest
+2024-04-13 19:53:20,546 Budapest is done
+2024-04-13 19:53:20,547 start to copy data for city Palembang
+2024-04-13 20:00:14,941 Palembang is done
+2024-04-13 20:00:14,942 start to copy data for city Raleigh
+2024-04-13 20:11:26,151 Raleigh is done
+2024-04-13 20:11:26,258 start to copy data for city Antwerp
+2024-04-13 20:15:45,811 Antwerp is done
+2024-04-13 20:15:45,812 start to copy data for city Kyiv
+2024-04-13 20:27:04,766 Kyiv is done
+2024-04-13 20:27:04,767 start to copy data for city Copenhagen
+2024-04-13 20:38:52,764 Copenhagen is done
+2024-04-13 20:38:52,779 start to copy data for city Boston
+2024-04-13 20:48:16,336 Boston is done
+2024-04-13 20:48:16,336 start to copy data for city Le Mans
+2024-04-13 20:56:59,243 Le Mans is done
+2024-04-13 20:56:59,277 start to copy data for city Lima
+2024-04-13 21:13:19,189 Lima is done
+2024-04-13 21:13:19,273 start to copy data for city Accra
+2024-04-13 21:20:48,894 Accra is done
+2024-04-13 21:20:49,010 start to copy data for city Thessaloniki
+2024-04-13 21:28:30,229 Thessaloniki is done
+2024-04-13 21:28:30,270 start to copy data for city Ilheus
+2024-04-13 21:34:32,291 Ilheus is done
+2024-04-13 21:34:32,292 start to copy data for city Palermo
+2024-04-13 21:41:11,323 Palermo is done
+2024-04-13 21:41:11,336 start to copy data for city Wellington
+2024-04-13 21:51:43,249 Wellington is done
+2024-04-13 21:51:43,268 start to copy data for city Hindupur
+2024-04-13 21:54:43,419 Hindupur is done
+2024-04-13 21:54:43,420 start to copy data for city Tel Aviv
+2024-04-13 22:03:11,329 Tel Aviv is done
+2024-04-13 22:03:11,349 start to copy data for city Belgrade
+2024-04-13 22:11:33,517 Belgrade is done
+2024-04-13 22:11:33,547 start to copy data for city Zwolle
+2024-04-13 22:17:03,835 Zwolle is done
+2024-04-13 22:17:03,836 start to copy data for city Madrid
+2024-04-13 22:26:35,256 Madrid is done
+2024-04-13 22:26:35,289 start to copy data for city Sitapur
+2024-04-13 22:32:57,313 Sitapur is done
+2024-04-13 22:32:57,402 start to copy data for city Capetown
+2024-04-13 22:49:42,476 Capetown is done
+2024-04-13 22:49:42,477 start to copy data for city Toledo
+2024-04-13 22:58:27,733 Toledo is done
+2024-04-13 22:58:27,748 start to copy data for city Rovno
+2024-04-13 23:05:45,455 Rovno is done
+2024-04-13 23:05:45,487 start to copy data for city Warsaw
+2024-04-13 23:16:56,439 Warsaw is done
+2024-04-13 23:16:56,451 start to copy data for city Taipei
+2024-04-13 23:28:41,881 Taipei is done
+2024-04-13 23:28:41,917 start to copy data for city Reynosa
+2024-04-13 23:33:59,757 Reynosa is done
+2024-04-13 23:33:59,758 start to copy data for city Milan
+2024-04-13 23:42:54,596 Milan is done
+2024-04-13 23:42:54,641 start to copy data for city Miami
+2024-04-13 23:51:47,775 Miami is done
+2024-04-13 23:51:47,824 start to copy data for city Bacolod
+2024-04-13 23:59:31,661 Bacolod is done
+2024-04-13 23:59:31,662 start to copy data for city Bogotá
+2024-04-14 00:10:10,944 Bogotá is done
+2024-04-14 00:10:10,957 start to copy data for city Gombe
+2024-04-14 00:16:10,422 Gombe is done
+2024-04-14 00:16:10,423 start to copy data for city Astrakhan
+2024-04-14 00:23:48,012 Astrakhan is done
+2024-04-14 00:23:48,087 start to copy data for city Gainesville, FL
+2024-04-14 00:32:43,929 Gainesville, FL is done
+2024-04-14 00:32:43,947 start to copy data for city Pune
+2024-04-14 00:37:54,119 Pune is done
+2024-04-14 00:37:54,137 start to copy data for city Buenos Aires
+2024-04-14 00:55:01,284 Buenos Aires is done
+2024-04-14 00:55:01,304 start to copy data for city Sydney
+2024-04-14 01:12:02,857 Sydney is done
+2024-04-14 01:12:02,870 start to copy data for city Nagoya
+2024-04-14 01:30:39,266 Nagoya is done
+2024-04-14 01:30:39,353 start to copy data for city Culiacan
+2024-04-14 01:37:23,505 Culiacan is done
+2024-04-14 01:37:23,506 start to copy data for city Nairobi
+2024-04-14 01:49:46,532 Nairobi is done
+2024-04-14 01:49:46,547 start to copy data for city Fukuoka
+2024-04-14 02:02:42,979 Fukuoka is done
+2024-04-14 02:02:43,001 start to copy data for city Brussels
+2024-04-14 02:21:02,615 Brussels is done
+2024-04-14 02:21:02,677 start to copy data for city Jalna
+2024-04-14 02:28:29,769 Jalna is done
+2024-04-14 02:28:29,770 start to copy data for city Bangalore
+2024-04-14 02:37:05,783 Bangalore is done
+2024-04-14 02:37:05,784 start to copy data for city Portland, OR
+2024-04-14 02:48:17,530 Portland, OR is done
+2024-04-14 02:48:17,541 start to copy data for city Rio de Janeiro
+2024-04-14 03:05:26,296 Rio de Janeiro is done
+2024-04-14 03:05:26,434 start to copy data for city Guatemala City
+2024-04-14 03:14:56,785 Guatemala City is done
+2024-04-14 03:14:56,785 start to copy data for city Vijayawada
+2024-04-14 03:18:54,503 Vijayawada is done
+2024-04-14 03:18:54,503 start to copy data for city Medan
+2024-04-14 03:24:51,889 Medan is done
+2024-04-14 03:24:51,900 start to copy data for city Jaipur
+2024-04-14 03:32:53,095 Jaipur is done
+2024-04-14 03:32:53,096 start to copy data for city Dhaka
+2024-04-14 03:54:01,537 Dhaka is done
+2024-04-14 03:54:01,569 start to copy data for city Lagos
+2024-04-14 04:07:48,215 Lagos is done
+2024-04-14 04:07:48,216 start to copy data for city Belo Horizonte
+2024-04-14 04:18:34,398 Belo Horizonte is done
+2024-04-14 04:18:34,448 start to copy data for city Montreal
+2024-04-14 04:25:23,901 Montreal is done
+2024-04-14 04:25:23,902 start to copy data for city Toronto
+2024-04-14 04:32:21,603 Toronto is done
+2024-04-14 04:32:21,604 start to copy data for city Kuala Lumpur
+2024-04-14 04:39:00,130 Kuala Lumpur is done
+2024-04-14 04:39:00,164 start to copy data for city San Francisco
+2024-04-14 04:47:29,893 San Francisco is done
+2024-04-14 04:47:29,894 start to copy data for city Denver
+2024-04-14 04:59:04,011 Denver is done
+2024-04-14 04:59:04,054 start to copy data for city Manila
+2024-04-14 05:06:20,012 Manila is done
+2024-04-14 05:06:20,056 start to copy data for city Tokyo
+2024-04-14 05:21:47,636 Tokyo is done
+2024-04-14 05:21:47,760 start to copy data for city Los Angeles
+2024-04-14 05:40:54,897 Los Angeles is done
+2024-04-14 05:40:54,971 start to copy data for city Minneapolis
+2024-04-14 05:50:43,945 Minneapolis is done
+2024-04-14 05:50:43,945 start to copy data for city Mexico City
+2024-04-14 06:06:12,682 Mexico City is done
+2024-04-14 06:06:12,772 start to copy data for city Seoul
+2024-04-14 06:24:10,261 Seoul is done
+2024-04-14 06:24:10,409 start to copy data for city Cebu City
+2024-04-14 06:32:31,255 Cebu City is done
+2024-04-14 06:32:31,582 start to copy data for city Houston
+2024-04-14 06:52:39,633 Houston is done
+2024-04-14 06:52:39,634 start to copy data for city Victoria
+2024-04-14 06:56:45,260 Victoria is done
+2024-04-14 06:56:45,280 start to copy data for city Saidpur
+2024-04-14 07:02:47,232 Saidpur is done
+2024-04-14 07:02:47,233 start to copy data for city Johannesburg
+2024-04-14 07:22:01,528 Johannesburg is done
+2024-04-14 07:22:01,645 start to copy data for city Berlin
+2024-04-14 07:36:42,178 Berlin is done
+2024-04-14 07:36:42,178 start to copy data for city Paris
+2024-04-14 07:47:09,233 Paris is done
+2024-04-14 07:47:09,259 start to copy data for city Quito
+2024-04-14 07:53:14,767 Quito is done
+2024-04-14 07:53:14,768 start to copy data for city Jakarta
+2024-04-14 08:03:29,316 Jakarta is done
+2024-04-14 08:03:29,341 start to copy data for city Kampala
+2024-04-14 08:11:17,931 Kampala is done
+2024-04-14 08:11:17,972 start to copy data for city Sao Paulo
+2024-04-14 08:27:20,974 Sao Paulo is done
+2024-04-14 08:27:20,989 start to copy data for city Istanbul
+2024-04-14 08:41:16,359 Istanbul is done
+2024-04-14 08:41:16,419 start to copy data for city London
+2024-04-14 08:55:59,061 London is done
+2024-04-14 08:55:59,065 start to copy data for city Rajshahi
+2024-04-14 09:04:11,700 Rajshahi is done
+2024-04-14 09:04:11,747 start to copy data for city Parbhani
+2024-04-14 09:13:44,304 Parbhani is done
+2024-04-14 09:13:44,341 start to copy data for city Athens
+2024-04-14 09:28:48,113 Athens is done
+2024-04-14 09:28:48,187 start to copy data for city Cochabamba
+2024-04-14 09:32:53,854 Cochabamba is done
+2024-04-14 09:32:53,855 start to copy data for city Santiago
+2024-04-14 09:39:13,021 Santiago is done
+2024-04-14 09:39:13,022 start to copy data for city Metro Manila
+2024-04-14 09:56:24,506 Metro Manila is done
+2024-04-14 09:56:24,538 start to copy data for city Delhi
+2024-04-14 10:10:09,201 Delhi is done
+2024-04-14 10:10:09,202 start to copy data for city Ribeirao Preto
+2024-04-14 10:19:21,745 Ribeirao Preto is done
+2024-04-14 10:19:21,765 start to copy data for city Mumbai
+2024-04-14 10:23:17,668 Mumbai is done
+2024-04-14 10:23:17,669 start to copy data for city Rome
+2024-04-14 10:39:03,250 Rome is done
+2024-04-14 10:39:03,326 start to copy data for city Tyumen
+2024-04-14 10:48:17,908 Tyumen is done
+2024-04-14 10:48:17,909 start to copy data for city Manchester
+2024-04-14 10:57:26,741 Manchester is done
+2024-04-14 10:57:26,742 start to copy data for city Dubai
+2024-04-14 11:11:19,756 Dubai is done
+2024-04-14 11:11:19,842 start to copy data for city Amsterdam
+2024-04-14 11:28:37,376 Amsterdam is done
+2024-04-14 11:28:37,376 start to copy data for city Hyderabad
+2024-04-14 11:41:16,800 Hyderabad is done
+2024-04-14 11:41:16,879 start to copy data for city Guadalajara
+2024-04-14 11:47:44,105 Guadalajara is done
+2024-04-14 11:47:44,105 start to copy data for city Kigali
+2024-04-14 11:58:46,275 Kigali is done
+2024-04-14 11:58:46,276 start to copy data for city Vienna
+2024-04-14 12:04:28,945 Vienna is done
+2024-04-14 12:04:28,946 start to copy data for city Hong Kong
+2024-04-14 12:14:50,702 Hong Kong is done
+2024-04-14 12:14:50,730 start to copy data for city Gaborone
+2024-04-14 12:22:45,534 Gaborone is done
+2024-04-14 12:22:45,617 start to copy data for city Berezniki
+2024-04-14 12:29:39,035 Berezniki is done
+2024-04-14 12:29:39,035 start to copy data for city Curitiba

@@ -6,4 +6,6 @@
 */**/.ipynb_checkpoints
 *.pyc
 **/_archived/*
+*.pt
+**/*.pt
 google_drive*

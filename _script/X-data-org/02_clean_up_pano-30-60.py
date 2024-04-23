@@ -109,6 +109,7 @@ def get_gsv_file_size(citylower, meta_folder):
                     file_sizes[file] = 0  # the file is removed
 
         path_df["size"] = path_df["path"].apply(lambda x: file_sizes[x])
+        gsvpath['panoid'] = gsvpath['path'].apply(lambda x: x.split("/")[-1][:22])
         path_df.to_csv(os.path.join(meta_folder, PATH_FILE), index = False)
         print("Finished calculating the file size")
         return path_df
