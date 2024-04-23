@@ -38,13 +38,14 @@ DATACAP = {
 
 for folder in ['train', 'test']:
     print(f"working on the {folder} data")
+    logger.info(f"working on the {folder} data")
+    data = dataset[folder]
     for city in tqdm(train_df['city'].unique()):
         city_folder = os.path.join(YOLOFOLDER, folder, city)
         if not os.path.exists(city_folder):
             os.makedirs(city_folder)
             print(f"start to copy data for city {city}")
             logger.info(f"start to copy data for city {city}")
-            data = dataset[folder]
             temp = data[data['city']==city].reset_index(drop = True)
             cap = DATACAP[folder]
             if temp.shape[0]>cap:
@@ -55,3 +56,5 @@ for folder in ['train', 'test']:
             print(f"{city} is done")
             logger.info(f"{city} is done")
             print("*"*100)
+    logger.info(f"{folder} is done")
+    logger.info("*"*100)
