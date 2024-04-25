@@ -8,4 +8,7 @@
 **/_archived/*
 *.pt
 **/*.pt
+**/run/*
+*/run/*
+*.log
 google_drive*
