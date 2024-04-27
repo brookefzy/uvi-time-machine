@@ -118,7 +118,7 @@ def scrape_waze_city(city_lower, rootfolder, max_retry=5):
 
     url = URL_SCRAPE.format(left=left, bottom=bottom, right=right, top=top)
     get_data(url)
-    sleep.sleep(random.randint(15, 30))
+    sleep.sleep(random.randint(14, 18))
 
 
 def scrape_waze_city_ls(cityls, rootfolder, max_retry=5):
@@ -136,7 +136,7 @@ def scrape_waze_city_ls(cityls, rootfolder, max_retry=5):
         assert left < right, "left should be less than right"
         url = URL_SCRAPE.format(left=left, bottom=bottom, right=right, top=top)
         get_data(url)
-        sleep.sleep(random.randint(15, 30))
+        sleep.sleep(random.randint(14, 18))
 
 
 def main():
