@@ -102,6 +102,7 @@ def main():
     city_meta = add_bound_to_sheet(city_meta)
     # update sheet
     city_meta = city_meta.drop(columns=["city_lower"])
+    print("current data shape": city_meta.shape)
     other_worksheet.update(
         [city_meta.columns.values.tolist()] + city_meta.values.tolist()
     )
