@@ -107,3 +107,7 @@ def main():
     )
     print("Updated the google sheet")
     print("*" * 50)
+
+
+if __name__ == "__main__":
+    main()
