@@ -84,16 +84,18 @@ def get_data(url, max_retry=max_retry):
         raise ValueError("Failed to get data")
     else:
         data = response.json()
-        
+
         today = datetime.today().strftime("%Y-%m-%d")
         month = today.split("-")[1]
         date = today.split("-")[-1]
-        folder_save = """{ROOTFOLDER}/city={city_lower}/month={month}/date={date}""".format(
-            ROOTFOLDER=rootfolder,
-            waze_folder=waze_folder,
-            date=date,
-            month = month,
-            city_lower=city_lower,
+        folder_save = (
+            """{ROOTFOLDER}/city={city_lower}/month={month}/date={date}""".format(
+                ROOTFOLDER=rootfolder,
+                waze_folder=waze_folder,
+                date=date,
+                month=month,
+                city_lower=city_lower,
+            )
         )
         if not os.path.exists(folder_save):
             os.makedirs(folder_save)
@@ -103,7 +105,7 @@ def get_data(url, max_retry=max_retry):
         logger.info(f"Scraped {city_lower} at {now}")
 
 
-def scrape_waze_city(city_lower, rootfolder, max_days=365, max_retry=5):
+def scrape_waze_city(city_lower, rootfolder, max_retry=5):
     city_data = city_meta.loc[city_meta["city_lower"] == city_lower]
     left, bottom, right, top = (
         city_data["left"].values[0],
@@ -113,13 +115,28 @@ def scrape_waze_city(city_lower, rootfolder, max_days=365, max_retry=5):
     )
     # make sure the values are valid
     assert left < right, "left should be less than right"
-    # keep scraping for 1 year
-    stop_time = datetime.now() + timedelta(days=max_days)
 
     url = URL_SCRAPE.format(left=left, bottom=bottom, right=right, top=top)
-    while datetime.now() < stop_time:
+    get_data(url)
+    sleep.sleep(random.randint(15, 30))
+
+
+def scrape_waze_city_ls(cityls, rootfolder, max_retry=5):
+    # keep scraping for 1 year
+    # loop through the cities
+    for city_lower in cityls:
+        city_data = city_meta.loc[city_meta["city_lower"] == city_lower]
+        left, bottom, right, top = (
+            city_data["left"].values[0],
+            city_data["bottom"].values[0],
+            city_data["right"].values[0],
+            city_data["top"].values[0],
+        )
+        # make sure the values are valid
+        assert left < right, "left should be less than right"
+        url = URL_SCRAPE.format(left=left, bottom=bottom, right=right, top=top)
         get_data(url)
-        sleep.sleep(random.randint(30, 60))
+        sleep.sleep(random.randint(15, 30))
 
 
 def main():
@@ -134,7 +151,7 @@ def main():
         "--city",
         type=str,
         default="all",
-        help="City Name to scrape. Default is all cities in the google sheet",
+        help="City Name to scrape. Default is all cities in the google sheet. If more than one city, uses the pattern of city1&&city2&&city3",
     )
     parser.add_argument(
         "--days",
@@ -145,11 +162,20 @@ def main():
     rootfolder = args.rootfolder
     sel_city = args.city
     max_days = args.days
+    stop_time = datetime.now() + timedelta(days=max_days)
     city_meta, other_worksheet = get_city_meta(gc_url)
+
     if sel_city == "all":
-        for city_lower in city_meta["city_lower"].values:
-            scrape_waze_city(city_lower, rootfolder)
+        cityls = city_meta["city_lower"].values
+        while datetime.now() < stop_time:
+            scrape_waze_city_ls(cityls, rootfolder, max_days=max_days)
+
+    elif "&&" in sel_city:
+        cityls = sel_city.split("&&")
+        while datetime.now() < stop_time:
+            scrape_waze_city_ls(cityls, rootfolder, max_days=max_days)
     else:
         print(f"Scraping {sel_city}")
         city_lower = sel_city.replace(" ", "").lower()
-        scrape_waze_city(sel_city, rootfolder)
+        while datetime.now() < stop_time:
+            scrape_waze_city(sel_city, rootfolder)
