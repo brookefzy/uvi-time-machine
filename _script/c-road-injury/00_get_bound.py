@@ -80,7 +80,7 @@ def add_bound_to_sheet(city_meta):
     for i in tqdm(range(len(city_meta))):
         print(city_meta.loc[i])
         test_city = city_meta.loc[i]
-        left, bottom, right, top = get_bound(test_city, city_meta)
+        left, bottom, right, top = get_bound(test_city, rootfolder, city_meta)
         city_meta.loc[i, "left"] = left
         city_meta.loc[i, "bottom"] = bottom
         city_meta.loc[i, "right"] = right
