@@ -90,13 +90,14 @@ def add_bound_to_sheet(city_meta):
 
 
 def main():
-    args = argparse.ArgumentParser(description="Get the bounding box for each city")
-    args.add_argument(
+    parser = argparse.ArgumentParser(description="Get the bounding box for each city")
+    parser.add_argument(
         "--rootfolder",
         type=str,
         default="/lustre1/g/geog_pyloo/05_timemachine/GSV",  # gsv saved folder
         help="root folder for saving the data",
     )
+    args = parser.parse_args()
     rootfolder = args.rootfolder
     city_meta, other_worksheet = get_city_meta(gc_url)
     print(city_meta.shape)

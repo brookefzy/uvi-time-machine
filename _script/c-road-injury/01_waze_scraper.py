@@ -48,47 +48,6 @@ def get_city_meta(gc_url):
     return city_meta, other_worksheet
 
 
-# loop through the cities and get road boundaries
-def get_bound(test_city, rootfolder, city_meta):
-    citylower = test_city["city_lower"]
-    path_to_road = PATH_TO_ROAD.format(ROOTFOLDER=rootfolder, citylower=citylower)
-    road = gpd.read_file(path_to_road)
-    # extract the bounding box
-    road.crs = "EPSG:3857"
-    road = road.to_crs(epsg=4326)
-
-    left, bottom, right, top = road.total_bounds
-    print(left, bottom, right, top)
-    logger.info(f"Bounding box for {citylower} is {left, bottom, right, top}")
-    # make sure the bounding box is valid coordinates in the world
-    if (
-        left < right
-        and bottom < top
-        and -180 <= left <= 180
-        and -90 <= bottom <= 90
-        and -180 <= right <= 180
-        and -90 <= top <= 90
-    ):
-        return left, bottom, right, top
-    else:
-        logger.error(f"Bounding box for {citylower} is not valid")
-        raise ValueError("Bounding box is not valid")
-
-
-# loop through all cities and add the bound to the google sheet
-def add_bound_to_sheet(city_meta):
-    for i in tqdm(range(len(city_meta))):
-        print(city_meta.loc[i])
-        test_city = city_meta.loc[i]
-        left, bottom, right, top = get_bound(test_city, city_meta)
-        city_meta.loc[i, "left"] = left
-        city_meta.loc[i, "bottom"] = bottom
-        city_meta.loc[i, "right"] = right
-        city_meta.loc[i, "top"] = top
-        print("*" * 20, "done", "*" * 20)
-    return city_meta
-
-
 def scrape_waze_city(city_lower, rootfolder, waze_folder="waze_data"):
     from datetime import datetime
 
