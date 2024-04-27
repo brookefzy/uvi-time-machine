@@ -76,7 +76,7 @@ def get_bound(test_city, rootfolder, city_meta):
 
 
 # loop through all cities and add the bound to the google sheet
-def add_bound_to_sheet(city_meta):
+def add_bound_to_sheet(city_meta, rootfolder):
     for i in tqdm(range(len(city_meta))):
         print(city_meta.loc[i])
         test_city = city_meta.loc[i]
@@ -102,7 +102,7 @@ def main():
     city_meta, other_worksheet = get_city_meta(gc_url)
     print(city_meta.shape)
     print("Start getting boundary for all cities")
-    city_meta = add_bound_to_sheet(city_meta)
+    city_meta = add_bound_to_sheet(city_meta, rootfolder)
 
     # update sheet
     city_meta = city_meta.drop(columns=["city_lower"])
