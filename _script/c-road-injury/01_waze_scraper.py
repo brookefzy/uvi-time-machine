@@ -84,16 +84,21 @@ def get_data(url, max_retry=max_retry):
         raise ValueError("Failed to get data")
     else:
         data = response.json()
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        folder_save = """{ROOTFOLDER}/city={city_lower}/datetime={now}""".format(
+        
+        today = datetime.today().strftime("%Y-%m-%d")
+        month = today.split("-")[1]
+        date = today.split("-")[-1]
+        folder_save = """{ROOTFOLDER}/city={city_lower}/month={month}/date={date}""".format(
             ROOTFOLDER=rootfolder,
             waze_folder=waze_folder,
-            now=now,
+            date=date,
+            month = month,
             city_lower=city_lower,
         )
         if not os.path.exists(folder_save):
             os.makedirs(folder_save)
-        with open(f"""{folder_save}/waze.json""", "w") as f:
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with open(f"""{folder_save}/{now}.json""", "w") as f:
             json.dump(data, f)
         logger.info(f"Scraped {city_lower} at {now}")
 
