@@ -99,10 +99,13 @@ def main():
     )
     rootfolder = args.rootfolder
     city_meta, other_worksheet = get_city_meta(gc_url)
+    print(city_meta.shape)
+    print("Start getting boundary for all cities")
     city_meta = add_bound_to_sheet(city_meta)
+
     # update sheet
     city_meta = city_meta.drop(columns=["city_lower"])
-    print("current data shape": city_meta.shape)
+    print("current data shape", city_meta.shape)
     other_worksheet.update(
         [city_meta.columns.values.tolist()] + city_meta.values.tolist()
     )
