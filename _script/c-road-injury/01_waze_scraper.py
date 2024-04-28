@@ -11,7 +11,7 @@ import json
 import multiprocessing as mp
 import argparse
 from datetime import datetime
-import sleep
+import time
 import random
 from datetime import timedelta
 
@@ -21,7 +21,7 @@ logging.basicConfig(
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
-serviceaccount = "../../google_drive_personal.json"
+serviceaccount = "/home/yuanzf/google_drive_personal.json"
 gc = gspread.service_account(filename=serviceaccount)
 gc_url = "https://docs.google.com/spreadsheets/d/1o5gFmZPUoDwrrbfE6M26uJF3HnEZll02ivnOxP6K6Xw/edit?usp=sharing"
 
@@ -69,13 +69,13 @@ def get_response(url):
     return response
 
 
-def get_data(url, max_retry=max_retry):
+def get_data(url, max_retry, rootfolder, city_lower):
     response = get_response(url)
     i = 0
     if (response.status_code != 200) and (i <= max_retry):
         # retry after sleeping for 30 seconds
-        sleep.sleep(30)
-        get_data(url, response)
+        time.sleep(30)
+        get_data(url, max_retry=max_retry, rootfolder=rootfolder, city_lower=city_lower)
         i += 1
         print(response.status_code, "Failed to get data. Retrying", i, "times")
         logger.info(f"Failed to get data. Retrying {i} times")
@@ -91,7 +91,6 @@ def get_data(url, max_retry=max_retry):
         folder_save = (
             """{ROOTFOLDER}/city={city_lower}/month={month}/date={date}""".format(
                 ROOTFOLDER=rootfolder,
-                waze_folder=waze_folder,
                 date=date,
                 month=month,
                 city_lower=city_lower,
@@ -103,9 +102,10 @@ def get_data(url, max_retry=max_retry):
         with open(f"""{folder_save}/{now}.json""", "w") as f:
             json.dump(data, f)
         logger.info(f"Scraped {city_lower} at {now}")
+        print(f"Scraped {city_lower} at {now}")
 
 
-def scrape_waze_city(city_lower, rootfolder, max_retry=5):
+def scrape_waze_city(city_lower, rootfolder, city_meta, max_retry=5):
     city_data = city_meta.loc[city_meta["city_lower"] == city_lower]
     left, bottom, right, top = (
         city_data["left"].values[0],
@@ -117,11 +117,11 @@ def scrape_waze_city(city_lower, rootfolder, max_retry=5):
     assert left < right, "left should be less than right"
 
     url = URL_SCRAPE.format(left=left, bottom=bottom, right=right, top=top)
-    get_data(url)
-    sleep.sleep(random.randint(14, 18))
+    get_data(url, max_retry=max_retry, rootfolder=rootfolder, city_lower=city_lower)
+    time.sleep(random.randint(20, 40))
 
 
-def scrape_waze_city_ls(cityls, rootfolder, max_retry=5):
+def scrape_waze_city_ls(cityls, rootfolder, city_meta, max_retry=5):
     # keep scraping for 1 year
     # loop through the cities
     for city_lower in cityls:
@@ -135,8 +135,9 @@ def scrape_waze_city_ls(cityls, rootfolder, max_retry=5):
         # make sure the values are valid
         assert left < right, "left should be less than right"
         url = URL_SCRAPE.format(left=left, bottom=bottom, right=right, top=top)
-        get_data(url)
-        sleep.sleep(random.randint(14, 18))
+        get_data(url, max_retry=max_retry, rootfolder=rootfolder, city_lower=city_lower)
+
+        time.sleep(random.randint(20, 40))
 
 
 def main():
@@ -159,23 +160,32 @@ def main():
         default=365,
         help="Number of days to scrape. Default is 365 days",
     )
+    args = parser.parse_args()
+
     rootfolder = args.rootfolder
     sel_city = args.city
+    print(f"Root folder is {rootfolder}")
+    print(f"City to scrape is {sel_city}")
     max_days = args.days
+    print(f"Scraping for {max_days} days")
     stop_time = datetime.now() + timedelta(days=max_days)
     city_meta, other_worksheet = get_city_meta(gc_url)
 
     if sel_city == "all":
         cityls = city_meta["city_lower"].values
         while datetime.now() < stop_time:
-            scrape_waze_city_ls(cityls, rootfolder, max_days=max_days)
+            scrape_waze_city_ls(cityls, rootfolder, city_meta)
 
     elif "&&" in sel_city:
         cityls = sel_city.split("&&")
         while datetime.now() < stop_time:
-            scrape_waze_city_ls(cityls, rootfolder, max_days=max_days)
+            scrape_waze_city_ls(cityls, rootfolder, city_meta)
     else:
         print(f"Scraping {sel_city}")
         city_lower = sel_city.replace(" ", "").lower()
         while datetime.now() < stop_time:
-            scrape_waze_city(sel_city, rootfolder)
+            scrape_waze_city(sel_city, rootfolder, city_meta)
+
+
+if __name__ == "__main__":
+    main()
