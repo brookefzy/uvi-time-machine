@@ -11,4 +11,5 @@
 **/runs/*
 */runs/*
 *.log
+**/cache/*
 google_drive*
