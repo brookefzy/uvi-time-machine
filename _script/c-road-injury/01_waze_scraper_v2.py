@@ -91,7 +91,8 @@ def get_response(url):
 def get_data(url, max_retry, rootfolder, city_lower):
     logger = get_logging(datetime.today().strftime("%Y-%m-%d"))
     response = get_response(url)
-    i = 0
+    i = 0  # round of retry
+    j = 0  # round of saving error
     if (response.status_code != 200) and (i <= max_retry):
         # retry after sleeping for 30 seconds
         time.sleep(30)
@@ -120,7 +121,23 @@ def get_data(url, max_retry, rootfolder, city_lower):
             os.makedirs(folder_save)
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with open(f"""{folder_save}/{now}.json""", "w") as f:
-            json.dump(data, f)
+            try:
+                json.dump(data, f)
+            except:
+                # if the data cannot be saved, print the error and create a new folder to save it
+                print(f"Error in saving {city_lower} at {now}")
+                logger.info(f"Error in saving {city_lower} at {now}")
+                folder_save = """{ROOTFOLDER}_r{j}/city={city_lower}/month={month}/date={date}""".format(
+                    ROOTFOLDER=rootfolder,
+                    date=date,
+                    month=month,
+                    city_lower=city_lower,
+                )
+                if not os.path.exists(folder_save):
+                    os.makedirs(folder_save)
+                with open(f"""{folder_save}/{now}.json""", "w") as f:
+                    json.dump(data, f)
+
         logger.info(f"Scraped {city_lower} at {now}")
         print(f"Scraped {city_lower} at {now}")
 
