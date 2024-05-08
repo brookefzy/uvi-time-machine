@@ -125,6 +125,7 @@ def get_data(url, max_retry, rootfolder, city_lower):
                 json.dump(data, f)
             except:
                 # if the data cannot be saved, print the error and create a new folder to save it
+                # show the error message
                 print(f"Error in saving {city_lower} at {now}")
                 logger.info(f"Error in saving {city_lower} at {now}")
                 folder_save = """{ROOTFOLDER}_r{j}/city={city_lower}/month={month}/date={date}""".format(
@@ -132,6 +133,7 @@ def get_data(url, max_retry, rootfolder, city_lower):
                     date=date,
                     month=month,
                     city_lower=city_lower,
+                    j=j,
                 )
                 if not os.path.exists(folder_save):
                     os.makedirs(folder_save)
