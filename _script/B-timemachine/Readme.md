@@ -27,9 +27,16 @@
 2. economic status 2015 and 2022 (GDP) or 
 3. smart-mobile phone penetration rate
 
+## Code Structure:
+1. run oneformer to extract pixel level and object level detection results per images
+2. run `04_pano_post.py` and `04_seg_post.py` for data summary
+
 ## Data
 ### Source of Fatality
 #### DALYs (Disability Adjusted Life Years)
+```DALYs are a combination of the sum of the years of potential life lost due to premature mortality and years of productive life lost due to a disability per 100 000 population. (https://www.thelancet.com/journals/lanplh/article/PIIS2542-5196(19)30263-3/fulltext#supplementaryMaterial)
+```
+
 * https://www.who.int/data/gho/data/themes/mortality-and-global-health-estimates/global-health-estimates-leading-causes-of-dalys
 #### Fatality
 * US: https://www.cdc.gov/nchs/pressroom/sosmap/accident_mortality/accident.htm

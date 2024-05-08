@@ -55,6 +55,9 @@ def get_bound(test_city, rootfolder, city_meta):
     road = gpd.read_file(path_to_road)
     # extract the bounding box
     road.crs = "EPSG:3857"
+    print(road.crs)
+    if road.crs is None:
+        road.crs = "EPSG:3857"
     road = road.to_crs(epsg=4326)
 
     left, bottom, right, top = road.total_bounds
