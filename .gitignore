@@ -9,6 +9,7 @@
 *.pt
 **/*.pt
 **/runs/*
+_script/A-city-never-was/runs/*
 */runs/*
 *.log
 **/cache/*
