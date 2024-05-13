@@ -12,4 +12,6 @@
 */runs/*
 *.log
 **/cache/*
+**/_archive/*
+**.yaml
 google_drive*

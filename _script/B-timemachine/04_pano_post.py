@@ -10,11 +10,11 @@ PANO_PATH = "{ROOTFOLDER}/GSV/gsv_rgb/{cityabbr}/gsvmeta/gsv_pano.csv"
 CURATED_FOLDER = f"{ROOTFOLDER}/_curated"
 META_PATH = "{ROOTFOLDER}/GSV/gsv_rgb/{cityabbr}/gsvmeta/{cityabbr}_meta.csv"
 
-EXFOLDER = os.path.join(CURATED_FOLDER, "c_seg_crossectional")
+EXFOLDER = os.path.join(CURATED_FOLDER, "c_pano_crossectional")
 if not os.path.exists(EXFOLDER):
     os.makedirs(EXFOLDER)
     
-EXFOLDER_LONG = os.path.join(CURATED_FOLDER, "c_seg_longitudinal")
+EXFOLDER_LONG = os.path.join(CURATED_FOLDER, "c_pano_longitudinal")
 if not os.path.exists(EXFOLDER_LONG):
     os.makedirs(EXFOLDER_LONG)
     
@@ -32,20 +32,18 @@ def get_seg_types():
     person = [12]
     bike = [127, 116]
     sky = [2]
-    road = [6]
-    sel = building + greenery + street_furniture + sidewalk + car + person + bike +sky + road
+    sel = building + greenery + street_furniture + sidewalk + car + person + bike +sky
     other = [x for x in range(150) if not x in sel]
 
     obj_dicts = {
-        "building":building,
-        "greenery":greenery,
+        # "building":building,
+        # "greenery":greenery,
         "street_furniture":street_furniture,
-        "sidewalk": sidewalk,
+        # "sidewalk": sidewalk,
         "car":car,
         "person":person,
         "bike":bike,
-        "sky":sky,
-        "road":road,
+        # "sky":sky,
         "other":other,
     }
     def get_cat(label):
@@ -70,34 +68,37 @@ def get_result(cityabbr, curated_folder, f_suffixes = "*panoptic.csv"):
     panoptic_df = pd.concat(panoptic_df).reset_index(drop = True)
     return panoptic_df
 
-def clean_seg(seg_df, ring):
+def clean_pano(panoptic_df, ring):
     _, obj_dict_rev = get_seg_types()
-    seg_df['cat'] = seg_df['labels'].apply(lambda x: obj_dict_rev[x])
-    seg_df_summary = seg_df.groupby(["img", "cat"]).agg({'areas':'sum'}).reset_index()
-    seg_df_summary = seg_df_summary[seg_df_summary["cat"]!="other"].reset_index(drop = True)
-    seg_df_summary['panoid'] = seg_df_summary['img'].apply(lambda x: x[:22])
-    seg_df_summary_pano = seg_df_summary.merge(ring, on = ['panoid'])
-    if seg_df_summary_pano.shape[0]<seg_df_summary.shape[0]:
+    panoptic_df = panoptic_df[panoptic_df["img"].notnull()].reset_index(drop = True)
+    panoptic_df['cat'] = panoptic_df["category_id"].apply(lambda x: obj_dict_rev[x])
+    
+    panoptic_df = panoptic_df[~panoptic_df['cat'].isin(['other', 'greenery'])].reset_index(drop = True)
+    panoptic_df_summary = panoptic_df[panoptic_df['isthing']==True].groupby(["img","cat"])['id'].nunique().reset_index()
+    panoptic_df_summary = panoptic_df_summary[panoptic_df_summary["cat"]!="other"].reset_index(drop = True)
+    panoptic_df_summary['panoid'] = panoptic_df_summary['img'].apply(lambda x: x[:22])
+    panoptic_df_summary_pano = panoptic_df_summary.merge(ring, on = ['panoid'])
+    if panoptic_df_summary_pano.shape[0]<panoptic_df_summary.shape[0]:
         print("data missing after data join.")
     else:
         print("data consistent")
     col_cols = ["cat"]
     index_cols = ["img", "year", "h3_6", "h3_9", "h3_12", "ring"]
-    seg_df_summary_pano = seg_df_summary_pano.drop_duplicates(index_cols+col_cols)
-    print("Segmentation shape: ", seg_df_summary_pano.shape[0])
-    seg_df_pivot = seg_df_summary_pano.pivot(
+    panoptic_df_summary_pano = panoptic_df_summary_pano.drop_duplicates(index_cols+col_cols)
+    print("Segmentation shape: ", panoptic_df_summary_pano.shape[0])
+    panoptic_df_pivot = panoptic_df_summary_pano.pivot(
         columns = ["cat"],
         index = ["img", "year", "h3_6", "h3_9", "h3_12", "ring"],
-        values = "areas"
+        values = "id"
     ).reset_index().fillna(0)
-    return seg_df_pivot
+    return panoptic_df_pivot
 
-def get_crossectional(seg_df_pivot, ops):
+def get_crossectional(panoptic_df_pivot, ops):
     
     h3_summary_no_year = []
     for res in [6, 9, 12]:
         # for each resolution of h3 id we get a average pixel of one category
-        df_h3_summary = seg_df_pivot.groupby([f'h3_{res}', 'ring']).agg(ops).reset_index()\
+        df_h3_summary = panoptic_df_pivot.groupby([f'h3_{res}', 'ring']).agg(ops).reset_index()\
         .rename(columns = {f'h3_{res}':"hex_id"})
         df_h3_summary["res"] = res
         h3_summary_no_year.append(df_h3_summary)
@@ -106,16 +107,16 @@ def get_crossectional(seg_df_pivot, ops):
     return h3_summary_no_year
 
 # assume the data can be understand every year
-def get_longitudinal(seg_df_pivot, ops):
+def get_longitudinal(panoptic_df_pivot, ops):
     year_group1 = [2015,2016,2017,2018]
     year_group2 = [2020, 2021, 2022, 2023]
     null_group = [2019] # do not use this for now
-    seg_df_summary_pano = seg_df_pivot[~seg_df_pivot["year"].isin(null_group)].reset_index(drop = True)
-    seg_df_summary_pano['year_group'] = np.where(seg_df_summary_pano["year"]<=2018, '2015-2018', '2020-2023')
+    panoptic_df_summary_pano = panoptic_df_pivot[~panoptic_df_pivot["year"].isin(null_group)].reset_index(drop = True)
+    panoptic_df_summary_pano['year_group'] = np.where(panoptic_df_summary_pano["year"]<=2018, '2015-2018', '2020-2023')
     h3_summary = []
     for res in [6, 9, 12]:
         # for each resolution of h3 id we get a average pixel of one category
-        df_h3_summary = seg_df_summary_pano.groupby([f'h3_{res}','ring','year_group']).agg(ops).reset_index()\
+        df_h3_summary = panoptic_df_summary_pano.groupby([f'h3_{res}','ring','year_group']).agg(ops).reset_index()\
         .rename(columns = {f'h3_{res}':"hex_id"})
         df_h3_summary["res"] = res
         h3_summary.append(df_h3_summary)
@@ -125,7 +126,7 @@ def get_longitudinal(seg_df_pivot, ops):
 
 def load_data(city, ops):
     cityabbr = city.lower().replace(" ", "")
-    seg_df = get_result(cityabbr, CURATED_FOLDER, f_suffixes = "*seg.csv")
+    panoptic_df = get_result(cityabbr, CURATED_FOLDER)
     pano_df = pd.read_csv(PANO_PATH.format(
     ROOTFOLDER = ROOTFOLDER,
     cityabbr = cityabbr
@@ -143,12 +144,12 @@ def load_data(city, ops):
     ring["ring"] = ring["ring"].fillna(-1)
     # here make sure 
     
-    seg_df_pivot = clean_seg(seg_df, ring)
-    seg_crossectional = get_crossectional(seg_df_pivot, ops)
-    seg_longitudinal = get_longitudinal(seg_df_pivot, ops)
+    panoptic_df_pivot = clean_pano(panoptic_df, ring)
+    panoptic_crossectional = get_crossectional(panoptic_df_pivot, ops)
+    panoptic_longitudinal = get_longitudinal(panoptic_df_pivot, ops)
 
-    seg_crossectional.to_parquet(os.path.join(EXFOLDER, cityabbr+".parquet"), index = False)
-    seg_longitudinal.to_parquet(os.path.join(EXFOLDER_LONG, cityabbr+".parquet"), index = False)
+    panoptic_crossectional.to_parquet(os.path.join(EXFOLDER, cityabbr+".parquet"), index = False)
+    panoptic_longitudinal.to_parquet(os.path.join(EXFOLDER_LONG, cityabbr+".parquet"), index = False)
     print(f"city {cityabbr} saved")
     print("*"*50)
     
@@ -184,13 +185,12 @@ def main():
     city_meta = load_all()
     ops, obj_dict_rev = get_seg_types()
     # finished = check_finished()
-    allcity = city_meta["City"].values
     city_to_process = ['Delhi']
+    
     for city in city_to_process:
         cityabbr = city.lower().replace(" ", "")
         # if not cityabbr in finished:
-            # print(f"{city} has not been processed.")
-
+        #     print(f"{city} has not been processed.")
         try:
             load_data(city, ops)
         except:
