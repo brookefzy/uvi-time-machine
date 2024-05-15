@@ -83,12 +83,12 @@ def clean_pano(panoptic_df, ring):
     else:
         print("data consistent")
     col_cols = ["cat"]
-    index_cols = ["img", "year", "h3_6", "h3_9", "h3_12", "ring"]
+    index_cols = ["img", "year", "h3_6", "h3_9", "h3_12"]
     panoptic_df_summary_pano = panoptic_df_summary_pano.drop_duplicates(index_cols+col_cols)
     print("Segmentation shape: ", panoptic_df_summary_pano.shape[0])
     panoptic_df_pivot = panoptic_df_summary_pano.pivot(
         columns = ["cat"],
-        index = ["img", "year", "h3_6", "h3_9", "h3_12", "ring"],
+        index = ["img", "year", "h3_6", "h3_9", "h3_12"],
         values = "id"
     ).reset_index().fillna(0)
     return panoptic_df_pivot
@@ -98,7 +98,7 @@ def get_crossectional(panoptic_df_pivot, ops):
     h3_summary_no_year = []
     for res in [6, 9, 12]:
         # for each resolution of h3 id we get a average pixel of one category
-        df_h3_summary = panoptic_df_pivot.groupby([f'h3_{res}', 'ring']).agg(ops).reset_index()\
+        df_h3_summary = panoptic_df_pivot.groupby([f'h3_{res}']).agg(ops).reset_index()\
         .rename(columns = {f'h3_{res}':"hex_id"})
         df_h3_summary["res"] = res
         h3_summary_no_year.append(df_h3_summary)
@@ -116,7 +116,7 @@ def get_longitudinal(panoptic_df_pivot, ops):
     h3_summary = []
     for res in [6, 9, 12]:
         # for each resolution of h3 id we get a average pixel of one category
-        df_h3_summary = panoptic_df_summary_pano.groupby([f'h3_{res}','ring','year_group']).agg(ops).reset_index()\
+        df_h3_summary = panoptic_df_summary_pano.groupby([f'h3_{res}','year_group']).agg(ops).reset_index()\
         .rename(columns = {f'h3_{res}':"hex_id"})
         df_h3_summary["res"] = res
         h3_summary.append(df_h3_summary)
@@ -185,7 +185,7 @@ def main():
     city_meta = load_all()
     ops, obj_dict_rev = get_seg_types()
     # finished = check_finished()
-    city_to_process = ['Delhi']
+    city_to_process = city_meta['City'].unique()
     
     for city in city_to_process:
         cityabbr = city.lower().replace(" ", "")

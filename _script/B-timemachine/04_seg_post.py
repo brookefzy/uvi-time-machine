@@ -47,6 +47,7 @@ def get_seg_types():
         "sky":sky,
         "road":road,
         "other":other,
+        
     }
     def get_cat(label):
         for obj, v in obj_dicts.items():
@@ -55,7 +56,7 @@ def get_seg_types():
     obj_dict_rev = {}
     for x in range(150):
         obj_dict_rev[x] = get_cat(x)
-    ops = {}
+    ops = {"img":"nunique"}
     for label in list(obj_dicts.keys())[:-1]:
         ops[label] = "mean"
     return ops, obj_dict_rev
@@ -82,12 +83,12 @@ def clean_seg(seg_df, ring):
     else:
         print("data consistent")
     col_cols = ["cat"]
-    index_cols = ["img", "year", "h3_6", "h3_9", "h3_12", "ring"]
+    index_cols = ["img", "year", "h3_6", "h3_9", "h3_12"]
     seg_df_summary_pano = seg_df_summary_pano.drop_duplicates(index_cols+col_cols)
     print("Segmentation shape: ", seg_df_summary_pano.shape[0])
     seg_df_pivot = seg_df_summary_pano.pivot(
         columns = ["cat"],
-        index = ["img", "year", "h3_6", "h3_9", "h3_12", "ring"],
+        index = ["img", "year", "h3_6", "h3_9", "h3_12"],
         values = "areas"
     ).reset_index().fillna(0)
     return seg_df_pivot
@@ -97,8 +98,8 @@ def get_crossectional(seg_df_pivot, ops):
     h3_summary_no_year = []
     for res in [6, 9, 12]:
         # for each resolution of h3 id we get a average pixel of one category
-        df_h3_summary = seg_df_pivot.groupby([f'h3_{res}', 'ring']).agg(ops).reset_index()\
-        .rename(columns = {f'h3_{res}':"hex_id"})
+        df_h3_summary = seg_df_pivot.groupby([f'h3_{res}']).agg(ops).reset_index()\
+        .rename(columns = {f'h3_{res}':"hex_id", "img":"img_count"})
         df_h3_summary["res"] = res
         h3_summary_no_year.append(df_h3_summary)
         print("resolution: ", res)
@@ -115,8 +116,8 @@ def get_longitudinal(seg_df_pivot, ops):
     h3_summary = []
     for res in [6, 9, 12]:
         # for each resolution of h3 id we get a average pixel of one category
-        df_h3_summary = seg_df_summary_pano.groupby([f'h3_{res}','ring','year_group']).agg(ops).reset_index()\
-        .rename(columns = {f'h3_{res}':"hex_id"})
+        df_h3_summary = seg_df_summary_pano.groupby([f'h3_{res}','year_group']).agg(ops).reset_index()\
+        .rename(columns = {f'h3_{res}':"hex_id", "img":"img_count"})
         df_h3_summary["res"] = res
         h3_summary.append(df_h3_summary)
     h3_summary = pd.concat(h3_summary).reset_index(drop = True)
@@ -185,7 +186,7 @@ def main():
     ops, obj_dict_rev = get_seg_types()
     # finished = check_finished()
     allcity = city_meta["City"].values
-    city_to_process = ['Delhi']
+    city_to_process = allcity
     for city in city_to_process:
         cityabbr = city.lower().replace(" ", "")
         # if not cityabbr in finished:
