@@ -11,7 +11,7 @@ VALFOLDER = (
     "/lustre1/g/geog_pyloo/05_timemachine/_transformed/t_classifier_img_yolo8_inf_dir"
 )
 CURATED_FOLDER = (
-    "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_classifiier_infer"
+    "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_classifier_infer"
 )
 if not os.path.exists(CURATED_FOLDER):
     os.makedirs(CURATED_FOLDER)
@@ -56,7 +56,7 @@ def get_finished(f):
         return []
 
 
-for f in ALL_TO_INFER[5:]:
+for f in ALL_TO_INFER:
     print("Inferencing", f)
     city = f.replace(".parquet", "")
     CURATED_CITY_FOLDER = os.path.join(CURATED_FOLDER, city)
