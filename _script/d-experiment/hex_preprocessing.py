@@ -94,6 +94,8 @@ CURATED_PANO_CROSS = "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_pano_cross
 RAW_PATH = "/lustre1/g/geog_pyloo/05_timemachine/GSV/gsv_rgb/{city}/gsvmeta/{city}_meta.csv"
 
 CURATED_TARGET = "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_seg_hex"
+if not os.path.exists(CURATED_TARGET):
+    os.makedirs(CURATED_TARGET)
 GRAPHIC_PATH = "/lustre1/g/geog_pyloo/05_timemachine/_graphic"
 if not os.path.exists(GRAPHIC_PATH):
     os.makedirs(GRAPHIC_PATH)
