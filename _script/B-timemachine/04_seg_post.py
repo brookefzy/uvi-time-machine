@@ -19,23 +19,19 @@ if not os.path.exists(EXFOLDER_LONG):
     os.makedirs(EXFOLDER_LONG)
     
 TOTAL_PX = 160000
-H3_RES = [8, 9, 12]
 
 ##################################################################
 ############### CLEAN UP SEG TYPE
 ##################################################################
 def get_seg_types():
-    building = [0, 1, 25]
-    skyscraper = [48]
+    building = [0, 1, 25, 48]
     greenery = [4, 9, 17, 66, 72]
     street_furniture = [19, 15, 31, 69, 82, 136, 138]
-    railing = [38,]
     sidewalk = [11]
     car = [20, 80, 83, 102]
     person = [12]
     bike = [127, 116]
     sky = [2]
-    hill = [68]
     road = [6]
     sel = building + greenery + street_furniture + sidewalk + car + person + bike +sky + road
     other = [x for x in range(150) if not x in sel]
@@ -75,18 +71,24 @@ def get_result(cityabbr, curated_folder, f_suffixes = "*panoptic.csv"):
     panoptic_df = pd.concat(panoptic_df).reset_index(drop = True)
     return panoptic_df
 
-def clean_seg(seg_df):
-    # _, obj_dict_rev = get_seg_types()
-    seg_df_summary = seg_df.groupby(["img", "labels"]).agg({'areas':'sum'}).reset_index()
+def clean_seg(seg_df, ring):
+    _, obj_dict_rev = get_seg_types()
+    seg_df['cat'] = seg_df['labels'].apply(lambda x: obj_dict_rev[x])
+    seg_df_summary = seg_df.groupby(["img", "cat"]).agg({'areas':'sum'}).reset_index()
+    seg_df_summary = seg_df_summary[seg_df_summary["cat"]!="other"].reset_index(drop = True)
     seg_df_summary['panoid'] = seg_df_summary['img'].apply(lambda x: x[:22])
-
-    col_cols = ["labels"]
-    index_cols = ["img", "year", "h3_8", "h3_9", "h3_12"]
-    seg_df_summary = seg_df_summary.drop_duplicates(index_cols+col_cols)
-    print("Segmentation shape: ", seg_df_summary.shape[0])
+    seg_df_summary_pano = seg_df_summary.merge(ring, on = ['panoid'])
+    if seg_df_summary_pano.shape[0]<seg_df_summary.shape[0]:
+        print("data missing after data join.")
+    else:
+        print("data consistent")
+    col_cols = ["cat"]
+    index_cols = ["img", "year", "h3_6", "h3_9", "h3_12"]
+    seg_df_summary_pano = seg_df_summary_pano.drop_duplicates(index_cols+col_cols)
+    print("Segmentation shape: ", seg_df_summary_pano.shape[0])
     seg_df_pivot = seg_df_summary_pano.pivot(
-        columns = col_cols,
-        index = index_cols,
+        columns = ["cat"],
+        index = ["img", "year", "h3_6", "h3_9", "h3_12"],
         values = "areas"
     ).reset_index().fillna(0)
     return seg_df_pivot
@@ -94,7 +96,7 @@ def clean_seg(seg_df):
 def get_crossectional(seg_df_pivot, ops):
     
     h3_summary_no_year = []
-    for res in H3_RES:
+    for res in [6, 9, 12]:
         # for each resolution of h3 id we get a average pixel of one category
         df_h3_summary = seg_df_pivot.groupby([f'h3_{res}']).agg(ops).reset_index()\
         .rename(columns = {f'h3_{res}':"hex_id", "img":"img_count"})
@@ -112,7 +114,7 @@ def get_longitudinal(seg_df_pivot, ops):
     seg_df_summary_pano = seg_df_pivot[~seg_df_pivot["year"].isin(null_group)].reset_index(drop = True)
     seg_df_summary_pano['year_group'] = np.where(seg_df_summary_pano["year"]<=2018, '2015-2018', '2020-2023')
     h3_summary = []
-    for res in H3_RES:
+    for res in [6, 9, 12]:
         # for each resolution of h3 id we get a average pixel of one category
         df_h3_summary = seg_df_summary_pano.groupby([f'h3_{res}','year_group']).agg(ops).reset_index()\
         .rename(columns = {f'h3_{res}':"hex_id", "img":"img_count"})
@@ -130,16 +132,19 @@ def load_data(city, ops):
     cityabbr = cityabbr
     ))[['panoid', 'lat', 'lon', 'year', 'month']]
 
-    for res in H3_RES:
+    for res in [6,9,12]:
         pano_df[f'h3_{res}'] = pano_df.apply(lambda x: h3.geo_to_h3(x.lat, x.lon, res), axis=1)
         
     meta_df = pd.read_csv(META_PATH.format(
         ROOTFOLDER = ROOTFOLDER,
         cityabbr = cityabbr
     ))
+
+    ring = meta_df[['panoid', 'ring']].drop_duplicates().dropna().merge(pano_df, on = "panoid", how = "right")
+    ring["ring"] = ring["ring"].fillna(-1)
     # here make sure 
     
-    seg_df_pivot = clean_seg(seg_df)
+    seg_df_pivot = clean_seg(seg_df, ring)
     seg_crossectional = get_crossectional(seg_df_pivot, ops)
     seg_longitudinal = get_longitudinal(seg_df_pivot, ops)
 
@@ -153,27 +158,26 @@ def check_finished():
     return finished
     
 def load_all():
-#     serviceaccount = "../../google_drive_personal.json"
-#     import gspread
+    serviceaccount = "../../google_drive_personal.json"
+    import gspread
 
-#     # from oauth2client.service_account import ServiceAccountCredentials
-#     gc = gspread.service_account(filename=serviceaccount)
-
-
-#     def read_url(url, SHEET_NAME):
-#         SHEET_ID = url.split("/")[5]
-#         spreadsheet = gc.open_by_key(SHEET_ID)
-#         worksheet = spreadsheet.worksheet(SHEET_NAME)
-#         rows = worksheet.get_all_records()
-#         df_spread = pd.DataFrame(rows)
-#         return df_spread, worksheet
+    # from oauth2client.service_account import ServiceAccountCredentials
+    gc = gspread.service_account(filename=serviceaccount)
 
 
-#     url = "https://docs.google.com/spreadsheets/d/1o5gFmZPUoDwrrbfE6M26uJF3HnEZll02ivnOxP6K6Xw/edit?usp=sharing"
-#     SHEETNAME = "select_city_classifier"
-#     city_meta, other_worksheet = read_url(url, SHEETNAME)
-#     city_meta = city_meta[city_meta['City']!=''].reset_index(drop = True)
-    city_meta = pd.read_csv("../city_meta.csv")
+    def read_url(url, SHEET_NAME):
+        SHEET_ID = url.split("/")[5]
+        spreadsheet = gc.open_by_key(SHEET_ID)
+        worksheet = spreadsheet.worksheet(SHEET_NAME)
+        rows = worksheet.get_all_records()
+        df_spread = pd.DataFrame(rows)
+        return df_spread, worksheet
+
+
+    url = "https://docs.google.com/spreadsheets/d/1o5gFmZPUoDwrrbfE6M26uJF3HnEZll02ivnOxP6K6Xw/edit?usp=sharing"
+    SHEETNAME = "select_city_classifier"
+    city_meta, other_worksheet = read_url(url, SHEETNAME)
+    city_meta = city_meta[city_meta['City']!=''].reset_index(drop = True)
     return city_meta
 # step 1
 
