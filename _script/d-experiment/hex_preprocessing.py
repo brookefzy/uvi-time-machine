@@ -107,11 +107,12 @@ obj_meta = load_class()
 print("Loaded: ", obj_meta.shape[0])
 n_cat = len(obj_meta["category"].unique())
 print("Number of categories: ", n_cat)
+
 print("Exporting staging files for later analysis")
 
 for res in df_seg["res"].unique():
     df_temp = df_seg[df_seg["res"] == res]
     df_temp_update, _ = construct_cat(df_temp, obj_meta)
-    df_temp_update.to_parquet(CURATED_TARGET+"/c_seg_cat={n_cat}_res={res}.parquet", index = False)
+    df_temp_update.to_parquet(CURATED_TARGET+f"/c_seg_cat={n_cat}_res={res}.parquet", index = False)
     print("Exported: ", res)
     
