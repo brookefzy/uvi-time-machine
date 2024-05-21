@@ -102,8 +102,12 @@ if not os.path.exists(GRAPHIC_PATH):
 
 ##################### EXPORT STAGING FILES FOR LATER ANALYSIS############################################################
 df_seg = get_cross(CURATED_FOLDER_CROSS)
+print("Loaded: ", df_seg.shape[0])
 obj_meta = load_class()
+print("Loaded: ", obj_meta.shape[0])
 n_cat = len(obj_meta["category"].unique())
+print("Number of categories: ", n_cat)
+print("Exporting staging files for later analysis")
 
 for res in df_seg["res"].unique():
     df_temp = df_seg[df_seg["res"] == res]
