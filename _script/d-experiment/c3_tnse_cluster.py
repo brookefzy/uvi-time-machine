@@ -24,16 +24,9 @@ import os
 DATA_FOLDER = "/group/geog_pyloo/08_GSV/data/_curated/c_seg_hex"
 BOUNDARY_FOLDER = "/group/geog_pyloo/08_GSV/data/_raw/r_boundary_osm"
 
-GRAPHIC_PATH = "/group/geog_pyloo/08_GSV/_graphic/cluster/allcities"
-GRAPHIC_PATH_INNER = "/group/geog_pyloo/08_GSV/_graphic/cluster/allcities_inner"
-
-if not os.path.exists(GRAPHIC_PATH):
-    os.makedirs(GRAPHIC_PATH)
-if not os.path.exists(GRAPHIC_PATH_INNER):
-    os.makedirs(GRAPHIC_PATH_INNER)
-res = 9
+GRAPHIC_PATH = "/group/geog_pyloo/08_GSV/_graphic/cluster/allcities_c={n}"
+GRAPHIC_PATH_INNER = "/group/geog_pyloo/08_GSV/_graphic/cluster/allcities_inner_c={n}"
 FILENAME = "c_seg_cat=31_res={res}_tsne.parquet"
-df = pd.read_parquet(os.path.join(DATA_FOLDER, FILENAME.format(res=res)))
 
 
 def cell_to_shapely(cell):
@@ -43,14 +36,21 @@ def cell_to_shapely(cell):
 
 
 # loop through all cities and save the graphic and data
-def get_result(city):
+def get_result(df, city, n):
+    # make folder
+    if not os.path.exists(GRAPHIC_PATH.format(n=n)):
+        os.makedirs(GRAPHIC_PATH.format(n=n))
+    if not os.path.exists(GRAPHIC_PATH_INNER.format(n=n)):
+        os.makedirs(GRAPHIC_PATH_INNER.format(n=n))
+    print("folder generated")
     cityabbr = city.lower().replace(" ", "")
+
     sample = df[df["city_lower"] == cityabbr].reset_index(drop=True)
     h3_geoms = sample["hex_id"].apply(lambda x: cell_to_shapely(x))
-    df_sel_gdf = gpd.GeoDataFrame(sample[["hex_id", "cluster"]], geometry=h3_geoms)
+    df_sel_gdf = gpd.GeoDataFrame(sample[["hex_id", f"cluster_{n}"]], geometry=h3_geoms)
     df_sel_gdf.crs = "EPSG:4326"
 
-    df_sel_gdf["cluster"] = df_sel_gdf["cluster"].astype(str)
+    df_sel_gdf[f"cluster_{n}"] = df_sel_gdf[f"cluster_{n}"].astype(str)
 
     # load boundary
     cityabbrshort = cityabbr.split(",")[0]
@@ -66,16 +66,16 @@ def get_result(city):
         print("Too few hex in the city")
         with open("problem_city.txt", "a") as f:
             f.write(city + ": too few sample problem" + "\n")
-    df_sel_gdf.plot(figsize=(10, 10), column="cluster", legend=True, linewidth=0.1)
+    df_sel_gdf.plot(figsize=(10, 10), column=f"cluster_{n}", legend=True, linewidth=0.1)
     plt.title(city)
     plt.savefig(
-        os.path.join(GRAPHIC_PATH, f"{city}_cluster=7-tsn-res=9.png"),
+        os.path.join(GRAPHIC_PATH, f"{city}_cluster={n}-tsn-res=9.png"),
         dpi=200,
         bbox_inches="tight",
     )
 
     df_sel_gdf_intersect.plot(
-        figsize=(10, 10), column="cluster", legend=True, linewidth=0.1
+        figsize=(10, 10), column=f"cluster_{n}", legend=True, linewidth=0.1
     )
     plt.title(city)
     # hide the plot grid
@@ -83,7 +83,7 @@ def get_result(city):
     # hide the axis
     plt.axis("off")
     plt.savefig(
-        os.path.join(GRAPHIC_PATH_INNER, f"{city}_cluster=7-tsn-res=9.png"),
+        os.path.join(GRAPHIC_PATH_INNER, f"{city}_cluster={n}-tsn-res=9.png"),
         dpi=200,
         bbox_inches="tight",
     )
@@ -91,31 +91,52 @@ def get_result(city):
     return df_sel_gdf, df_sel_gdf_intersect
 
 
-data = df[["tsne_1", "tsne_2"]].copy()
-N = 7
-km = KMeans(n_clusters=N, random_state=0)
-km.fit(data)
-df["cluster"] = km.labels_
-df["cluster"] = df["cluster"].astype(str)
+def generate_cluster(df, n):
+    res = 9
 
-allgdf = []
-allgdf_intersect = []
-for city in tqdm(df["city_lower"].unique()):
-    try:
-        df_sel_gdf, df_sel_gdf_intersect = get_result(city)
+    data = df[["tsne_1", "tsne_2"]].copy()
+
+    km = KMeans(n_clusters=n, random_state=0)
+    km.fit(data)
+    df[f"cluster_{n}"] = km.labels_
+    df[f"cluster_{n}"] = df[f"cluster_{n}"].astype(str)
+
+    allgdf = []
+    allgdf_intersect = []
+    for city in tqdm(df["city_lower"].unique()):
+        print(city)
+        # try:
+        df_sel_gdf, df_sel_gdf_intersect = get_result(df, city, n)
         df_sel_gdf["city_lower"] = city
         df_sel_gdf_intersect["city_lower"] = city
         allgdf.append(df_sel_gdf.drop(columns=["geometry"], axis=1))
         allgdf_intersect.append(df_sel_gdf_intersect.drop(columns=["geometry"], axis=1))
         print("*" * 100)
-    except:
-        # log the city with problem
-        with open("problem_city.txt", "a") as f:
-            f.write(city + ": other problem" + "\n")
-        print("problem with city: ", city)
-allgdf = pd.concat(allgdf).reset_index(drop=True)
-allgdf_intersect = pd.concat(allgdf_intersect).reset_index(drop=True)
-allgdf.to_csv(os.path.join(DATA_FOLDER, "allcity_cluster=7-tsn-res=9.csv"), index=False)
-allgdf_intersect.to_csv(
-    os.path.join(DATA_FOLDER, "allcity_cluster=7-tsn-res=9_inner.csv"), index=False
-)
+        # except:
+        #     # log the city with problem
+        #     with open("problem_city.txt", "a") as f:
+        #         f.write(city + ": other problem" + "\n")
+        #     print("problem with city: ", city)
+    allgdf = pd.concat(allgdf).reset_index(drop=True)
+    allgdf_intersect = pd.concat(allgdf_intersect).reset_index(drop=True)
+    allgdf.to_csv(
+        os.path.join(DATA_FOLDER, f"allcity_cluster={n}-tsn-res={res}.csv"), index=False
+    )
+    allgdf_intersect.to_csv(
+        os.path.join(DATA_FOLDER, f"allcity_cluster={n}-tsn-res={res}_inner.csv"),
+        index=False,
+    )
+
+
+def main():
+    res = 9
+    df = pd.read_parquet(os.path.join(DATA_FOLDER, FILENAME.format(res=res)))
+    print(df.head())
+    for n in [7, 10, 13, 15]:
+
+        generate_cluster(df, n)
+        print(f"finish {n}")
+    print("finish all")
+
+
+main()
