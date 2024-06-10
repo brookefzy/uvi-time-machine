@@ -5,7 +5,7 @@ from glob import glob
 import gspread
 import h3
 from tqdm import tqdm
-from fcmeans import FCM
+# from fcmeans import FCM
 import matplotlib.pyplot as plt
 from sklearn import manifold
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
@@ -21,7 +21,7 @@ from scipy.spatial import distance
 import os
 
 # load tsne data
-DATA_FOLDER = "/group/geog_pyloo/08_GSV/data/_curated/c_seg_hex"
+DATA_FOLDER = "/group/geog_pyloo/08_GSV/data/_curated/c_seg_hex/c_seg_hex"
 BOUNDARY_FOLDER = "/group/geog_pyloo/08_GSV/data/_raw/r_boundary_osm"
 
 GRAPHIC_PATH = "/group/geog_pyloo/08_GSV/_graphic/cluster/allcities_c={n}"
