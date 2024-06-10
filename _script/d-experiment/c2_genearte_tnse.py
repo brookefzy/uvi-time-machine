@@ -5,7 +5,7 @@ from glob import glob
 import gspread
 import h3
 from tqdm import tqdm
-from fcmeans import FCM
+
 import matplotlib.pyplot as plt
 from sklearn import manifold
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
@@ -27,7 +27,7 @@ def get_tsne(data, n_components=2):
     return tsne_data
 
 
-DATA_FOLDER = "/group/geog_pyloo/08_GSV/data/_curated/c_seg_hex"
+DATA_FOLDER = "/group/geog_pyloo/08_GSV/data/_curated/c_seg_hex/c_seg_hex"
 FILES = os.listdir(DATA_FOLDER)
 
 FILENMAE = "c_seg_cat=31_res={res}.parquet"
