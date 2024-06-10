@@ -184,8 +184,7 @@ def load_all():
 def main():
     city_meta = load_all()
     ops, obj_dict_rev = get_seg_types()
-    # finished = check_finished()
-    city_to_process = city_meta['City'].unique()
+    city_to_process = ["chicago"]
     
     for city in city_to_process:
         cityabbr = city.lower().replace(" ", "")

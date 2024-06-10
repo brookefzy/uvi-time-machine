@@ -184,12 +184,12 @@ def main():
     city_meta = load_all()
     # finished = check_finished()
     allcity = city_meta["City"].values
-    city_to_process = allcity
+    city_to_process = ["Chicago"]
     for city in city_to_process:
         cityabbr = city.lower().replace(" ", "")
 
         # try:
-        load_data(city)
+        load_data(cityabbr)
         # except:
         #     print(f"check problem for this city {city}")
 

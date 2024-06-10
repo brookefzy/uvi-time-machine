@@ -1,6 +1,6 @@
 task: classify
 mode: train
-model: yolov8n-cls.pt
+model: /home/yuanzf/uvi-time-machine/_script/A-city-never-was/runs/classify/train4/weights/last.pt
 data: /lustre1/g/geog_pyloo/05_timemachine/_transformed/t_classifier_img_yolo8
 epochs: 50
 patience: 50

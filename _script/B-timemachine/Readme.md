@@ -29,7 +29,8 @@
 
 ## Code Structure:
 1. run oneformer to extract pixel level and object level detection results per images
-2. run `04_pano_post.py` and `04_seg_post.py` for data summary
+2. run `04_pano_post.py` and `04_seg_post-full.py` for data summary
+3. run `d-experiment/01_combine_seg_cat.py` to merge all variables.
 
 ## Data
 ### Source of Fatality
