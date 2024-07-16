@@ -24,46 +24,7 @@ H3_RES = [8, 9, 12]
 ##################################################################
 ############### CLEAN UP SEG TYPE
 ##################################################################
-def get_seg_types():
-    building = [0, 1, 25]
-    skyscraper = [48]
-    greenery = [4, 9, 17, 66, 72]
-    street_furniture = [19, 15, 31, 69, 82, 136, 138]
-    railing = [38,]
-    sidewalk = [11]
-    car = [20, 80, 83, 102]
-    person = [12]
-    bike = [127, 116]
-    sky = [2]
-    hill = [68]
-    road = [6]
-    sel = building + greenery + street_furniture + sidewalk + car + person + bike +sky + road
-    other = [x for x in range(150) if not x in sel]
 
-    obj_dicts = {
-        "building":building,
-        "greenery":greenery,
-        "street_furniture":street_furniture,
-        "sidewalk": sidewalk,
-        "car":car,
-        "person":person,
-        "bike":bike,
-        "sky":sky,
-        "road":road,
-        "other":other,
-        
-    }
-    def get_cat(label):
-        for obj, v in obj_dicts.items():
-            if label in v:
-                return obj
-    obj_dict_rev = {}
-    for x in range(150):
-        obj_dict_rev[x] = get_cat(x)
-    ops = {"img":"nunique"}
-    for label in list(obj_dicts.keys())[:-1]:
-        ops[label] = "mean"
-    return ops, obj_dict_rev
 
 def get_result(cityabbr, curated_folder, f_suffixes = "*panoptic.csv"):
     outfolder = f"{curated_folder}/{cityabbr}"
@@ -75,9 +36,12 @@ def get_result(cityabbr, curated_folder, f_suffixes = "*panoptic.csv"):
     panoptic_df = pd.concat(panoptic_df).reset_index(drop = True)
     return panoptic_df
 
-def clean_seg(seg_df, pano_df):
-    # _, obj_dict_rev = get_seg_types()
-    seg_df_summary = seg_df.groupby(["img", "labels"]).agg({'areas':'sum'}).reset_index()
+def clean_seg(seg_df, pano_df, meta_df):
+
+    seg_df_filtered = seg_df.merge(meta_df, on = 'img')
+    seg_df_filtered = seg_df_filtered[seg_df_filtered['size']<10000].reset_index(drop = True)
+    print("Segmentation shape after filter: ", seg_df_filtered.shape[0])
+    seg_df_summary = seg_df_filtered.groupby(["img", "labels"]).agg({'areas':'sum'}).reset_index()
     seg_df_summary['panoid'] = seg_df_summary['img'].apply(lambda x: x[:22])
 
     col_cols = ["labels"]
@@ -158,9 +122,11 @@ def load_data(city):
         ROOTFOLDER = ROOTFOLDER,
         cityabbr = cityabbr
     ))
+    meta_df['img']= meta_df['path'].apply(lambda x: x.split("/")[-1].split(".")[0])
     # here make sure 
+    meta_df = meta_df[['img','size']]
     
-    seg_df_pivot = clean_seg(seg_df, pano_df)
+    seg_df_pivot = clean_seg(seg_df, pano_df, meta_df)
     seg_crossectional = get_crossectional(seg_df_pivot)
     seg_longitudinal = get_longitudinal(seg_df_pivot)
     seg_crossectional.columns = [str(x) for x in seg_crossectional.columns]
@@ -184,8 +150,8 @@ def main():
     city_meta = load_all()
     # finished = check_finished()
     allcity = city_meta["City"].values
-    city_to_process = ["Chicago"]
-    for city in city_to_process:
+    # city_to_process = ["Chicago"]
+    for city in allcity:
         cityabbr = city.lower().replace(" ", "")
 
         # try:
