@@ -1,0 +1,892 @@
+[
+    {
+        "city": "Buenos Aires",
+        "country": "Argentina",
+        "state or province": "Buenos Aires",
+        "year of data": 2019,
+        "number of person killed per 100k": 13.5
+      },
+      {
+        "city": "Sydney",
+        "country": "Australia",
+        "state or province": "New South Wales",
+        "year of data": 2019,
+        "number of person killed per 100k": 4.7
+      },
+      {
+        "city": "Vienna",
+        "country": "Austria",
+        "state or province": "Vienna",
+        "year of data": 2019,
+        "number of person killed per 100k": 2.5
+      },
+      {
+        "city": "Saidpur",
+        "country": "Bangladesh",
+        "state or province": "Rangpur",
+        "year of data": 2019,
+        "number of person killed per 100k": 12.0
+      },
+      {
+        "city": "Rajshahi",
+        "country": "Bangladesh",
+        "state or province": "Rajshahi",
+        "year of data": 2019,
+        "number of person killed per 100k": 12.0
+      },
+      {
+        "city": "Dhaka",
+        "country": "Bangladesh",
+        "state or province": "Dhaka",
+        "year of data": 2019,
+        "number of person killed per 100k": 12.0
+      },
+      {
+        "city": "Antwerp",
+        "country": "Belgium",
+        "state or province": "Antwerp",
+        "year of data": 2019,
+        "number of person killed per 100k": 5.3
+      },
+      {
+        "city": "Brussels",
+        "country": "Belgium",
+        "state or province": "Brussels",
+        "year of data": 2019,
+        "number of person killed per 100k": 5.3
+      },
+      {
+        "city": "Cochabamba",
+        "country": "Bolivia",
+        "state or province": "Cochabamba",
+        "year of data": 2019,
+        "number of person killed per 100k": 23.2
+      },
+      {
+        "city": "Gaborone",
+        "country": "Botswana",
+        "state or province": "South-East",
+        "year of data": 2019,
+        "number of person killed per 100k": 23.4
+      },
+      {
+        "city": "Ilheus",
+        "country": "Brazil",
+        "state or province": "Bahia",
+        "year of data": 2019,
+        "number of person killed per 100k": 19.7
+      },
+      {
+        "city": "Jequie",
+        "country": "Brazil",
+        "state or province": "Bahia",
+        "year of data": 2019,
+        "number of person killed per 100k": 19.7
+      },
+      {
+        "city": "Palmas",
+        "country": "Brazil",
+        "state or province": "Tocantins",
+        "year of data": 2019,
+        "number of person killed per 100k": 22.6
+      },
+      {
+        "city": "Florianopolis",
+        "country": "Brazil",
+        "state or province": "Santa Catarina",
+        "year of data": 2019,
+        "number of person killed per 100k": 17.5
+      },
+      {
+        "city": "Ribeirao Preto",
+        "country": "Brazil",
+        "state or province": "Sao Paulo",
+        "year of data": 2019,
+        "number of person killed per 100k": 18.9
+      },
+      {
+        "city": "Belo Horizonte",
+        "country": "Brazil",
+        "state or province": "Minas Gerais",
+        "year of data": 2019,
+        "number of person killed per 100k": 17.0
+      },
+      {
+        "city": "Curitiba",
+        "country": "Brazil",
+        "state or province": "Parana",
+        "year of data": 2019,
+        "number of person killed per 100k": 19.0
+      },
+      {
+        "city": "Sao Paulo",
+        "country": "Brazil",
+        "state or province": "Sao Paulo",
+        "year of data": 2019,
+        "number of person killed per 100k": 17.0
+      },
+      {
+        "city": "Rio de Janeiro",
+        "country": "Brazil",
+        "state or province": "Rio de Janeiro",
+        "year of data": 2019,
+        "number of person killed per 100k": 17.0
+      },
+      {
+        "city": "Victoria",
+        "country": "Canada",
+        "state or province": "British Columbia",
+        "year of data": 2019,
+        "number of person killed per 100k": 4.4
+      },
+      {
+        "city": "Montreal",
+        "country": "Canada",
+        "state or province": "Quebec",
+        "year of data": 2019,
+        "number of person killed per 100k": 4.4
+      },
+      {
+        "city": "Toronto",
+        "country": "Canada",
+        "state or province": "Ontario",
+        "year of data": 2019,
+        "number of person killed per 100k": 4.4
+      },
+      {
+        "city": "Santiago",
+        "country": "Chile",
+        "state or province": "Santiago Metropolitan",
+        "year of data": 2019,
+        "number of person killed per 100k": 14.9
+      },
+      {
+        "city": "Taipei",
+        "country": "Taiwan",
+        "state or province": "Taipei",
+        "year of data": 2019,
+        "number of person killed per 100k": 6.3
+      },
+      {
+        "city": "Hong Kong",
+        "country": "China",
+        "state or province": "Hong Kong",
+        "year of data": 2019,
+        "number of person killed per 100k": 1.3
+      },
+      {
+        "city": "Valledupar",
+        "country": "Colombia",
+        "state or province": "Cesar",
+        "year of data": 2019,
+        "number of person killed per 100k": 15.4
+      },
+      {
+        "city": "Bogotá",
+        "country": "Colombia",
+        "state or province": "Cundinamarca",
+        "year of data": 2019,
+        "number of person killed per 100k": 13.2
+      },
+      {
+        "city": "Copenhagen",
+        "country": "Denmark",
+        "state or province": "Capital Region",
+        "year of data": 2019,
+        "number of person killed per 100k": 3.4
+      },
+      {
+        "city": "Quito",
+        "country": "Ecuador",
+        "state or province": "Pichincha",
+        "year of data": 2019,
+        "number of person killed per 100k": 20.1
+      },
+      {
+        "city": "Le Mans",
+        "country": "France",
+        "state or province": "Pays de la Loire",
+        "year of data": 2019,
+        "number of person killed per 100k": 5.0
+      },
+      {
+        "city": "Paris",
+        "country": "France",
+        "state or province": "Ile-de-France",
+        "year of data": 2019,
+        "number of person killed per 100k": 3.8
+      },
+      {
+        "city": "Munich",
+        "country": "Germany",
+        "state or province": "Bavaria",
+        "year of data": 2019,
+        "number of person killed per 100k": 3.7
+      },
+      {
+        "city": "Berlin",
+        "country": "Germany",
+        "state or province": "Berlin",
+        "year of data": 2019,
+        "number of person killed per 100k": 4.2
+      },
+      {
+        "city": "Accra",
+        "country": "Ghana",
+        "state or province": "Greater Accra",
+        "year of data": 2019,
+        "number of person killed per 100k": 25.7
+      },
+      {
+        "city": "Thessaloniki",
+        "country": "Greece",
+        "state or province": "Central Macedonia",
+        "year of data": 2019,
+        "number of person killed per 100k": 6.5
+      },
+      {
+        "city": "Athens",
+        "country": "Greece",
+        "state or province": "Attica",
+        "year of data": 2019,
+        "number of person killed per 100k": 7.1
+      },
+      {
+        "city": "Guatemala City",
+        "country": "Guatemala",
+        "state or province": "Guatemala",
+        "year of data": 2019,
+        "number of person killed per 100k": 22.9
+      },
+      {
+        "city": "Budapest",
+        "country": "Hungary",
+        "state or province": "Budapest",
+        "year of data": 2019,
+        "number of person killed per 100k": 6.2
+      },
+      {
+        "city": "Hindupur",
+        "country": "India",
+        "state or province": "Andhra Pradesh",
+        "year of data": 2019,
+        "number of person killed per 100k": 15.6
+      },
+      {
+        "city": "Vijayawada",
+        "country": "India",
+        "state or province": "Andhra Pradesh",
+        "year of data": 2019,
+        "number of person killed per 100k": 18.2
+      },
+      {
+        "city": "Delhi",
+        "country": "India",
+        "state or province": "Delhi",
+        "year of data": 2019,
+        "number of person killed per 100k": 10.4
+      },
+      {
+        "city": "Bangalore",
+        "country": "India",
+        "state or province": "Karnataka",
+        "year of data": 2019,
+        "number of person killed per 100k": 12.1
+      },
+      {
+        "city": "Kozhikode",
+        "country": "India",
+        "state or province": "Kerala",
+        "year of data": 2019,
+        "number of person killed per 100k": 8.3
+      },
+      {
+        "city": "Mumbai",
+        "country": "India",
+        "state or province": "Maharashtra",
+        "year of data": 2019,
+        "number of person killed per 100k": 9.5
+      },
+      {
+        "city": "Malegaon",
+        "country": "India",
+        "state or province": "Maharashtra",
+        "year of data": 2019,
+        "number of person killed per 100k": 10.1
+      },
+      {
+        "city": "Pune",
+        "country": "India",
+        "state or province": "Maharashtra",
+        "year of data": 2019,
+        "number of person killed per 100k": 11.2
+      },
+      {
+        "city": "Parbhani",
+        "country": "India",
+        "state or province": "Maharashtra",
+        "year of data": 2019,
+        "number of person killed per 100k": 9.8
+      },
+      {
+        "city": "Jalna",
+        "country": "India",
+        "state or province": "Maharashtra",
+        "year of data": 2019,
+        "number of person killed per 100k": 9.7
+      },
+      {
+        "city": "Jaipur",
+        "country": "India",
+        "state or province": "Rajasthan",
+        "year of data": 2019,
+        "number of person killed per 100k": 13.2
+      },
+      {
+        "city": "Hyderabad",
+        "country": "India",
+        "state or province": "Telangana",
+        "year of data": 2019,
+        "number of person killed per 100k": 14.6
+      },
+      {
+        "city": "Sitapur",
+        "country": "India",
+        "state or province": "Uttar Pradesh",
+        "year of data": 2019,
+        "number of person killed per 100k": 17.8
+      },
+      {
+        "city": "Kanpur",
+        "country": "India",
+        "state or province": "Uttar Pradesh",
+        "year of data": 2019,
+        "number of person killed per 100k": 15.4
+      },
+      {
+        "city": "Parepare",
+        "country": "Indonesia",
+        "state or province": "South Sulawesi",
+        "year of data": 2019,
+        "number of person killed per 100k": 13.7
+      },
+      {
+        "city": "Cirebon",
+        "country": "Indonesia",
+        "state or province": "West Java",
+        "year of data": 2019,
+        "number of person killed per 100k": 14.2
+      },
+      {
+        "city": "Medan",
+        "country": "Indonesia",
+        "state or province": "North Sumatra",
+        "year of data": 2019,
+        "number of person killed per 100k": 12.5
+      },
+      {
+        "city": "Palembang",
+        "country": "Indonesia",
+        "state or province": "South Sumatra",
+        "year of data": 2019,
+        "number of person killed per 100k": 11.9
+      },
+      {
+        "city": "Jakarta",
+        "country": "Indonesia",
+        "state or province": "Jakarta",
+        "year of data": 2019,
+        "number of person killed per 100k": 10.8
+      },
+      {
+        "city": "Tel Aviv",
+        "country": "Israel",
+        "state or province": "Tel Aviv",
+        "year of data": 2019,
+        "number of person killed per 100k": 5.3
+      },
+      {
+        "city": "Jerusalem",
+        "country": "Israel",
+        "state or province": "Jerusalem",
+        "year of data": 2019,
+        "number of person killed per 100k": 6.7
+      },
+      {
+        "city": "Palermo",
+        "country": "Italy",
+        "state or province": "Sicily",
+        "year of data": 2019,
+        "number of person killed per 100k": 6.1
+      },
+      {
+        "city": "Rome",
+        "country": "Italy",
+        "state or province": "Lazio",
+        "year of data": 2019,
+        "number of person killed per 100k": 5.8
+      },
+      {
+        "city": "Milan",
+        "country": "Italy",
+        "state or province": "Lombardy",
+        "year of data": 2019,
+        "number of person killed per 100k": 5.4
+      },
+      {
+        "city": "Yamaguchi",
+        "country": "Japan",
+        "state or province": "Yamaguchi",
+        "year of data": 2019,
+        "number of person killed per 100k": 2.9
+      },
+      {
+        "city": "Tokyo",
+        "country": "Japan",
+        "state or province": "Tokyo",
+        "year of data": 2019,
+        "number of person killed per 100k": 1.8
+      },
+      {
+        "city": "Okayama",
+        "country": "Japan",
+        "state or province": "Okayama",
+        "year of data": 2019,
+        "number of person killed per 100k": 2.5
+      },
+      {
+        "city": "Fukuoka",
+        "country": "Japan",
+        "state or province": "Fukuoka",
+        "year of data": 2019,
+        "number of person killed per 100k": 2.2
+      },
+      {
+        "city": "Nagoya",
+        "country": "Japan",
+        "state or province": "Aichi",
+        "year of data": 2019,
+        "number of person killed per 100k": 2.0
+      },
+      {
+        "city": "Nairobi",
+        "country": "Kenya",
+        "state or province": "Nairobi",
+        "year of data": 2019,
+        "number of person killed per 100k": 27.8
+      },
+      {
+        "city": "Kaunas",
+        "country": "Lithuania",
+        "state or province": "Kaunas",
+        "year of data": 2019,
+        "number of person killed per 100k": 9.5
+      },
+      {
+        "city": "Kuala Lumpur",
+        "country": "Malaysia",
+        "state or province": "Kuala Lumpur",
+        "year of data": 2019,
+        "number of person killed per 100k": 23.6
+      },
+      {
+        "city": "Guadalajara",
+        "country": "Mexico",
+        "state or province": "Jalisco",
+        "year of data": 2019,
+        "number of person killed per 100k": 12.5
+      },
+      {
+        "city": "Reynosa",
+        "country": "Mexico",
+        "state or province": "Tamaulipas",
+        "year of data": 2019,
+        "number of person killed per 100k": 15.7
+      },
+      {
+        "city": "Culiacan",
+        "country": "Mexico",
+        "state or province": "Sinaloa",
+        "year of data": 2019,
+        "number of person killed per 100k": 13.2
+      },
+      {
+        "city": "Mexico City",
+        "country": "Mexico",
+        "state or province": "Mexico City",
+        "year of data": 2019,
+        "number of person killed per 100k": 10.8
+      },
+      {
+        "city": "Zwolle",
+        "country": "Netherlands",
+        "state or province": "Overijssel",
+        "year of data": 2019,
+        "number of person killed per 100k": 3.1
+      },
+      {
+        "city": "Amsterdam",
+        "country": "Netherlands",
+        "state or province": "North Holland",
+        "year of data": 2019,
+        "number of person killed per 100k": 2.7
+      },
+      {
+        "city": "Wellington",
+        "country": "New Zealand",
+        "state or province": "Wellington",
+        "year of data": 2019,
+        "number of person killed per 100k": 5.2
+      },
+      {
+        "city": "Auckland",
+        "country": "New Zealand",
+        "state or province": "Auckland",
+        "year of data": 2019,
+        "number of person killed per 100k": 4.8
+      },
+      {
+        "city": "Gombe",
+        "country": "Nigeria",
+        "state or province": "Gombe",
+        "year of data": 2019,
+        "number of person killed per 100k": 33.6
+      },
+      {
+        "city": "Lagos",
+        "country": "Nigeria",
+        "state or province": "Lagos",
+        "year of data": 2019,
+        "number of person killed per 100k": 28.3
+      },
+      {
+        "city": "Lima",
+        "country": "Peru",
+        "state or province": "Lima",
+        "year of data": 2019,
+        "number of person killed per 100k": 14.2
+      },
+      {
+        "city": "Manila",
+        "country": "Philippines",
+        "state or province": "Metro Manila",
+        "year of data": 2019,
+        "number of person killed per 100k": 12.3
+      },
+      {
+        "city": "Bacolod",
+        "country": "Philippines",
+        "state or province": "Negros Occidental",
+        "year of data": 2019,
+        "number of person killed per 100k": 14.7
+      },
+      {
+        "city": "Cebu City",
+        "country": "Philippines",
+        "state or province": "Cebu",
+        "year of data": 2019,
+        "number of person killed per 100k": 13.5
+      },
+      {
+        "city": "Metro Manila",
+        "country": "Philippines",
+        "state or province": "Metro Manila",
+        "year of data": 2019,
+        "number of person killed per 100k": 12.3
+      },
+      {
+        "city": "Warsaw",
+        "country": "Poland",
+        "state or province": "Mazovia",
+        "year of data": 2019,
+        "number of person killed per 100k": 7.1
+      },
+      {
+        "city": "Seoul",
+        "country": "South Korea",
+        "state or province": "Seoul",
+        "year of data": 2019,
+        "number of person killed per 100k": 6.0
+      },
+      {
+        "city": "Berezniki",
+        "country": "Russia",
+        "state or province": "Perm Krai",
+        "year of data": 2019,
+        "number of person killed per 100k": 12.5
+      },
+      {
+        "city": "Dzerzhinsk",
+        "country": "Russia",
+        "state or province": "Nizhny Novgorod Oblast",
+        "year of data": 2019,
+        "number of person killed per 100k": 14.0
+      },
+      {
+        "city": "Astrakhan",
+        "country": "Russia",
+        "state or province": "Astrakhan Oblast",
+        "year of data": 2019,
+        "number of person killed per 100k": 13.6
+      },
+      {
+        "city": "Tyumen",
+        "country": "Russia",
+        "state or province": "Tyumen Oblast",
+        "year of data": 2019,
+        "number of person killed per 100k": 13.2
+      },
+      {
+        "city": "Saint Petersburg",
+        "country": "Russia",
+        "state or province": "Saint Petersburg",
+        "year of data": 2019,
+        "number of person killed per 100k": 10.1
+      },
+      {
+        "city": "Moscow",
+        "country": "Russia",
+        "state or province": "Moscow",
+        "year of data": 2019,
+        "number of person killed per 100k": 8.5
+      },
+      {
+        "city": "Kigali",
+        "country": "Rwanda",
+        "state or province": "Kigali",
+        "year of data": 2019,
+        "number of person killed per 100k": 30.5
+      },
+      {
+        "city": "Belgrade",
+        "country": "Serbia",
+        "state or province": "Central Serbia",
+        "year of data": 2019,
+        "number of person killed per 100k": 8.7
+      },
+      {
+        "city": "Singapore",
+        "country": "Singapore",
+        "state or province": "Singapore",
+        "year of data": 2019,
+        "number of person killed per 100k": 3.1
+      },
+      {
+        "city": "Capetown",
+        "country": "South Africa",
+        "state or province": "Western Cape",
+        "year of data": 2019,
+        "number of person killed per 100k": 24.9
+      },
+      {
+        "city": "Johannesburg",
+        "country": "South Africa",
+        "state or province": "Gauteng",
+        "year of data": 2019,
+        "number of person killed per 100k": 22.3
+      },
+      {
+        "city": "Madrid",
+        "country": "Spain",
+        "state or province": "Community of Madrid",
+        "year of data": 2019,
+        "number of person killed per 100k": 2.6
+      },
+      {
+        "city": "Stockholm",
+        "country": "Sweden",
+        "state or province": "Stockholm County",
+        "year of data": 2019,
+        "number of person killed per 100k": 2.0
+      },
+      {
+        "city": "Bangkok",
+        "country": "Thailand",
+        "state or province": "Bangkok",
+        "year of data": 2019,
+        "number of person killed per 100k": 32.7
+      },
+      {
+        "city": "Istanbul",
+        "country": "Turkey",
+        "state or province": "Istanbul",
+        "year of data": 2019,
+        "number of person killed per 100k": 9.4
+      },
+      {
+        "city": "Kampala",
+        "country": "Uganda",
+        "state or province": "Central Region",
+        "year of data": 2019,
+        "number of person killed per 100k": 29.2
+      },
+      {
+        "city": "Rovno",
+        "country": "Ukraine",
+        "state or province": "Rivne Oblast",
+        "year of data": 2019,
+        "number of person killed per 100k": 12.5
+      },
+      {
+        "city": "Kyiv",
+        "country": "Ukraine",
+        "state or province": "Kyiv",
+        "year of data": 2019,
+        "number of person killed per 100k": 11.8
+      },
+      {
+        "city": "Dubai",
+        "country": "United Arab Emirates",
+        "state or province": "Dubai",
+        "year of data": 2019,
+        "number of person killed per 100k": 4.7
+      },
+      {
+        "city": "Manchester",
+        "country": "United Kingdom",
+        "state or province": "England",
+        "year of data": 2019,
+        "number of person killed per 100k": 3.3
+      },
+      {
+        "city": "Sheffield",
+        "country": "United Kingdom",
+        "state or province": "England",
+        "year of data": 2019,
+        "number of person killed per 100k": 3.5
+      },
+      {
+        "city": "London",
+        "country": "United Kingdom",
+        "state or province": "England",
+        "year of data": 2019,
+        "number of person killed per 100k": 2.9
+      },
+      {
+        "city": "Killeen",
+        "country": "United States",
+        "state or province": "Texas",
+        "year of data": 2019,
+        "number of person killed per 100k": 12.8
+      },
+      {
+        "city": "Modesto",
+        "country": "United States",
+        "state or province": "California",
+        "year of data": 2019,
+        "number of person killed per 100k": 14.7
+      },
+      {
+        "city": "Gainesville, FL",
+        "country": "United States",
+        "state or province": "Florida",
+        "year of data": 2019,
+        "number of person killed per 100k": 14.7
+      },
+      {
+        "city": "Minneapolis",
+        "country": "United States",
+        "state or province": "Minnesota",
+        "year of data": 2019,
+        "number of person killed per 100k": 9.0
+      },
+      {
+        "city": "Toledo",
+        "country": "United States",
+        "state or province": "Ohio",
+        "year of data": 2019,
+        "number of person killed per 100k": 12.1
+      },
+      {
+        "city": "Cleveland",
+        "country": "United States",
+        "state or province": "Ohio",
+        "year of data": 2019,
+        "number of person killed per 100k": 13.3
+      },
+      {
+        "city": "Portland, OR",
+        "country": "United States",
+        "state or province": "Oregon",
+        "year of data": 2019,
+        "number of person killed per 100k": 8.5
+      },
+      {
+        "city": "Raleigh",
+        "country": "United States",
+        "state or province": "North Carolina",
+        "year of data": 2019,
+        "number of person killed per 100k": 10.2
+      },
+      {
+        "city": "Miami",
+        "country": "United States",
+        "state or province": "Florida",
+        "year of data": 2019,
+        "number of person killed per 100k": 13.9
+      },
+      {
+        "city": "San Francisco",
+        "country": "United States",
+        "state or province": "California",
+        "year of data": 2019,
+        "number of person killed per 100k": 7.6
+      },
+      {
+        "city": "Boston",
+        "country": "United States",
+        "state or province": "Massachusetts",
+        "year of data": 2019,
+        "number of person killed per 100k": 5.7
+      },
+      {
+        "city": "Denver",
+        "country": "United States",
+        "state or province": "Colorado",
+        "year of data": 2019,
+        "number of person killed per 100k": 11.5
+      },
+      {
+        "city": "Detroit",
+        "country": "United States",
+        "state or province": "Michigan",
+        "year of data": 2019,
+        "number of person killed per 100k": 13.4
+      },
+      {
+        "city": "New York",
+        "country": "United States",
+        "state or province": "New York",
+        "year of data": 2019,
+        "number of person killed per 100k": 4.4
+      },
+      {
+        "city": "Los Angeles",
+        "country": "United States",
+        "state or province": "California",
+        "year of data": 2019,
+        "number of person killed per 100k": 8.2
+      },
+      {
+        "city": "Houston",
+        "country": "United States",
+        "state or province": "Texas",
+        "year of data": 2019,
+        "number of person killed per 100k": 12.8
+      },
+      {
+        "city": "Philadelphia",
+        "country": "United States",
+        "state or province": "Pennsylvania",
+        "year of data": 2019,
+        "number of person killed per 100k": 9.6
+      },
+      {
+        "city": "Chicago",
+        "country": "United States",
+        "state or province": "Illinois",
+        "year of data": 2019,
+        "number of person killed per 100k": 8.0
+      }
+  ]
+  
