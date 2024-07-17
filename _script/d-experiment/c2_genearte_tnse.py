@@ -26,11 +26,12 @@ def get_tsne(data, n_components=2):
     tsne_data = tsne.fit_transform(data)
     return tsne_data
 
-
-DATA_FOLDER = "/group/geog_pyloo/08_GSV/data/_curated/c_seg_hex/c_seg_hex"
+ROOTFOLDER = "/lustre1/g/geog_pyloo/05_timemachine"
+DATA_FOLDER = f"{ROOTFOLDER}/_curated/c_seg_hex"
 FILES = os.listdir(DATA_FOLDER)
 
-FILENMAE = "c_seg_cat=31_res={res}.parquet"
+FILENAME = "c_seg_cat=31_res={res}.parquet"
+FILENAME_WITHIN = "c_seg_cat=31_res={res}_withincity.parquet"
 
 variables = [
     "bike",
@@ -66,9 +67,10 @@ variables = [
 index_cols = ["city_lower", "hex_id", "img_count", "res"]
 
 
-def export_tnse(res, variables=variables):
+def export_tnse(res, filename, variables=variables):
 
-    df = pd.read_parquet(os.path.join(DATA_FOLDER, FILENMAE.format(res=res)))
+    file_name = filename.format(res=res)
+    df = pd.read_parquet(os.path.join(DATA_FOLDER, file_name))
     # standardize the data
 
     data = get_std(df, variables)
@@ -88,7 +90,7 @@ def export_tnse(res, variables=variables):
     tsne_df.to_parquet(
         os.path.join(
             DATA_FOLDER,
-            FILENMAE.replace(".parquet", "").format(res=res) + "_tsne.parquet",
+            file_name.replace(".parquet", "_tsne.parquet"),
         ),
         index=False,
     )
@@ -97,5 +99,6 @@ def export_tnse(res, variables=variables):
 
 
 for res in [8, 9, 12]:
-    export_tnse(res=res)
-    print(f"finish {res}")
+    for filename in [FILENAME_WITHIN, FILENAME]:
+        export_tnse(res=res, filename=filename)
+        print(f"finish {res} {filename}")
