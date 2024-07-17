@@ -3,6 +3,7 @@ import os
 import pandas as pd
 import glob
 import h3
+from tqdm import tqdm
 
 
 ROOTFOLDER = "/lustre1/g/geog_pyloo/05_timemachine"
@@ -39,7 +40,7 @@ def get_result(cityabbr, curated_folder, f_suffixes = "*panoptic.csv"):
 def clean_seg(seg_df, pano_df, meta_df):
 
     seg_df_filtered = seg_df.merge(meta_df, on = 'img')
-    seg_df_filtered = seg_df_filtered[seg_df_filtered['size']<10000].reset_index(drop = True)
+    seg_df_filtered = seg_df_filtered[seg_df_filtered['size']>=10000].reset_index(drop = True)
     print("Segmentation shape after filter: ", seg_df_filtered.shape[0])
     seg_df_summary = seg_df_filtered.groupby(["img", "labels"]).agg({'areas':'sum'}).reset_index()
     seg_df_summary['panoid'] = seg_df_summary['img'].apply(lambda x: x[:22])
@@ -151,7 +152,7 @@ def main():
     # finished = check_finished()
     allcity = city_meta["City"].values
     # city_to_process = ["Chicago"]
-    for city in allcity:
+    for city in tqdm(allcity):
         cityabbr = city.lower().replace(" ", "")
 
         # try:

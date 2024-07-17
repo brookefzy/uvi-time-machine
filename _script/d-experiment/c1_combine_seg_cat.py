@@ -87,19 +87,6 @@ def construct_cat(df_seg, obj_meta):
     return df_seg_update, variables_remain
 
 
-def get_std(df_seg_update, variables_remain):
-    scaler = StandardScaler().fit(df_seg_update[variables_remain])
-    data = scaler.transform(df_seg_update[variables_remain])
-    return data
-
-
-def get_tsne(data, n_components=2):
-
-    tsne = manifold.TSNE(n_components=n_components, random_state=0)
-    tsne_data = tsne.fit_transform(data)
-    return tsne_data
-
-
 ############################################# SET UP CONSTANT ############################################################
 CURATED_FOLDER_CROSS = (
     "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_seg_crossectional_all"
@@ -135,3 +122,5 @@ for res in df_seg["res"].unique():
         CURATED_TARGET + f"/c_seg_cat={n_cat}_res={res}.parquet", index=False
     )
     print("Exported: ", res)
+    
+
