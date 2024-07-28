@@ -76,7 +76,7 @@ city_meta = pd.read_csv("../city_meta.csv")
 cityls = city_meta['City'].unique()
 
 # allcity_result = []
-for cityupper in tqdm(cityls[:60]):
+for cityupper in tqdm(cityls[60:]):
     df_summary = get_one_city(cityupper)
     city = cityupper.lower().replace(" ", "")
     df_summary.to_parquet(os.path.join(CURATED_FOLDER_TARGET, f"c_{city}_hex.parquet"), index = False)
