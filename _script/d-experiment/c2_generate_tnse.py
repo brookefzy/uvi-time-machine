@@ -71,6 +71,7 @@ def export_tnse(res, filename, variables=variables):
 
     file_name = filename.format(res=res)
     df = pd.read_parquet(os.path.join(DATA_FOLDER, file_name))
+    print("Current dataset length: ", df.shape[0])
     # standardize the data
 
     data = get_std(df, variables)
@@ -98,7 +99,7 @@ def export_tnse(res, filename, variables=variables):
     return tsne_df
 
 
-for res in [8, 9, 12]:
+for res in [8, 9]:
     for filename in [FILENAME_WITHIN, FILENAME]:
         export_tnse(res=res, filename=filename)
         print(f"finish {res} {filename}")
