@@ -229,10 +229,9 @@ def load_all():
 def main():
     city_meta = load_all()
     ops, obj_dict_rev = get_seg_types()
-    city_to_process = ["chicago"]
+    city_to_process = city_meta["City"].tolist()
 
     for city in city_to_process:
-        cityabbr = city.lower().replace(" ", "")
         # if not cityabbr in finished:
         #     print(f"{city} has not been processed.")
         try:
