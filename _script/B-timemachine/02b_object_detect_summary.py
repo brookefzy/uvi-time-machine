@@ -3,7 +3,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
-from tqdm import tqdm
 import glob
 import sys
 
@@ -155,6 +154,9 @@ def summarize_objects(city, viz=False):
     objfiles = glob.glob(
         OBJECT_SOURCE_FOLDER.format(CURATED_FOLDER=CURATED_FOLDER, city_abbr=city_abbr)
     )
+    if len(objfiles) == 0:
+        print("No object files found for", city)
+        return
     df = pd.concat([pd.read_parquet(f) for f in objfiles])
     df["panoid"] = df["img"].apply(lambda x: x[:22])
     # object specific processing
@@ -231,9 +233,15 @@ def main():
         city_ls = pd.read_csv("../city_meta.csv")["City"].unique().tolist()
     else:
         city_ls = [args.city]
-    finished_ls = glob.glob(f"{EXFOLDER_LONG}/*.csv")
-    finished_city = [x.split("/")[-1].split("_")[2].split(".")[0] for x in finished_ls]
+    finished_ls = glob.glob(f"{EXFOLDER_LONG}/c_hex_*.csv")
+    finished_city = [
+        x.split("/")[-1].split(".")[0].split("c_hex_")[1] for x in finished_ls
+    ]
     city_ls = [x for x in city_ls if x not in finished_city]
     print("Number of cities to process", len(city_ls))
     for city in city_ls:
         summarize_objects(city, viz_bool)
+
+
+if __name__ == "__main__":
+    main()
