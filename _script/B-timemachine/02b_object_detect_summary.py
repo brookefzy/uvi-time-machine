@@ -31,7 +31,6 @@ if not os.path.exists(EXFOLDER_LONG):
 YEAR_GROUP = ["2015-2018", "2020-2023"]
 
 segfiles = glob.glob(f"{EXFOLDER_SEG_LONG}/*.parquet")
-# objfiles = glob.glob("{CURATED_FOLDER}/{city_abbr}/*_objects.parquet")
 OBJECT_SOURCE_FOLDER = "{CURATED_FOLDER}/{city_abbr}/*_objects.parquet"
 
 # variables may change later

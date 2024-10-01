@@ -41,6 +41,21 @@ def process_one_img(test_file):
       return df
   except:
       return test_file
+  
+def process_one_batch(test_file):
+    with open(test_file, 'rb') as f:
+      data = pickle.load(f)
+
+    alldf = []
+    for d in data:
+        try:
+            temp = pd.concat([pd.DataFrame(d['human_attr']),  pd.DataFrame(d['boxes'])], axis=1)
+            temp.columns = COLS_NAME
+            temp['img'] = d['img']
+            alldf.append(temp)
+        except:
+            continue
+    return pd.concat(alldf).reset_index(drop=True)
 
 
 def get_one_city(city):
@@ -52,18 +67,36 @@ def get_one_city(city):
     print("Number of files: ", len(results_files))
 
     for test_file in tqdm(results_files):
-        df = process_one_img(test_file)
+        # df = process_one_img(test_file)
+        df = process_one_batch(test_file)
         if type(df) == str:
             error_files.append(df)
             if len(error_files) % 100 == 0:
                 print(f"Error files: {len(error_files)}")
         else:
             full_result.append(df)
-    full_result = pd.concat(full_result).reset_index(drop=True)
-    full_result.to_csv(f"{results_folder}/human_attr_all.csv", index=False)
+    if len(full_result)>0:
+        full_result = pd.concat(full_result).reset_index(drop=True)
+        full_result.to_csv(f"{results_folder}/human_attr_all.csv", index=False)
+    else:
+        print(city, ": No data")
 
 
 city_ls = pd.read_csv("../city_meta.csv")
-for city in city_ls["City"].tolist():
-    get_one_city(city)
-    print(f"Done {city}")
+city_to_process = [x for x in city_ls["City"].tolist() if not x in ['Hong Kong', 'Paris', 'Buenos Aires','Sydney']]
+# parallel processing
+import multiprocessing
+from multiprocessing import Pool
+
+pool = Pool(8)
+for _ in tqdm(pool.imap(get_one_city, city_to_process), total=len(city_to_process)):
+    pass
+
+
+# for city in city_ls["City"].tolist():
+#     try:
+#         get_one_city(city)
+#         print(f"Done {city}")
+#     except:
+#         print(f"Error {city}")
+#         continue
