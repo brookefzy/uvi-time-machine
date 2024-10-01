@@ -1,17 +1,10 @@
+"""This code uses each country internal data to make TNSE rather than global TNSE.
+Focusing on level 12"""
 import os
 import pandas as pd
-import numpy as np
-from glob import glob
-import gspread
-import h3
 from tqdm import tqdm
-
-import matplotlib.pyplot as plt
 from sklearn import manifold
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from sklearn.decomposition import NMF
-from sklearn.metrics import silhouette_score, silhouette_samples
-import seaborn as sns
+from sklearn.preprocessing import StandardScaler
 
 
 def get_std(df_seg_update, variables_remain):
@@ -29,6 +22,11 @@ def get_tsne(data, n_components=2):
 ROOTFOLDER = "/lustre1/g/geog_pyloo/05_timemachine"
 DATA_FOLDER = f"{ROOTFOLDER}/_curated/c_seg_hex"
 FILES = os.listdir(DATA_FOLDER)
+# EXPORT_FOLDER = f"{ROOTFOLDER}/_curated/c_seg_long_hex_country_level" # this is only the within city version
+EXPORT_FOLDER = f"{ROOTFOLDER}/_curated/c_seg_long_hex_country_level_all"
+if not os.path.exists(EXPORT_FOLDER):
+    os.makedirs(EXPORT_FOLDER)
+    print("folder made")
 
 # FILENAME = "c_seg_cat=31_res={res}.parquet"
 # FILENAME_WITHIN = "c_seg_cat=31_res={res}_withincity.parquet"
@@ -67,14 +65,10 @@ variables = [
     "wall",
     "window",
 ]
-index_cols_long = ["year_group","city_lower", "hex_id", "img_count", "res"]
-index_cols_cross = ["city_lower", "hex_id", "img_count", "res"]
+index_cols = ["year_group","city_lower", "hex_id", "img_count", "res"]
 
 
-def export_tnse(res, filename, variables=variables):
-
-    file_name = filename.format(res=res)
-    df = pd.read_parquet(os.path.join(DATA_FOLDER, file_name))
+def export_tnse(res, df, variables=variables):
     print("Current dataset length: ", df.shape[0])
     # standardize the data
 
@@ -88,27 +82,37 @@ def export_tnse(res, filename, variables=variables):
         drop=True
     )
     print(tsne_df.head())
-    index_cols = [x for x in df.columns if x in index_cols_long]
     tsne_df = pd.concat([df[index_cols], tsne_df], axis=1)
     print("finished concatination.")
     print(tsne_df.head())
 
-    tsne_df.to_parquet(
-        os.path.join(
-            DATA_FOLDER,
-            file_name.replace(".parquet", "_tsne.parquet"),
-        ),
-        index=False,
-    )
-    print(f"finish {res} {filename}")
-
     return tsne_df
 
+# load the meta file first
+meta = pd.read_csv("../city_meta.csv")
+meta['city_lower'] = meta['City'].apply(lambda x: x.lower().replace(" ", ""))
+country_list = meta['country_clean'].unique()
 
-for res in [8, 9,12]:
-    for filename in [FILENAME_WITHIN]:
-        export_tnse(res=res, filename=filename)
-for res in [8,9,12]:
-    for filename in [FILENAME]:
-        export_tnse(res=res, filename=filename)
+
+for filename in [FILENAME]:
+    for res in [8]:
+        print("Now processing resolution: ", res)
+        file_name = filename.format(res=res)
+        df_all = pd.read_parquet(os.path.join(DATA_FOLDER, file_name))
+        for country in tqdm(country_list):
+            city_to_work = meta[meta['country_clean']==country]['city_lower'].unique()
+            print(city_to_work)
+            temp = df_all[df_all['city_lower'].isin(city_to_work)].reset_index(drop = True)                        
+            tsne_df = export_tnse(res=res, df=temp)
+            tsne_df.to_parquet(os.path.join(EXPORT_FOLDER, "c_{country}_hex={res}_tsne.parquet".format(
+                country = country,
+                res = res)))
+        print("resoulation: ", res, " done")
+        print("*"*100)
+            
+                               
+                                            
+# for res in [8,9,12]:
+#     for filename in [FILENAME]:
+#         export_tnse(res=res, filename=filename)
         

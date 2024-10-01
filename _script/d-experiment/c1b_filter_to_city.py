@@ -13,8 +13,10 @@ ROOTFOLDER = "/lustre1/g/geog_pyloo/05_timemachine"
 DATA_FOLDER = f"{ROOTFOLDER}/_curated/c_seg_hex"
 BOUND_FOLDER = f"{ROOTFOLDER}/_raw/r_boundary_osm"
 
-FILENAME = "c_seg_cat={n_cat}_res={res}.parquet"
-FILENAME_WITHIN = "c_seg_cat=31_res={res}_withincity.parquet"
+# FILENAME = "c_seg_cat={n_cat}_res={res}.parquet"
+# FILENAME_WITHIN = "c_seg_cat=31_res={res}_withincity.parquet"
+FILENAME = "c_seg_long_cat={n_cat}_res={res}.parquet"
+FILENAME_WITHIN = "c_seg_long_cat=31_res={res}_withincity.parquet"
 
 def cell_to_shapely(cell):
     coords = h3.h3_to_geo_boundary(cell)
@@ -42,7 +44,7 @@ def get_data_within_bound(df):
     print("Done saving within city data")
     return df_within
 
-for res in [8,9,12]:
+for res in [12]:
     df = pd.read_parquet(os.path.join(DATA_FOLDER, FILENAME.format(n_cat = 31, res = res)))
     df_within = get_data_within_bound(df)
     df_within.to_parquet(

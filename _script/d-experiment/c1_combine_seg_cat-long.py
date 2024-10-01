@@ -6,12 +6,10 @@ import gspread
 from haversine import haversine, Unit
 import h3
 from tqdm import tqdm
-from fcmeans import FCM
-import matplotlib.pyplot as plt
-from sklearn import manifold
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from sklearn.decomposition import NMF
-from sklearn.metrics import silhouette_score, silhouette_samples
+import gc
+##################### NOTES ###################################################
+## FILE TOO LARGE, needs to process city by city
+##############################################################################
 
 
 ##################### HELPER ###################################################
@@ -36,21 +34,8 @@ def load_class():
     return obj_meta
 
 
-def get_cross(curated_cross):
-    segfiles = glob(curated_cross + "/*.parquet")
-    df_seg = []
-    for f in tqdm(segfiles):
-        temp = pd.read_parquet(f)
-        temp["city_lower"] = f.split("/")[-1].split(".")[0]
-        df_seg.append(temp)
-    df_seg = pd.concat(df_seg).reset_index(drop=True)
-    return df_seg
-
-
 def construct_cat(df_seg, obj_meta):
-    obj_meta = load_class()
-    obj_meta["id"] = obj_meta["id"].astype(str)
-    ADE_CATEGORIES_DICT = dict(zip(obj_meta["id"].values, obj_meta["category"].values))
+    
     new_cols = []
     for x in df_seg.columns:
         if x in obj_meta["id"].values:
@@ -70,11 +55,12 @@ def construct_cat(df_seg, obj_meta):
     df_long = (
         df_seg.set_index(["city_lower", "hex_id", "img_count","year_group"]).stack().reset_index()
     )
-    df_long.rename(columns={"level_3": "category", 0: "value"}, inplace=True)
+    # print(df_long.columns)
+    df_long.rename(columns={"level_4": "category", 0: "value"}, inplace=True)
     df_long["value"] = df_long["value"].fillna(0).astype(float)
 
     df_seg_update = (
-        df_long.groupby(["city_lower", "hex_id", "img_count", "category","year_group"])["value"]
+        df_long.groupby(["city_lower", "hex_id", "img_count", "category", "year_group"])["value"]
         .sum()
         .reset_index()
         .pivot(
@@ -86,6 +72,18 @@ def construct_cat(df_seg, obj_meta):
     )
     return df_seg_update, variables_remain
 
+def get_cross(curated_cross, obj_meta, res):
+    segfiles = glob(curated_cross + "/*.parquet")
+    df_seg = []
+    for f in tqdm(segfiles):
+        temp = pd.read_parquet(f)
+        temp["city_lower"] = f.split("/")[-1].split(".")[0]
+        temp_filter = temp[temp['res']==res].reset_index(drop = True)
+        temp_update, variables_remain = construct_cat(temp_filter, obj_meta)
+        print(temp_update.shape)
+        df_seg.append(temp_update)
+    df_seg = pd.concat(df_seg).reset_index(drop=True)
+    return df_seg
 
 ############################################# SET UP CONSTANT ############################################################
 CURATED_FOLDER_LONG = (
@@ -104,22 +102,21 @@ if not os.path.exists(GRAPHIC_PATH):
     os.makedirs(GRAPHIC_PATH)
 
 ##################### EXPORT STAGING FILES FOR LATER ANALYSIS############################################################
-df_seg = get_cross(CURATED_FOLDER_LONG)
-print(df_seg.columns)
-print("Loaded: ", df_seg.shape[0])
 obj_meta = load_class()
 print("Loaded: ", obj_meta.shape[0])
 n_cat = len(obj_meta["category"].unique())
 print("Number of categories: ", n_cat)
-
+obj_meta["id"] = obj_meta["id"].astype(str)
+ADE_CATEGORIES_DICT = dict(zip(obj_meta["id"].values, obj_meta["category"].values))
 print("Exporting staging files for later analysis")
 
-for res in df_seg["res"].unique():
-    df_temp = df_seg[df_seg["res"] == res]
-    df_temp_update, _ = construct_cat(df_temp, obj_meta)
-    df_temp_update.to_parquet(
+for res in [12]:
+    print("Now processing resoluation: ", res)
+    df_seg = get_cross(CURATED_FOLDER_LONG, obj_meta, res)
+    df_seg.to_parquet(
         CURATED_TARGET + f"/c_seg_long_cat={n_cat}_res={res}.parquet", index=False
     )
-    print("Exported: ", res)
+    
+    
     
 
