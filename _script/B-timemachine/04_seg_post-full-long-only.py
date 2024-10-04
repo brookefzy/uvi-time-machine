@@ -91,6 +91,7 @@ def get_crossectional(seg_df_pivot):
 # assume the data can be understand every year
 def get_longitudinal(seg_df_pivot):
     ops = get_opt(seg_df_pivot)
+    # FIX ME: this year group is not intuitive given the COVID year inbetween
     year_group1 = [2015,2016,2017,2018]
     year_group2 = [2020, 2021, 2022, 2023]
     null_group = [2019] # do not use this for now
