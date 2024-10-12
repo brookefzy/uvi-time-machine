@@ -17,6 +17,7 @@ PANO_PATH = "{ROOTFOLDER}/GSV/gsv_rgb/{cityabbr}/gsvmeta/gsv_pano.csv"
 GSV_PATH = "{ROOTFOLDER}/GSV/gsv_rgb/{cityabbr}/gsvmeta/gsv_path.csv"
 FOLDER_TO_SAVE = "{ROOTFOLDER}/_transformed/age_gender/{cityabbr}"
 FILE_TO_SAVE = "{ROOTFOLDER}/_transformed/age_gender/{cityabbr}/n={part}_objects.parquet"
+path_with_human = "/lustre1/g/geog_pyloo/05_timemachine/_transformed/t_human_attr/sel_path/{cityabbr}.csv"
 
 model = YOLOv10(f'{FILE_PATH}/weights/best.pt')
 
@@ -82,7 +83,8 @@ def loop_inference(variables):
 
 
 def parallel_inference(cityabbr):
-    gsv_path = GSV_PATH.format(ROOTFOLDER=ROOTFOLDER, cityabbr=cityabbr)
+    # gsv_path = GSV_PATH.format(ROOTFOLDER=ROOTFOLDER, cityabbr=cityabbr)
+    gsv_path = path_with_human.format(cityabbr=cityabbr)
     pathdf = pd.read_csv(gsv_path)
     img_paths = pathdf["path"].tolist()
     print("Total images to inference:", len(img_paths))
