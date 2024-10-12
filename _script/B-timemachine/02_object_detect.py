@@ -5,11 +5,9 @@ import cv2
 import supervision as sv
 import pandas as pd
 from multiprocessing import Pool
-import concurrent.futures
 import os
 from tqdm import tqdm
 import argparse
-import jinja2
 
 model = YOLOv10("/scr/u/yuanzf/yolov10/releases/download/v1.1/yolov10x.pt")
 ROOTFOLDER = "/lustre1/g/geog_pyloo/05_timemachine"

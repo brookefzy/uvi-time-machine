@@ -76,14 +76,24 @@ city_meta = pd.read_csv("../city_meta.csv")
 cityls = city_meta['City'].unique()
 
 # allcity_result = []
-for cityupper in tqdm(cityls[60:]):
-    df_summary = get_one_city(cityupper)
-    city = cityupper.lower().replace(" ", "")
-    df_summary.to_parquet(os.path.join(CURATED_FOLDER_TARGET, f"c_{city}_hex.parquet"), index = False)
-    # df_summary["source_city"] = city
-    print("Done with City: ", city)
-    print("*"*100)
+# for cityupper in tqdm(cityls[60:]):
+#     df_summary = get_one_city(cityupper)
+#     city = cityupper.lower().replace(" ", "")
+#     df_summary.to_parquet(os.path.join(CURATED_FOLDER_TARGET, f"c_{city}_hex.parquet"), index = False)
+#     # df_summary["source_city"] = city
+#     print("Done with City: ", city)
+#     print("*"*100)
     # allcity_result.append(df_summary)
     
 # allcity_result = pd.concat(allcity_result).reset_index(drop = True)
 # allcity_result.to_parquet(os.path.join(CURATED_FOLDER_TARGET, "c_hex_agg_all.parquet"), index = False)
+
+allcity_result = []
+for cityupper in tqdm(cityls):
+    city = cityupper.lower().replace(" ", "")
+    df_summary = pd.read_parquet(os.path.join(CURATED_FOLDER_TARGET, f"c_{city}_hex.parquet"))
+    df_summary["source_city"] = cityupper
+    allcity_result.append(df_summary)
+allcity_result = pd.concat(allcity_result).reset_index(drop = True)
+allcity_result.to_csv(os.path.join(CURATED_FOLDER_TARGET, "c_hex_agg_all.csv"), index = False)
+    
