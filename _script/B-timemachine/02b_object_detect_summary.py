@@ -63,7 +63,7 @@ def get_hex_basics(city_abbr, res):
     )
 
     # keep these hex
-    df_all_keep = df_pano_inner[(df_pano_inner["year"] >= 2015)
+    df_all_keep = df_pano_inner[(df_pano_inner["year"] >= 2014)
     ].reset_index(drop=True)
     print(df_all_keep.shape[0], "panoids are kept")
     # assign the year_group; skip for now

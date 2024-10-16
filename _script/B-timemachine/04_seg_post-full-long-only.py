@@ -11,11 +11,7 @@ PANO_PATH = "{ROOTFOLDER}/GSV/gsv_rgb/{cityabbr}/gsvmeta/gsv_pano.csv"
 CURATED_FOLDER = f"{ROOTFOLDER}/_curated"
 META_PATH = "{ROOTFOLDER}/GSV/gsv_rgb/{cityabbr}/gsvmeta/{cityabbr}_meta.csv"
 
-EXFOLDER = os.path.join(CURATED_FOLDER, "c_seg_crossectional_all")
-if not os.path.exists(EXFOLDER):
-    os.makedirs(EXFOLDER)
-    
-EXFOLDER_LONG = os.path.join(CURATED_FOLDER, "c_seg_longitudinal_all")
+EXFOLDER_LONG = os.path.join(CURATED_FOLDER, "c_seg_longitudinal_year")
 if not os.path.exists(EXFOLDER_LONG):
     os.makedirs(EXFOLDER_LONG)
     
@@ -69,39 +65,19 @@ def clean_seg(seg_df, pano_df, meta_df):
 def get_opt(seg_df_pivot):
     all_labels = [x for x in seg_df_pivot.columns if str(x) in [str(s) for s in range(150)]]
     print("label length: ", len(all_labels))
-    ops = {"img":"nunique"}
+    ops = {"img":"count"}
     for o in all_labels:
-        ops[o] = "mean"
+        # ops[o] = "mean"
+        ops[o] = 'sum' # change to sum, and get average later uses the image count
     return ops
-
-def get_crossectional(seg_df_pivot):
-    ops = get_opt(seg_df_pivot)
-    
-    h3_summary_no_year = []
-    for res in H3_RES:
-        # for each resolution of h3 id we get a average pixel of one category
-        df_h3_summary = seg_df_pivot.groupby([f'h3_{res}']).agg(ops).reset_index()\
-        .rename(columns = {f'h3_{res}':"hex_id", "img":"img_count"})
-        df_h3_summary["res"] = res
-        h3_summary_no_year.append(df_h3_summary)
-        print("resolution: ", res)
-    h3_summary_no_year = pd.concat(h3_summary_no_year).reset_index(drop = True)
-    return h3_summary_no_year
 
 # assume the data can be understand every year
 def get_longitudinal(seg_df_pivot):
     ops = get_opt(seg_df_pivot)
-    # FIX ME: this year group is not intuitive given the COVID year inbetween
-    year_group1 = [2015,2016,2017,2018]
-    year_group2 = [2020, 2021, 2022, 2023]
-    null_group = [2019] # do not use this for now
-    seg_df_summary_pano = seg_df_pivot[~seg_df_pivot["year"].isin(null_group)].reset_index(drop = True)
-    seg_df_summary_pano['year_group'] = np.where(seg_df_summary_pano["year"]<=2018, '2015-2018', '2020-2023')
-    
     h3_summary = []
     for res in H3_RES:
         # for each resolution of h3 id we get a average pixel of one category
-        df_h3_summary = seg_df_summary_pano.groupby([f'h3_{res}','year_group']).agg(ops).reset_index()\
+        df_h3_summary = seg_df_pivot.groupby([f'h3_{res}','year']).agg(ops).reset_index()\
         .rename(columns = {f'h3_{res}':"hex_id", "img":"img_count"})
         df_h3_summary["res"] = res
         h3_summary.append(df_h3_summary)
@@ -129,17 +105,14 @@ def load_data(city):
     meta_df = meta_df[['img','size']]
     
     seg_df_pivot = clean_seg(seg_df, pano_df, meta_df)
-    seg_crossectional = get_crossectional(seg_df_pivot)
     seg_longitudinal = get_longitudinal(seg_df_pivot)
-    seg_crossectional.columns = [str(x) for x in seg_crossectional.columns]
     seg_longitudinal.columns = [str(x) for x in seg_longitudinal.columns]
-    seg_crossectional.to_parquet(os.path.join(EXFOLDER, cityabbr+".parquet"), index = False)
     seg_longitudinal.to_parquet(os.path.join(EXFOLDER_LONG, cityabbr+".parquet"), index = False)
     print(f"city {cityabbr} saved")
     print("*"*50)
     
 def check_finished():
-    finished = [x.split(".")[0] for x in os.listdir(EXFOLDER)]
+    finished = [x.split(".")[0] for x in os.listdir(EXFOLDER_LONG)]
     return finished
     
 def load_all():

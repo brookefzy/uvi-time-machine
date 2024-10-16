@@ -88,15 +88,15 @@ city_to_process = [x for x in city_ls["City"].tolist() if not x in ['Hong Kong',
 import multiprocessing
 from multiprocessing import Pool
 
-pool = Pool(8)
-for _ in tqdm(pool.imap(get_one_city, city_to_process), total=len(city_to_process)):
-    pass
+# pool = Pool(8)
+# for _ in tqdm(pool.imap(get_one_city, city_to_process), total=len(city_to_process)):
+#     pass
 
 
-# for city in city_ls["City"].tolist():
-#     try:
-#         get_one_city(city)
-#         print(f"Done {city}")
-#     except:
-#         print(f"Error {city}")
-#         continue
+for city in ["Tokyo"]:
+    try:
+        get_one_city(city)
+        print(f"Done {city}")
+    except:
+        print(f"Error {city}")
+        continue

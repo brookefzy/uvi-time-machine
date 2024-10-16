@@ -20,11 +20,14 @@ def get_city_path(city):
     df_path = pd.read_csv(PATH_PATH.format(ROOTFOLDER=ROOTFOLDER, cityabbr=cityabbr))
     objfiles = glob.glob(OBJECT_SOURCE_FOLDER.format(CURATED_FOLDER=CURATED_FOLDER, city_abbr=cityabbr))
     df = pd.concat([pd.read_parquet(f) for f in objfiles])
-
+    print(df.shape[0])
+    print(df[df['object_name']=='person'].shape[0], " person objects")
+    
     df_path['img'] = df_path['path'].apply(lambda x: x.split("/")[-1])
+    df_path.head()
+    print(df.head())
     df_path_sel = df[df['object_name']=='person'].drop_duplicates("img").merge(df_path, on='img')[['path']]
-
-    df_path_sel = df[df['object_name']=='person'].drop_duplicates("img").merge(df_path, on='img')[['path']]
+    print(df_path_sel.shape[0], " images with at least one person")
 
     df_path_sel.to_csv(PATH_SEL.format(PATH_TRANSFOM_FOLDER = PATH_TRANSFOM_FOLDER, city_abbr=cityabbr), 
                     index=False)
@@ -32,5 +35,7 @@ def get_city_path(city):
 
 city_ls = pd.read_csv("../city_meta.csv")
 city_ls = city_ls["City"].tolist()
-for city in city_ls:
+# for city in city_ls:
+#     get_city_path(city)
+for city in ['Tokyo']:
     get_city_path(city)
