@@ -85,7 +85,9 @@ def get_confidence(df, conf):
     df_summary['pedestrian_count'] = df_summary.sum(axis=1)
     df_summary = df_summary.reset_index()
     df_summary['panoid'] = df_summary['img'].apply(lambda x: x[:22])
+    
     df_summary_pano = df_summary.groupby(['panoid']).sum().reset_index()
+    # add a step to calculate the image-level average
     return df_summary, df_summary_pano
 
 def get_result(city):
@@ -113,6 +115,13 @@ def get_result(city):
             cols_to_export = [x for x in standard_cols if x in df_summary_merged.columns]
             
             df_summary_hex = df_summary_merged.groupby(['hex_id', 'year'])[cols_to_export].sum().reset_index()
+            df_summary_hex_mean = df_summary_merged.groupby(['hex_id', 'year']).agg({
+                'male_ratio':'mean',
+                'female_ratio':'mean'
+            }).reset_index().rename(columns={'male_ratio':'male_ratio_img_mean',
+                                             'female_ratio':'female_ratio_img_mean'} 
+                                             ) # this is the average among images with at least one person
+            
             df_summary_hex_pano = df_summary_merged.groupby(['hex_id','year']).agg({'panoid':'nunique'}).reset_index()
             df_summary_hex_pano.rename(columns={'panoid':'panoid_n_with_person'}, inplace=True)
 
@@ -120,7 +129,10 @@ def get_result(city):
                 df_summary_hex, on=['hex_id', 'year'], how='left'
             ).merge(
                 df_summary_hex_pano, on=['hex_id','year'], how='left'
-            ).fillna(0)
+            ).fillna(0)\
+                .merge(
+                df_summary_hex_mean, on=['hex_id', 'year'], how='left'
+                )
             df_summary_final['res'] = res
             df_summary_final['conf'] = conf
             alldf.append(df_summary_final)
