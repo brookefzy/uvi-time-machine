@@ -1,4 +1,3 @@
-
 """This script uses yolov10 to differentiate the age and gender of people"""
 
 from ultralytics import YOLOv10
@@ -11,15 +10,18 @@ from tqdm import tqdm
 import argparse
 
 
-FILE_PATH = "/scr/u/yuanzf/yolov10/runs/detect/train9"
+# FILE_PATH = "/scr/u/yuanzf/yolov10/runs/detect/train9"
+FILE_PATH = "/scr/u/yuanzf/yolov10/runs/detect/train12"
 ROOTFOLDER = "/lustre1/g/geog_pyloo/05_timemachine"
 PANO_PATH = "{ROOTFOLDER}/GSV/gsv_rgb/{cityabbr}/gsvmeta/gsv_pano.csv"
 GSV_PATH = "{ROOTFOLDER}/GSV/gsv_rgb/{cityabbr}/gsvmeta/gsv_path.csv"
 FOLDER_TO_SAVE = "{ROOTFOLDER}/_transformed/age_gender/{cityabbr}"
-FILE_TO_SAVE = "{ROOTFOLDER}/_transformed/age_gender/{cityabbr}/n={part}_objects.parquet"
+FILE_TO_SAVE = (
+    "{ROOTFOLDER}/_transformed/age_gender/{cityabbr}/n={part}_objects.parquet"
+)
 path_with_human = "/lustre1/g/geog_pyloo/05_timemachine/_transformed/t_human_attr/sel_path/{cityabbr}.csv"
 
-model = YOLOv10(f'{FILE_PATH}/weights/best.pt')
+model = YOLOv10(f"{FILE_PATH}/weights/best.pt")
 
 
 def load_paths(cityabbr):
@@ -61,8 +63,7 @@ def loop_inference(variables):
     img_paths = variables["img_paths"]
     # check if the paths all finished
     k = variables["i"]
-    
-    
+
     file_to_save = FILE_TO_SAVE.format(
         ROOTFOLDER=ROOTFOLDER, cityabbr=variables["cityabbr"], part=k
     )
@@ -114,7 +115,7 @@ def main():
     args = argparse.ArgumentParser()
     args.add_argument("--city", type=str, default="Hong Kong")
     city = args.parse_args().city
-    
+
     cityabbr = city.lower().replace(" ", "")
     folder_to_save = FOLDER_TO_SAVE.format(ROOTFOLDER=ROOTFOLDER, cityabbr=cityabbr)
     if not os.path.exists(folder_to_save):
