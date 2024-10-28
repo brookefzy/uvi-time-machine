@@ -11,13 +11,14 @@ import argparse
 
 
 # FILE_PATH = "/scr/u/yuanzf/yolov10/runs/detect/train9"
-FILE_PATH = "/scr/u/yuanzf/yolov10/runs/detect/train12"
+# FILE_PATH = "/scr/u/yuanzf/yolov10/runs/detect/train12" # 6 classes
+FILE_PATH = "/scr/u/yuanzf/yolov10/runs/detect/train2" # 2 classes
 ROOTFOLDER = "/lustre1/g/geog_pyloo/05_timemachine"
 PANO_PATH = "{ROOTFOLDER}/GSV/gsv_rgb/{cityabbr}/gsvmeta/gsv_pano.csv"
 GSV_PATH = "{ROOTFOLDER}/GSV/gsv_rgb/{cityabbr}/gsvmeta/gsv_path.csv"
-FOLDER_TO_SAVE = "{ROOTFOLDER}/_transformed/age_gender/{cityabbr}"
+FOLDER_TO_SAVE = "{ROOTFOLDER}/_transformed/age_gender_v3/{cityabbr}"
 FILE_TO_SAVE = (
-    "{ROOTFOLDER}/_transformed/age_gender/{cityabbr}/n={part}_objects.parquet"
+    "{ROOTFOLDER}/_transformed/age_gender_v3/{cityabbr}/n={part}_objects.parquet"
 )
 path_with_human = "/lustre1/g/geog_pyloo/05_timemachine/_transformed/t_human_attr/sel_path/{cityabbr}.csv"
 
