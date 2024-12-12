@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 from glob import glob
 import gspread
-from haversine import haversine, Unit
 import h3
 from tqdm import tqdm
 import gc
@@ -86,9 +85,10 @@ def get_cross(curated_cross, obj_meta, res):
     return df_seg
 
 ############################################# SET UP CONSTANT ############################################################
-CURATED_FOLDER_LONG = (
-    "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_seg_longitudinal_all"
-)
+# CURATED_FOLDER_LONG = (
+#     "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_seg_longitudinal_all"
+# )
+CURATED_FOLDER_LONG = "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_seg_longitudinal_year"
 
 RAW_PATH = (
     "/lustre1/g/geog_pyloo/05_timemachine/GSV/gsv_rgb/{city}/gsvmeta/{city}_meta.csv"
@@ -110,7 +110,7 @@ obj_meta["id"] = obj_meta["id"].astype(str)
 ADE_CATEGORIES_DICT = dict(zip(obj_meta["id"].values, obj_meta["category"].values))
 print("Exporting staging files for later analysis")
 
-for res in [12]:
+for res in [8,9]:
     print("Now processing resoluation: ", res)
     df_seg = get_cross(CURATED_FOLDER_LONG, obj_meta, res)
     df_seg.to_parquet(

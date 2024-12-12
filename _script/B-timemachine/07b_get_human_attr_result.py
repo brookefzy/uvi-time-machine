@@ -65,6 +65,10 @@ def get_one_city(city):
     results_folder = f"/lustre1/g/geog_pyloo/05_timemachine/_curated/c_human_attr/{cityabbr}"
     results_files = glob.glob(f"{results_folder}/human_attr_*.pickle")
     print("Number of files: ", len(results_files))
+    # check if finished
+    if os.path.exists(f"{results_folder}/human_attr_all.csv"):
+        print(f"{city} already processed")
+        return None
 
     for test_file in tqdm(results_files):
         # df = process_one_img(test_file)
@@ -82,7 +86,7 @@ def get_one_city(city):
         print(city, ": No data")
 
 
-city_ls = pd.read_csv("../city_meta.csv")
+city_ls = pd.read_csv("/home/yuanzf/uvi-time-machine/_script/city_meta.csv")
 city_to_process = [x for x in city_ls["City"].tolist() if not x in ['Hong Kong', 'Paris', 'Buenos Aires','Sydney']]
 # parallel processing
 import multiprocessing
@@ -93,10 +97,11 @@ from multiprocessing import Pool
 #     pass
 
 
-for city in ["Tokyo"]:
+for city in city_to_process:
     try:
         get_one_city(city)
         print(f"Done {city}")
     except:
         print(f"Error {city}")
         continue
+#/home/yuanzf/uvi-time-machine/_script/B-timemachine

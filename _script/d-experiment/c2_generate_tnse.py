@@ -1,17 +1,7 @@
 import os
 import pandas as pd
-import numpy as np
-from glob import glob
-import gspread
-import h3
-from tqdm import tqdm
-
-import matplotlib.pyplot as plt
 from sklearn import manifold
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from sklearn.decomposition import NMF
-from sklearn.metrics import silhouette_score, silhouette_samples
-import seaborn as sns
+from sklearn.preprocessing import StandardScaler
 
 
 def get_std(df_seg_update, variables_remain):
@@ -105,10 +95,10 @@ def export_tnse(res, filename, variables=variables):
     return tsne_df
 
 
-for res in [8, 9,12]:
-    for filename in [FILENAME_WITHIN]:
-        export_tnse(res=res, filename=filename)
-for res in [8,9,12]:
+# for res in [8, 9,12]:
+#     for filename in [FILENAME_WITHIN]:
+#         export_tnse(res=res, filename=filename)
+for res in [8,9]:
     for filename in [FILENAME]:
         export_tnse(res=res, filename=filename)
         

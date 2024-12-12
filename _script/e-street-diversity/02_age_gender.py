@@ -11,14 +11,16 @@ import argparse
 
 
 # FILE_PATH = "/scr/u/yuanzf/yolov10/runs/detect/train9"
-# FILE_PATH = "/scr/u/yuanzf/yolov10/runs/detect/train12" # 6 classes
-FILE_PATH = "/scr/u/yuanzf/yolov10/runs/detect/train2" # 2 classes
+# FILE_PATH = "/scr/u/yuanzf/yolov10/runs/detect/train12" # 6 classes # version 2
+# FILE_PATH = "/scr/u/yuanzf/yolov10/runs/detect/train2" # 2 classes # version 3
+VERSION = 7
+FILE_PATH = "/scr/u/yuanzf/yolov10/runs/detect/train21" # 2 classes version 7
 ROOTFOLDER = "/lustre1/g/geog_pyloo/05_timemachine"
 PANO_PATH = "{ROOTFOLDER}/GSV/gsv_rgb/{cityabbr}/gsvmeta/gsv_pano.csv"
 GSV_PATH = "{ROOTFOLDER}/GSV/gsv_rgb/{cityabbr}/gsvmeta/gsv_path.csv"
-FOLDER_TO_SAVE = "{ROOTFOLDER}/_transformed/age_gender_v3/{cityabbr}"
+FOLDER_TO_SAVE = "{ROOTFOLDER}/_transformed/age_gender_v{version}/{cityabbr}"
 FILE_TO_SAVE = (
-    "{ROOTFOLDER}/_transformed/age_gender_v3/{cityabbr}/n={part}_objects.parquet"
+    "{ROOTFOLDER}/_transformed/age_gender_v{version}/{cityabbr}/n={part}_objects.parquet"
 )
 path_with_human = "/lustre1/g/geog_pyloo/05_timemachine/_transformed/t_human_attr/sel_path/{cityabbr}.csv"
 
@@ -66,6 +68,7 @@ def loop_inference(variables):
     k = variables["i"]
 
     file_to_save = FILE_TO_SAVE.format(
+        version = VERSION,
         ROOTFOLDER=ROOTFOLDER, cityabbr=variables["cityabbr"], part=k
     )
     if os.path.exists(file_to_save):
@@ -118,7 +121,7 @@ def main():
     city = args.parse_args().city
 
     cityabbr = city.lower().replace(" ", "")
-    folder_to_save = FOLDER_TO_SAVE.format(ROOTFOLDER=ROOTFOLDER, cityabbr=cityabbr)
+    folder_to_save = FOLDER_TO_SAVE.format(version = VERSION, ROOTFOLDER=ROOTFOLDER, cityabbr=cityabbr)
     if not os.path.exists(folder_to_save):
         os.makedirs(folder_to_save)
     parallel_inference(cityabbr)

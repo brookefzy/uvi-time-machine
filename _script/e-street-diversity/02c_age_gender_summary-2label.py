@@ -12,12 +12,13 @@ ROOT_DIR = os.path.abspath("../")
 sys.path.append(ROOT_DIR)
 
 ROOTFOLDER = "/lustre1/g/geog_pyloo/05_timemachine"
-FOLDER_TO_SAVE = "{ROOTFOLDER}/_transformed/age_gender_v3/{cityabbr}"
-FILE_TO_SAVE = "{ROOTFOLDER}/_transformed/age_gender_v3/{cityabbr}/n={part}_objects.parquet"
+VERSION = 7
+FOLDER_TO_SAVE = "{ROOTFOLDER}/_transformed/age_gender_v{version}/{cityabbr}"
+FILE_TO_SAVE = "{ROOTFOLDER}/_transformed/age_gender_v{version}/{cityabbr}/n={part}_objects.parquet"
 PANO_PATH = "{ROOTFOLDER}/GSV/gsv_rgb/{cityabbr}/gsvmeta/gsv_pano.csv"
 PATH_PATH = "{ROOTFOLDER}/GSV/gsv_rgb/{cityabbr}/gsvmeta/gsv_path.csv"
-FILE_TO_EXPORT = "{ROOTFOLDER}/_curated/c_age_gender_v3/{cityabbr}.parquet"
-FOLDER_TO_EXP = f"{ROOTFOLDER}/_curated/c_age_gender_v3"
+FILE_TO_EXPORT = "{ROOTFOLDER}/_curated/c_age_gender_v{version}/{cityabbr}.parquet"
+FOLDER_TO_EXP = f"{ROOTFOLDER}/_curated/c_age_gender_v{VERSION}"
 if not os.path.exists(FOLDER_TO_EXP):
     os.makedirs(FOLDER_TO_EXP)
     
@@ -57,7 +58,7 @@ def load_results(cityabbr):
     
     # process the prediction results
     objfiles = glob.glob(
-        FOLDER_TO_SAVE.format(ROOTFOLDER=ROOTFOLDER, cityabbr=cityabbr) + "/*.parquet"
+        FOLDER_TO_SAVE.format(ROOTFOLDER=ROOTFOLDER, cityabbr=cityabbr, version = VERSION) + "/*.parquet"
     )
     if len(objfiles) == 0:
         print("No object files found for", cityabbr)
@@ -66,16 +67,16 @@ def load_results(cityabbr):
     return df,df_path
     
 def get_confidence(df, conf):
-    df_con = df_con = df[df['confidence']>=conf].reset_index(drop=True)
+    df_con = df[df['confidence']>=conf].reset_index(drop=True)
     df_con['object_name'] = df_con['object_name'].apply(lambda x: x.lower())
     df_con['gender'] = df_con['object_name'].apply(lambda x: "female" if "female" in x.lower() else "male")
+    df_con['gender'] = df_con['object_name'].apply(lambda x: "female" if "femlae" in x.lower() else "male")
     # df_con['age'] = df_con['object_name'].apply(lambda x: object_age_dict[x.lower()] if x.lower() in object_age_dict else "unknown")
      # this version does not care about age
     # find an image with most male-60
     df_summary = df_con.groupby(['img','gender']).size().reset_index().pivot(
         index='img', columns = ['gender'], values=0
     ).fillna(0)
-    df_summary.columns = ['_'.join(x) for x in df_summary.columns]
     df_summary['pedestrian_count'] = df_summary.sum(axis=1)
     df_summary = df_summary.reset_index()
     df_summary['panoid'] = df_summary['img'].apply(lambda x: x[:22])
@@ -87,10 +88,10 @@ def get_confidence(df, conf):
 def get_result(city):
     cityabbr = city.lower().replace(" ", "")
     # check if the export exist, then skip:
-    file_export = FILE_TO_EXPORT.format(ROOTFOLDER=ROOTFOLDER, cityabbr=cityabbr)
-    # if os.path.exists(file_export):
-    #     print(f"city {city} already exists")
-        # return None
+    file_export = FILE_TO_EXPORT.format(ROOTFOLDER=ROOTFOLDER, cityabbr=cityabbr, version = VERSION)
+    if os.path.exists(file_export):
+        print(f"city {city} already exists")
+        return None
     df, df_path = load_results(cityabbr)
     if df.shape[0] == 0:
         print(f"city {city} has no data")
@@ -138,7 +139,7 @@ def get_result(city):
             df_summary_final['conf'] = conf
             alldf.append(df_summary_final)
     alldf = pd.concat(alldf).reset_index(drop=True)
-    alldf.to_parquet(FILE_TO_EXPORT.format(ROOTFOLDER=ROOTFOLDER, cityabbr=cityabbr), index=False)
+    alldf.to_parquet(FILE_TO_EXPORT.format(ROOTFOLDER=ROOTFOLDER, cityabbr=cityabbr, version = VERSION), index=False)
     print(f"city {city} done")
     return alldf
 
