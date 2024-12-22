@@ -14,11 +14,11 @@ META_PATH = "{ROOTFOLDER}/GSV/gsv_rgb/{cityabbr}/gsvmeta/{cityabbr}_meta.csv"
 EXFOLDER = os.path.join(CURATED_FOLDER, "c_seg_crossectional_all")
 if not os.path.exists(EXFOLDER):
     os.makedirs(EXFOLDER)
-    
+
 # EXFOLDER_LONG = os.path.join(CURATED_FOLDER, "c_seg_longitudinal_all") # retire this one
 # if not os.path.exists(EXFOLDER_LONG):
 #     os.makedirs(EXFOLDER_LONG)
-    
+
 TOTAL_PX = 160000
 H3_RES = [8, 9, 12]
 
@@ -27,103 +27,127 @@ H3_RES = [8, 9, 12]
 ##################################################################
 
 
-def get_result(cityabbr, curated_folder, f_suffixes = "*panoptic.csv"):
+def get_result(cityabbr, curated_folder, f_suffixes="*panoptic.csv"):
     outfolder = f"{curated_folder}/{cityabbr}"
     seg_file = glob.glob(os.path.join(outfolder, f_suffixes))
     panoptic_df = []
     for p in seg_file:
         temp = pd.read_csv(p)
         panoptic_df.append(temp)
-    panoptic_df = pd.concat(panoptic_df).reset_index(drop = True)
+    panoptic_df = pd.concat(panoptic_df).reset_index(drop=True)
     return panoptic_df
+
 
 def clean_seg(seg_df, pano_df, meta_df):
 
-    seg_df_filtered = seg_df.merge(meta_df, on = 'img')
-    seg_df_filtered = seg_df_filtered[seg_df_filtered['size']>=10000].reset_index(drop = True)
+    seg_df_filtered = seg_df.merge(meta_df, on="img")
+    seg_df_filtered = seg_df_filtered[seg_df_filtered["size"] >= 10000].reset_index(
+        drop=True
+    )
     print("Segmentation shape after filter: ", seg_df_filtered.shape[0])
-    seg_df_summary = seg_df_filtered.groupby(["img", "labels"]).agg({'areas':'sum'}).reset_index()
-    seg_df_summary['panoid'] = seg_df_summary['img'].apply(lambda x: x[:22])
+    seg_df_filtered["label_c"] = seg_df_filtered.groupby("img")["labels"].transform(
+        "nunique"
+    )
+    seg_df_filtered = seg_df_filtered[seg_df_filtered["label_c"] >= 3].reset_index(
+        drop=True
+    )
+    print("Segmentation shape after filter round 2: ", seg_df_filtered.shape[0])
+    seg_df_summary = (
+        seg_df_filtered.groupby(["img", "labels"]).agg({"areas": "sum"}).reset_index()
+    )
+    seg_df_summary["panoid"] = seg_df_summary["img"].apply(lambda x: x[:22])
 
     col_cols = ["labels"]
     index_cols = ["img", "year", "h3_8", "h3_9", "h3_12"]
-    seg_df_summary_pano = seg_df_summary.merge(pano_df, on = ['panoid'])
-    
-    
-    if seg_df_summary_pano.shape[0]<seg_df_summary.shape[0]:
+    seg_df_summary_pano = seg_df_summary.merge(pano_df, on=["panoid"])
+
+    if seg_df_summary_pano.shape[0] < seg_df_summary.shape[0]:
         print("data missing after data join.")
         print("Before join: ", seg_df_summary.shape[0])
-        print("After join: ",seg_df_summary_pano.shape[0])
+        print("After join: ", seg_df_summary_pano.shape[0])
     else:
         print("data consistent")
-    
-    seg_df_summary = seg_df_summary_pano.drop_duplicates(index_cols+col_cols)
+
+    seg_df_summary = seg_df_summary_pano.drop_duplicates(index_cols + col_cols)
     print("Segmentation shape: ", seg_df_summary.shape[0])
-    seg_df_pivot = seg_df_summary.pivot(
-        columns = col_cols,
-        index = index_cols,
-        values = "areas"
-    ).reset_index().fillna(0)
+    seg_df_pivot = (
+        seg_df_summary.pivot(columns=col_cols, index=index_cols, values="areas")
+        .reset_index()
+        .fillna(0)
+    )
     return seg_df_pivot
 
+
 def get_opt(seg_df_pivot):
-    all_labels = [x for x in seg_df_pivot.columns if str(x) in [str(s) for s in range(150)]]
+    all_labels = [
+        x for x in seg_df_pivot.columns if str(x) in [str(s) for s in range(150)]
+    ]
     print("label length: ", len(all_labels))
-    ops = {"img":"nunique"}
+    ops = {"img": "nunique"}
     for o in all_labels:
         ops[o] = "mean"
     return ops
 
+
 def get_crossectional(seg_df_pivot):
     ops = get_opt(seg_df_pivot)
-    
+
     h3_summary_no_year = []
     for res in H3_RES:
         # for each resolution of h3 id we get a average pixel of one category
-        df_h3_summary = seg_df_pivot.groupby([f'h3_{res}']).agg(ops).reset_index()\
-        .rename(columns = {f'h3_{res}':"hex_id", "img":"img_count"})
+        df_h3_summary = (
+            seg_df_pivot.groupby([f"h3_{res}"])
+            .agg(ops)
+            .reset_index()
+            .rename(columns={f"h3_{res}": "hex_id", "img": "img_count"})
+        )
         df_h3_summary["res"] = res
         h3_summary_no_year.append(df_h3_summary)
         print("resolution: ", res)
-    h3_summary_no_year = pd.concat(h3_summary_no_year).reset_index(drop = True)
+    h3_summary_no_year = pd.concat(h3_summary_no_year).reset_index(drop=True)
     return h3_summary_no_year
 
 
 def load_data(city):
     cityabbr = city.lower().replace(" ", "")
-    seg_df = get_result(cityabbr, CURATED_FOLDER, f_suffixes = "*seg.csv")
-    pano_df = pd.read_csv(PANO_PATH.format(
-    ROOTFOLDER = ROOTFOLDER,
-    cityabbr = cityabbr
-    ))[['panoid', 'lat', 'lon', 'year', 'month']]
+    seg_df = get_result(cityabbr, CURATED_FOLDER, f_suffixes="*seg.csv")
+    pano_df = pd.read_csv(PANO_PATH.format(ROOTFOLDER=ROOTFOLDER, cityabbr=cityabbr))[
+        ["panoid", "lat", "lon", "year", "month"]
+    ]
 
     for res in H3_RES:
-        pano_df[f'h3_{res}'] = pano_df.apply(lambda x: h3.geo_to_h3(x.lat, x.lon, res), axis=1)
-        
-    meta_df = pd.read_csv(META_PATH.format(
-        ROOTFOLDER = ROOTFOLDER,
-        cityabbr = cityabbr
-    ))
-    meta_df['img']= meta_df['path'].apply(lambda x: x.split("/")[-1].split(".")[0])
-    # here make sure 
-    meta_df = meta_df[['img','size']]
-    
+        pano_df[f"h3_{res}"] = pano_df.apply(
+            lambda x: h3.geo_to_h3(x.lat, x.lon, res), axis=1
+        )
+
+    meta_df = pd.read_csv(META_PATH.format(ROOTFOLDER=ROOTFOLDER, cityabbr=cityabbr))
+    meta_df["img"] = meta_df["path"].apply(lambda x: x.split("/")[-1].split(".")[0])
+    # here make sure
+    meta_df = meta_df[["img", "size"]]
+
     seg_df_pivot = clean_seg(seg_df, pano_df, meta_df)
     seg_crossectional = get_crossectional(seg_df_pivot)
     seg_crossectional.columns = [str(x) for x in seg_crossectional.columns]
-    seg_crossectional.to_parquet(os.path.join(EXFOLDER, cityabbr+".parquet"), index = False)
+    seg_crossectional.to_parquet(
+        os.path.join(EXFOLDER, cityabbr + ".parquet"), index=False
+    )
     print(f"city {cityabbr} saved")
-    print("*"*50)
-    
+    print("*" * 50)
+
+
 def check_finished():
     finished = [x.split(".")[0] for x in os.listdir(EXFOLDER)]
     return finished
-    
+
+
 def load_all():
 
     city_meta = pd.read_csv("../city_meta.csv")
     return city_meta
+
+
 # step 1
+
 
 def main():
     city_meta = load_all()
@@ -138,6 +162,6 @@ def main():
         # except:
         #     print(f"check problem for this city {city}")
 
+
 if __name__ == "__main__":
     main()
-    
