@@ -1,5 +1,6 @@
 """This code uses each country internal data to make TNSE rather than global TNSE.
 Focusing on level 12"""
+
 import os
 import pandas as pd
 from tqdm import tqdm
@@ -19,6 +20,7 @@ def get_tsne(data, n_components=2):
     tsne_data = tsne.fit_transform(data)
     return tsne_data
 
+
 ROOTFOLDER = "/lustre1/g/geog_pyloo/05_timemachine"
 DATA_FOLDER = f"{ROOTFOLDER}/_curated/c_seg_hex"
 FILES = os.listdir(DATA_FOLDER)
@@ -35,7 +37,7 @@ FILENAME = "c_seg_long_cat=31_res={res}.parquet"
 FILENAME_WITHIN = "c_seg_long_cat=31_res={res}_withincity.parquet"
 
 variables = [
-    "bike",
+    # "bike",
     "building",
     "bus",
     "car",
@@ -45,8 +47,8 @@ variables = [
     "lake+waterboday",
     "light",
     "mountain+hill",
-    "other",
-    "person",
+    # "other",
+    # "person",
     "pole",
     "railing",
     "road",
@@ -65,7 +67,7 @@ variables = [
     "wall",
     "window",
 ]
-index_cols = ["year_group","city_lower", "hex_id", "img_count", "res"]
+index_cols = ["year_group", "city_lower", "hex_id", "img_count", "res"]
 
 
 def export_tnse(res, df, variables=variables):
@@ -88,31 +90,37 @@ def export_tnse(res, df, variables=variables):
 
     return tsne_df
 
+
 # load the meta file first
 meta = pd.read_csv("../city_meta.csv")
-meta['city_lower'] = meta['City'].apply(lambda x: x.lower().replace(" ", ""))
-country_list = meta['country_clean'].unique()
+meta["city_lower"] = meta["City"].apply(lambda x: x.lower().replace(" ", ""))
+country_list = meta["country_clean"].unique()
 
 
 for filename in [FILENAME]:
-    for res in [8]:
+    for res in [8, 9]:
         print("Now processing resolution: ", res)
         file_name = filename.format(res=res)
         df_all = pd.read_parquet(os.path.join(DATA_FOLDER, file_name))
         for country in tqdm(country_list):
-            city_to_work = meta[meta['country_clean']==country]['city_lower'].unique()
+            city_to_work = meta[meta["country_clean"] == country]["city_lower"].unique()
             print(city_to_work)
-            temp = df_all[df_all['city_lower'].isin(city_to_work)].reset_index(drop = True)                        
+            temp = df_all[df_all["city_lower"].isin(city_to_work)].reset_index(
+                drop=True
+            )
             tsne_df = export_tnse(res=res, df=temp)
-            tsne_df.to_parquet(os.path.join(EXPORT_FOLDER, "c_{country}_hex={res}_tsne.parquet".format(
-                country = country,
-                res = res)))
+            tsne_df.to_parquet(
+                os.path.join(
+                    EXPORT_FOLDER,
+                    "c_{country}_hex={res}_tsne.parquet".format(
+                        country=country, res=res
+                    ),
+                )
+            )
         print("resoulation: ", res, " done")
-        print("*"*100)
-            
-                               
-                                            
+        print("*" * 100)
+
+
 # for res in [8,9,12]:
 #     for filename in [FILENAME]:
 #         export_tnse(res=res, filename=filename)
-        

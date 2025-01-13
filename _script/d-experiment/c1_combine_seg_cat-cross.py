@@ -3,20 +3,12 @@ import pandas as pd
 import numpy as np
 from glob import glob
 import gspread
-from haversine import haversine, Unit
-import h3
 from tqdm import tqdm
-from fcmeans import FCM
-import matplotlib.pyplot as plt
-from sklearn import manifold
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from sklearn.decomposition import NMF
-from sklearn.metrics import silhouette_score, silhouette_samples
 
 
 ##################### HELPER ###################################################
 def load_class():
-    serviceaccount = "../../google_drive_personal.json"
+    serviceaccount = "/home/yuanzf/uvi-time-machine/google_drive_personal.json"
     import gspread
 
     # from oauth2client.service_account import ServiceAccountCredentials
@@ -122,5 +114,5 @@ for res in df_seg["res"].unique():
         CURATED_TARGET + f"/c_seg_cat={n_cat}_res={res}.parquet", index=False
     )
     print("Exported: ", res)
-    
 
+# python /home/yuanzf/uvi-time-machine/_script/d-experiment/c1_combine_seg_cat-cross.py

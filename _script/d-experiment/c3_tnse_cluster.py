@@ -5,6 +5,7 @@ from glob import glob
 import gspread
 import h3
 from tqdm import tqdm
+
 # from fcmeans import FCM
 import matplotlib.pyplot as plt
 from sklearn import manifold
@@ -132,7 +133,7 @@ def main():
     res = 9
     df = pd.read_parquet(os.path.join(DATA_FOLDER, FILENAME.format(res=res)))
     print(df.head())
-    for n in [7, 10, 13, 15]:
+    for n in [8, 10, 13, 15]:
 
         generate_cluster(df, n)
         print(f"finish {n}")

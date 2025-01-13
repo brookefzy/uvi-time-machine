@@ -12,19 +12,22 @@ ROOT = "/lustre1/g/geog_pyloo/05_timemachine"
 CURATED_FOLDER = f"{ROOT}/_curated"
 EXPORT_FOLDER = f"{ROOT}/_curated/c_analysis"
 
-IMG_SAMPLE_FOLDER = (
-    "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_analysis/img_sample"
-)
-
+# IMG_SAMPLE_FOLDER = (
+#     "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_analysis/img_sample"
+# )
+DATA_FOLDER = "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_seg_hex"
 PANO_PATH = "{ROOT}/GSV/gsv_rgb/{cityabbr}/gsvmeta/gsv_pano.csv"
 CURATED_TARGET = "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_seg_hex"
 META_PATH = "{ROOT}/GSV/gsv_rgb/{cityabbr}/gsvmeta/{cityabbr}_meta.csv"
 
-if not os.path.exists(IMG_SAMPLE_FOLDER):
-    os.makedirs(IMG_SAMPLE_FOLDER)
 
 N = 7
 H3_RES = [9]
+IMG_SAMPLE_FOLDER = (
+    f"/lustre1/g/geog_pyloo/05_timemachine/_curated/c_analysis/img_sample_cluster={N}_restandardized"
+)
+if not os.path.exists(IMG_SAMPLE_FOLDER):
+    os.makedirs(IMG_SAMPLE_FOLDER)
 
 
 def get_std(df_seg_update, variables_remain):
@@ -219,9 +222,9 @@ def sel_cluster_sample(city, cluster_mean, seg_df_i, meta_df, cluster_i):
 
     imgsel = seg_df_i_sel.index
     # find the path of these images
-    export_folder = os.path.join(
-        IMG_SAMPLE_FOLDER, "cluster_" + str(cluster_i), cityabbr
-    )
+    img_folder = os.path.join(IMG_SAMPLE_FOLDER, "round" + prefixfull)
+    os.makedirs(img_folder, exist_ok=True)
+    export_folder = os.path.join(img_folder, "cluster_" + str(cluster_i), cityabbr)
     if not os.path.exists(export_folder):
         os.makedirs(export_folder)
     gsv_df_sel = meta_df[meta_df["img"].isin(imgsel)].reset_index(drop=True)
@@ -235,11 +238,18 @@ def sel_cluster_sample(city, cluster_mean, seg_df_i, meta_df, cluster_i):
 #############################################
 # STEP 1. Load the hex cluster mean ##################
 # HEX_LEVEL_FILE = f"c_hex_full_cluster={N}.csv"
+prefixfull = "_built_environment"
+# prefixfull = ""
+# N_CAT = 30
+N_CAT = 27
 HEX_LEVEL_FILE = (
-    "c_seg_cat=31_res=9_withincity_built_environment_tsne_cluster_range.csv"
+    # "c_seg_cat=31_res=9_withincity_built_environment_tsne_cluster_range.csv"
+    # f"c_seg_cat={N_CAT}_res=9_withincity{prefixfull}_tsne_cluster_range.csv"
+    "c_seg_cat=27_res=9_withincity_built_environment_tsne_restandardized_cluster_range.csv"
+    # "c_seg_cat=30_res=9_withincity_tsne_cluster_range.csv"
 )
-hex_df = pd.read_csv(os.path.join(EXPORT_FOLDER, HEX_LEVEL_FILE))
-
+hex_df = pd.read_csv(os.path.join(DATA_FOLDER, HEX_LEVEL_FILE))
+print("Data 1 with cluster loaded.")
 
 # feature_ls = [ 'bike', 'building', 'bus', 'car',
 #        'grass', 'ground', 'house', 'installation', 'lake+waterboday', 'light',
@@ -258,9 +268,8 @@ feature_ls = [
     "building",
     "signage",
     "pole",
-    "table+chair",
-    "wall",
-    "house",
+    # "table+chair",
+    # "house",
     "trashcan",
     "installation",
     "shrub",
@@ -271,8 +280,16 @@ feature_ls = [
     "sportsfield",
     "mountain+hill",
 ]
-DATA_FOLDER = "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_seg_hex"
-hex_detail = pd.read_parquet(os.path.join(DATA_FOLDER, "c_seg_cat=31_res=9.parquet"))
+feature_dynamics = ["bike", "person", "bus", "car", "van", "truck"]
+if prefixfull == "":
+    feature_ls = feature_ls + feature_dynamics
+    print("feature includes dynamic features")
+else:
+    print("feature only includes built environment")
+
+hex_detail = pd.read_parquet(
+    os.path.join(DATA_FOLDER, f"c_seg_cat={N_CAT}_res=9.parquet")
+)
 hex_detail_hex = hex_detail[["hex_id"]]
 hex_detail_scaled = get_std(hex_detail, feature_ls)
 hex_detail_scaled = pd.DataFrame(hex_detail_scaled, columns=feature_ls)
@@ -299,7 +316,7 @@ print("Cluster Mean Calculated:", cluster_mean.shape)
 # 2. for each 50 images, compute the proportion of the features
 # 3. calculate the distance between the images and the cluster mean
 # 4. find the images that are closest to the cluster mean from each city
-CITY_LS = ["New York", "Singapore", "Hong Kong", "London", "Bangkok", "Nairobi"]
+CITY_LS = ["New York", "London", "Bangkok", "Nairobi"]
 for city in CITY_LS[:]:
     print(f"city {city} started")
     seg_df_pivot_sel_stack, meta_df = get_seg_data(city, hex_detail_cluster)
@@ -310,3 +327,6 @@ for city in CITY_LS[:]:
         )
     print(f"city {city} saved")
     print("*" * 50)
+
+# cd /scr/u/yuanzf/anaconda3/envs/py312/lib
+# python /home/yuanzf/uvi-time-machine/_script/d-experiment/11_viz_sample_image_cluster.py

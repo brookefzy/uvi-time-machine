@@ -5,6 +5,10 @@ from sklearn.preprocessing import StandardScaler
 
 
 def get_std(df_seg_update, variables_remain):
+    # first convert all variables into ratio
+    df_seg_update['total_pixel'] = df_seg_update[variables_remain].sum(axis = 1)
+    for v in variables_remain:
+        df_seg_update[v] = df_seg_update[v]/df_seg_update['total_pixel']
     scaler = StandardScaler().fit(df_seg_update[variables_remain])
     data = scaler.transform(df_seg_update[variables_remain])
     return data
@@ -23,12 +27,42 @@ FILES = os.listdir(DATA_FOLDER)
 
 FILENAME = "c_seg_cat={n_cat}_res={res}.parquet"
 FILENAME_WITHIN = "c_seg_cat={n_cat}_res={res}_withincity.parquet"
-# PREFIX = "_built_environment"
-PREFIX = ""
+PREFIX = "_built_environment"
+# PREFIX = ""
 # FILENAME = "c_seg_long_cat=31_res={res}.parquet"
 # FILENAME_WITHIN = "c_seg_long_cat=31_res={res}_withincity.parquet"
 
-variables = [
+variables_built = [
+    # "bike",
+    "building",
+    # "bus",
+    # "car",
+    "grass",
+    # "house",
+    "installation",
+    "lake+waterboday",
+    "light",
+    "mountain+hill",
+    "other",
+    # "person",
+    "pole",
+    "railing",
+    "road",
+    "shrub",
+    "sidewalk",
+    "signage",
+    "sky",
+    "sportsfield",
+    # "table+chair",
+    "tower",
+    "traffic light",
+    "trashcan",
+    "tree",
+    # "truck",
+    # "van",
+    "window",
+]
+variables_all = [
     "bike",
     "building",
     "bus",
@@ -56,14 +90,13 @@ variables = [
     "tree",
     "truck",
     "van",
-    # "wall",
     "window",
 ]
 index_cols_long = ["year_group", "city_lower", "hex_id", "img_count", "res"]
 index_cols_cross = ["city_lower", "hex_id", "img_count", "res"]
 
 
-def export_tnse(res, filename, variables=variables):
+def export_tnse(res, filename, variables):
 
     file_name = filename.format(res=res, n_cat=N_CAT)
     df = pd.read_parquet(os.path.join(DATA_FOLDER, file_name))
@@ -88,7 +121,8 @@ def export_tnse(res, filename, variables=variables):
     tsne_df.to_parquet(
         os.path.join(
             DATA_FOLDER,
-            file_name.replace(".parquet", f"{PREFIX}_tsne.parquet"),
+            # file_name.replace(".parquet", f"{PREFIX}_tsne.parquet"),
+            file_name.replace(".parquet", f"{PREFIX}_tsne_restandardized.parquet"),
         ),
         index=False,
     )
@@ -99,9 +133,15 @@ def export_tnse(res, filename, variables=variables):
 # for res in [8, 9,12]:
 #     for filename in [FILENAME_WITHIN]:
 #         export_tnse(res=res, filename=filename)
+# N_CAT = 30
 N_CAT = 27
 for res in [8, 9]:
     for filename in [FILENAME_WITHIN]:
-        export_tnse(res=res, filename=filename)
+        if PREFIX == "":
+            variables = variables_all
+        else:
+            variables = variables_built
+        print(len(variables), ": number of variables")
+        export_tnse(res=res, filename=filename, variables=variables)
 
 # /home/yuanzf/uvi-time-machine/_script/d-experiment/c2_generate_tnse.py
