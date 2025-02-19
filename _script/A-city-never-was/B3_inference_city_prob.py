@@ -15,7 +15,7 @@ VALFOLDER = (
     "/lustre1/g/geog_pyloo/05_timemachine/_transformed/t_classifier_img_yolo8_inf_dir"
 )
 CURATED_FOLDER = (
-    "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_classifiier_infer"
+    "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_classifiier_prob"
 )
 if not os.path.exists(CURATED_FOLDER):
     os.makedirs(CURATED_FOLDER)
@@ -31,18 +31,16 @@ model = YOLO(
 )
 
 
-def inference(paths, model=model, k=1):
+def inference_prob(paths, model=model, k=1):
     paths = list(paths)
     results = model.predict(paths)
     pred_ls = []
     for i, r in enumerate(results):
         top_txt = {}
-        top = r.cpu().probs.topk(k)
-        top_txt["name"] = os.path.basename(paths[i])
-        top_txt[f"top_{k}"] = np.array(top.indices)[0]
-        top_txt[f"top_{k}_prob"] = np.array(top.values)[0]
-        pred_ls.append(top_txt)
+        top = r.cpu().probs.data.numpy()
+        pred_ls.append(top)
     pred_df = pd.DataFrame(pred_ls)
+    pred_df["name"] = [x.split("/")[-1][:22] for x in paths]
     return pred_df
 
 
@@ -85,7 +83,7 @@ def get_result_one(city):
 
         for j, task in enumerate(tqdm(task_ls)):
             current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            pred_df = inference(task)
+            pred_df = inference_prob(task)
             output_name = f.replace(".parquet", f"_{current_time}.parquet")
             pred_df.to_parquet(
                 os.path.join(CURATED_CITY_FOLDER, output_name), index=False

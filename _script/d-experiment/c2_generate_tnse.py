@@ -5,6 +5,10 @@ from sklearn.preprocessing import StandardScaler
 
 
 def get_std(df_seg_update, variables_remain):
+    # first convert all variables into ratio
+    df_seg_update['total_pixel'] = df_seg_update[variables_remain].sum(axis = 1)
+    for v in variables_remain:
+        df_seg_update[v] = df_seg_update[v]/df_seg_update['total_pixel']
     scaler = StandardScaler().fit(df_seg_update[variables_remain])
     data = scaler.transform(df_seg_update[variables_remain])
     return data

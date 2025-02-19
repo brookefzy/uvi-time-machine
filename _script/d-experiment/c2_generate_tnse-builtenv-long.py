@@ -25,12 +25,9 @@ ROOTFOLDER = "/lustre1/g/geog_pyloo/05_timemachine"
 DATA_FOLDER = f"{ROOTFOLDER}/_curated/c_seg_hex"
 FILES = os.listdir(DATA_FOLDER)
 
-FILENAME = "c_seg_cat={n_cat}_res={res}.parquet"
-FILENAME_WITHIN = "c_seg_cat={n_cat}_res={res}_withincity.parquet"
+FILENAME = "c_seg_long_cat={n_cat}_res={res}.parquet"
+FILENAME_WITHIN = "c_seg_long_cat={n_cat}_res={res}_withincity.parquet"
 PREFIX = "_built_environment"
-# PREFIX = ""
-# FILENAME = "c_seg_long_cat=31_res={res}.parquet"
-# FILENAME_WITHIN = "c_seg_long_cat=31_res={res}_withincity.parquet"
 
 variables_built = [
     # "bike",

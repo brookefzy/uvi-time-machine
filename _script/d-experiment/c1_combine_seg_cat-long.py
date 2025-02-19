@@ -9,11 +9,14 @@ import gc
 ##################### NOTES ###################################################
 ## FILE TOO LARGE, needs to process city by city
 ##############################################################################
-
+year_groups = {
+    "2017-2019":[2017,2018,2019],
+    "2022-2024":[2024,2022,2023],
+}
 
 ##################### HELPER ###################################################
 def load_class():
-    serviceaccount = "../../google_drive_personal.json"
+    serviceaccount = "/home/yuanzf/uvi-time-machine/google_drive_personal.json"
     import gspread
 
     # from oauth2client.service_account import ServiceAccountCredentials
@@ -42,6 +45,11 @@ def construct_cat(df_seg, obj_meta):
         else:
             new_cols.append(x)
     df_seg.columns = new_cols
+    print(df_seg.columns)
+    print("Before filter to years:", df_seg.shape[0])
+    df_seg = df_seg[df_seg['year'].isin([2017,2018,2019,2022,2023,2024])].reset_index(drop = True)
+    print("After filter to years:", df_seg.shape[0])
+    df_seg['year_group'] = df_seg['year'].apply(lambda x: [k for k,v in year_groups.items() if x in v][0])
 
     # drop the columns if all value are 0
     variables = set([v for v in df_seg.columns if v in obj_meta["category"].unique()])
@@ -117,6 +125,6 @@ for res in [8,9]:
         CURATED_TARGET + f"/c_seg_long_cat={n_cat}_res={res}.parquet", index=False
     )
     
-    
+# !python /home/yuanzf/uvi-time-machine/_script/d-experiment/c1_combine_seg_cat-long.py
     
 

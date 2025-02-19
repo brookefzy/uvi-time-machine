@@ -53,7 +53,7 @@ for res in [8,9]:
     hexdf = load_hex(res, N_CAT)
     EXPORT_FOLDER = f"{ROOTFOLDER}/_curated/c_hex_road/res={res}"
     os.makedirs(EXPORT_FOLDER, exist_ok=True)
-    for citylower in tqdm(hexdf['city_lower'].unique()):
+    for citylower in tqdm(['bogotá']):
         get_road_segment_one_city(citylower)
         print(citylower)
     

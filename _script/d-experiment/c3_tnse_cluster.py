@@ -27,7 +27,7 @@ BOUNDARY_FOLDER = "/group/geog_pyloo/08_GSV/data/_raw/r_boundary_osm"
 
 GRAPHIC_PATH = "/group/geog_pyloo/08_GSV/_graphic/cluster/allcities_c={n}"
 GRAPHIC_PATH_INNER = "/group/geog_pyloo/08_GSV/_graphic/cluster/allcities_inner_c={n}"
-FILENAME = "c_seg_cat=31_res={res}_tsne.parquet"
+FILENAME = "c_seg_cat={N_CAT}_res={res}_tsne.parquet"
 
 
 def cell_to_shapely(cell):
@@ -113,11 +113,6 @@ def generate_cluster(df, n):
         allgdf.append(df_sel_gdf.drop(columns=["geometry"], axis=1))
         allgdf_intersect.append(df_sel_gdf_intersect.drop(columns=["geometry"], axis=1))
         print("*" * 100)
-        # except:
-        #     # log the city with problem
-        #     with open("problem_city.txt", "a") as f:
-        #         f.write(city + ": other problem" + "\n")
-        #     print("problem with city: ", city)
     allgdf = pd.concat(allgdf).reset_index(drop=True)
     allgdf_intersect = pd.concat(allgdf_intersect).reset_index(drop=True)
     allgdf.to_csv(

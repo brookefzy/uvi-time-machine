@@ -8,6 +8,7 @@ import h3
 from tqdm import tqdm
 from shapely.geometry import Polygon
 import geopandas as gpd
+import argparse
 
 ROOTFOLDER = "/lustre1/g/geog_pyloo/05_timemachine"
 DATA_FOLDER = f"{ROOTFOLDER}/_curated/c_seg_hex"
@@ -15,6 +16,9 @@ BOUND_FOLDER = f"{ROOTFOLDER}/_raw/r_boundary_osm"
 
 FILENAME = "c_seg_cat={n_cat}_res={res}.parquet"
 FILENAME_WITHIN = "c_seg_cat={n_cat}_res={res}_withincity.parquet"
+
+FILENAME_LONG = "c_seg_long_cat={n_cat}_res={res}.parquet"
+FILENAME_WITHIN_LONG = "c_seg_long_cat={n_cat}_res={res}_withincity.parquet"
 # FILENAME = "c_seg_long_cat={n_cat}_res={res}.parquet"
 # FILENAME_WITHIN = "c_seg_long_cat={n_cat}_res={res}_withincity.parquet"
 
@@ -46,20 +50,31 @@ def get_data_within_bound(df):
     return df_within
 
 
-# N_CAT = 30  # remove the wall
-N_CAT = 27  # Jan. 1st edits
-for res in [8, 9]:
-    df = pd.read_parquet(
-        os.path.join(DATA_FOLDER, FILENAME.format(n_cat=N_CAT, res=res))
-    )
-    df_within = get_data_within_bound(df)
-    df_within.to_parquet(
-        os.path.join(DATA_FOLDER, FILENAME_WITHIN.format(res=res, n_cat=N_CAT)),
-        index=False,
-    )
-    print("Done saving within city data for resolution: ", res)
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--long", 
+                        "-l",
+                        type=bool, default=False)
+    process_long = parser.parse_args().long
+    N_CAT = 27 # this is a constant
+    
+    for res in [8, 9]:
+        if process_long:
+            filename = FILENAME_LONG.format(n_cat=N_CAT, res=res)
+            filename_within = FILENAME_WITHIN_LONG.format(n_cat=N_CAT, res=res)
+        else:
+            filename = FILENAME.format(n_cat=N_CAT, res=res)
+            filename_within = FILENAME_WITHIN.format(n_cat=N_CAT, res=res)
+        df = pd.read_parquet(
+            os.path.join(DATA_FOLDER, filename)
+        )
+        df_within = get_data_within_bound(df)
+        df_within.to_parquet(
+            os.path.join(DATA_FOLDER, filename_within),
+            index=False,
+        )
+        print("Done saving within city data for resolution: ", res)
 
-# check missing cities
-# df = pd.read_parquet(os.path.join(DATA_FOLDER, FILENAME.format(n_cat = 31, res = 9)))
-# fullcity = df["city_lower"].unique().tolist()
-# original_city_ls =
+if __name__ == "__main__":
+    main()
+#python /home/yuanzf/uvi-time-machine/_script/d-experiment/c1b_filter_to_city.py
