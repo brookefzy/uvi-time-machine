@@ -142,7 +142,7 @@ def check_finished():
 
 def load_all():
 
-    city_meta = pd.read_csv("../city_meta.csv")
+    city_meta = pd.read_csv(f"/home/yuanzf/uvi-time-machine/_script/city_meta.csv")
     return city_meta
 
 
@@ -165,3 +165,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# python /home/yuanzf/uvi-time-machine/_script/B-timemachine/04_seg_post-full-cross.py
