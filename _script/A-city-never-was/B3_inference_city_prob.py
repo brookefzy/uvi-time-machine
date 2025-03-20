@@ -33,14 +33,13 @@ model = YOLO(
 
 def inference_prob(paths, model=model, k=1):
     paths = list(paths)
-    results = model.predict(paths)
+    results = model.predict(paths, verbose=False)
     pred_ls = []
     for i, r in enumerate(results):
-        top_txt = {}
         top = r.cpu().probs.data.numpy()
         pred_ls.append(top)
     pred_df = pd.DataFrame(pred_ls)
-    pred_df["name"] = [x.split("/")[-1][:22] for x in paths]
+    pred_df["name"] = [x.split("/")[-1] for x in paths]
     return pred_df
 
 
