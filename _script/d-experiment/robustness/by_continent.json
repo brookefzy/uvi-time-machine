@@ -1,0 +1,40 @@
+[
+    {
+        "northamerica":{
+            "5":"Scenic View",
+            "3":"Scenic View",
+            "4":"Surburban Fringe",
+            "6":"Open Arterial",
+            "2":"Surburban Arterial",
+            "0":"Mixed Community",
+            "1":"High-rise Community"
+        },
+        "southamerica":{
+            "0":"Scenic View",
+            "5":"Scenic View",
+            "4":"Scenic View",
+            "1":"Open Arterial",
+            "3":"Surburban Arterial",
+            "2":"Mixed Community",
+            "6":"High-rise Community"
+        },
+        "asia":{
+            "1":"Scenic View",
+            "3":"Scenic View",
+            "5":"Scenic View",
+            "0":"Low-rise Community",
+            "6":"Open Arterial",
+            "2":"Low-rise Community",
+            "4":"High-rise Community"
+        },
+        "europe":{
+            "0":"Scenic View",
+            "4":"Scenic View",
+            "3":"Low-rise Community",
+            "1":"Surburban Fringe",
+            "6":"Surburban Arterial",
+            "5":"Dense Road",
+            "2":"High-rise Community"
+        }
+    }
+]
