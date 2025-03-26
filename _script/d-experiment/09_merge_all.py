@@ -160,6 +160,8 @@ def get_exposure_summary(cluster_df, exposure_df, exposure_df_2):
 def main(N):
     gdp = pd.read_csv(os.path.join(CURATED_FOLDER, "c_city_profiles", "c_city_gdp.csv"))
     flux = pd.read_csv(os.path.join(TRANSFORM_FOLDER, "t_ffdas_flux_2015.csv"))
+    city_meta = load_all("select_city_classifier")
+    region_ls = city_meta[['country_clean','Continent']].drop_duplicates().reset_index(drop = True)
     gdp["city_lower"] = gdp["City"].apply(
         lambda x: x.lower().replace(" ", "").split(",")[0]
     )
@@ -286,7 +288,8 @@ def main(N):
                 .reset_index(drop=True)
                 .merge(df_ori_within_city, on="city_lower", how="left")
                 .merge(urban_sprawl, on="city_lower", how="left")
-                .merge(urban_sprawl_2_city, on="city_lower", how="left")
+                .merge(urban_sprawl_2_city, on="city_lower", how="left")\
+                .merge(region_ls, on="country_clean", how="left")
             )
             # country level merge
             hex_mergedf = (
@@ -320,7 +323,8 @@ def main(N):
                     right_on="hex_id",
                     how="left",
                 )
-                .merge(urban_sprawl_2, on=["city_lower", "hex_id"], how="left")
+                .merge(urban_sprawl_2, on=["city_lower", "hex_id"], how="left")\
+                    .merge(region_ls, on="country_clean", how="left")
             )
             for c in exposure_cols + [
                 "person_exposure",
