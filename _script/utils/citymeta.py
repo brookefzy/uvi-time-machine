@@ -21,7 +21,8 @@ FATALITY_SCHEMA = {
 
 def load_all(sheet_name=SHEETNAME):
     serviceaccount = (
-        "/Users/yuan/Dropbox (Personal)/personal files/ssh/google_drive_personal.json"
+        # "/Users/yuan/Dropbox (Personal)/personal files/ssh/google_drive_personal.json"
+        "D:/Dropbox (Personal)/personal files/ssh/google_drive_personal.json"
     )
 
     # from oauth2client.service_account import ServiceAccountCredentials
