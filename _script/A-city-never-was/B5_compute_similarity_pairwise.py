@@ -4,9 +4,7 @@ import os
 import pandas as pd
 import numpy as np
 import gc
-import datetime
 import argparse
-import h3
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 import gc
@@ -29,6 +27,7 @@ CURATE_FOLDER_SOURCE = (
 #     "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_classifiier_prob_similarity"
 # )
 CURATE_FOLDER_EXPORT = "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_classifiier_prob_similarity_by_pair"
+
 filename = "prob_city={city_name}_res_exclude={res_exclude}.parquet"  # to load
 
 if not os.path.exists(CURATE_FOLDER_EXPORT):
@@ -161,3 +160,7 @@ def main():
     unique_cities = np.unique(city_pair_ls)
     for city in unique_cities:
         remove_dups(city, res_sel=res_sel)
+
+
+if __name__ == "__main__":
+    main()
