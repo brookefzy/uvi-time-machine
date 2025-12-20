@@ -125,7 +125,7 @@ def load_raw(city):
 
     for res in [9]:
         pano_df[f"h3_{res}"] = pano_df.apply(
-            lambda x: h3.geo_to_h3(x.lat, x.lon, res), axis=1
+            lambda x: h3.latlng_to_cell(x.lat, x.lon, res), axis=1
         )
 
     meta_df = pd.read_csv(META_PATH.format(ROOT=ROOT, cityabbr=cityabbr))
@@ -245,8 +245,10 @@ N_CAT = 27
 HEX_LEVEL_FILE = (
     # "c_seg_cat=31_res=9_withincity_built_environment_tsne_cluster_range.csv"
     # f"c_seg_cat={N_CAT}_res=9_withincity{prefixfull}_tsne_cluster_range.csv"
-    "c_seg_cat=27_res=9_withincity_built_environment_tsne_restandardized_cluster_range.csv"
-    # "c_seg_cat=30_res=9_withincity_tsne_cluster_range.csv"
+    # "c_seg_cat=27_res=9_withincity_built_environment_tsne_restandardized_cluster_range.csv"
+    # "c_seg_cat=27_res=9_withincity_built_environment_tsne_restandardized.parquet"
+    
+    "c_seg_cat=27_res=9_withincity_tsne_cluster_range.csv"
 )
 hex_df = pd.read_csv(os.path.join(DATA_FOLDER, HEX_LEVEL_FILE))
 print("Data 1 with cluster loaded.")
@@ -316,7 +318,10 @@ print("Cluster Mean Calculated:", cluster_mean.shape)
 # 2. for each 50 images, compute the proportion of the features
 # 3. calculate the distance between the images and the cluster mean
 # 4. find the images that are closest to the cluster mean from each city
-CITY_LS = ["New York", "London", "Bangkok", "Nairobi"]
+CITY_LS = [
+    # "New York", "London", "Bangkok", "Nairobi"
+    "Seoul", "Tokyo", "Johannesburg", "Cape Town"
+           ]
 for city in CITY_LS[:]:
     print(f"city {city} started")
     seg_df_pivot_sel_stack, meta_df = get_seg_data(city, hex_detail_cluster)
