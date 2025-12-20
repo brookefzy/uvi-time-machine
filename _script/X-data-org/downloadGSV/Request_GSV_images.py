@@ -64,9 +64,8 @@ def api_download(panoid, heading, imgfolder, width=640, height=640, extension='j
     fname = "%s_%s" % (panoid, str(heading))
     image_format = extension if extension != 'jpg' else 'jpeg'
 
-    # REVISED on 2023-08-23
-    img_url = "https://streetviewpixels-pa.googleapis.com/v1/thumbnail?panoid={panoid:}&cb_client=search.revgeo_and_fetch.gps&w=96&h=64&yaw=135.3518&pitch=0&thumbfov=100&quot;"
-    img_url = 'https://streetviewpixels-pa.googleapis.com/v1/thumbnail?panoid={panoid:}&cb_client=search.revgeo_and_fetch.gps&w={width:}&h={height:}&yaw={heading:}&pitch=0&thumbfov=100'
+    # REVISED on 2024-01-13
+    img_url = "https://streetviewpixels-pa.googleapis.com/v1/thumbnail?panoid={panoid:}&cb_client=search.revgeo_and_fetch.gps&yaw={heading:}&pitch=0&thumbfov=100&w={width:}&h={height:}&quot"
     url = img_url.format(panoid=panoid, width=width, height=height, heading=heading)
     response = requests.get(url, stream=True)
     try:
