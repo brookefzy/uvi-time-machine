@@ -1,7 +1,8 @@
-./data/*
+data/
+.pyc
 *.csv
 .env
-.ipynb_checkpoints
+.ipynb_checkpoints/
 *.sh
 */**/.ipynb_checkpoints
 *.pyc
@@ -13,7 +14,7 @@
 */runs/*
 *.log
 **/cache/*
-**/_archive/*
+_archive/
 **.yaml
 google_drive*
-./demo_img/*
+demo_img/
