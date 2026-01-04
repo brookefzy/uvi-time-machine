@@ -1,0 +1,24 @@
+# Urban Analysis Pipeline Dependencies
+
+# Core data processing
+pandas>=2.0.0
+numpy>=1.24.0
+duckdb>=0.9.0
+
+# Geospatial analysis
+h3>=3.7.0
+haversine>=2.8.0
+scikit-learn>=1.3.0  # For haversine_distances
+
+# Progress tracking
+tqdm>=4.65.0
+
+# Optional: For enhanced performance
+pyarrow>=14.0.0  # For efficient parquet operations
+fastparquet>=0.8.0  # Alternative parquet engine
+
+# Development and testing (optional)
+pytest>=7.4.0
+black>=23.0.0  # Code formatting
+flake8>=6.0.0  # Linting
+mypy>=1.5.0  # Type checking
