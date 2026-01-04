@@ -3,9 +3,7 @@ data/
 *.csv
 .env
 .ipynb_checkpoints/
-*.sh
 */**/.ipynb_checkpoints
-*.pyc
 **/_archived/*
 *.pt
 **/*.pt
@@ -18,3 +16,6 @@ _archive/
 **.yaml
 google_drive*
 demo_img/
+.DS_Store
+.pyc
+.sh
