@@ -331,7 +331,7 @@ class OptimizedSimilarityProcessor:
             return pd.DataFrame()
 
         # Extract feature matrix
-        feature_matrix = df_features[self.vector_columns].values
+        feature_matrix = df_features[self.vector_columns].to_numpy(copy=True)
         hex_ids = df_features["hex_id"].values
         city_labels = df_features["city"].values
 
