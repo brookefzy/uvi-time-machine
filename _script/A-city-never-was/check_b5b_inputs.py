@@ -11,7 +11,6 @@ from pathlib import Path
 
 import duckdb
 
-
 VECTOR_COLUMNS = [str(i) for i in range(127)]
 REQUIRED_COLUMNS = ["hex_id", "res", *VECTOR_COLUMNS]
 
@@ -83,7 +82,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--city-meta",
-        default="/home/yuanzf/uvi-time-machine/_script/city_meta.csv",
+        default="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv",
         help="Path to the city metadata CSV with a City column",
     )
     parser.add_argument(
@@ -130,7 +129,9 @@ def main() -> int:
 
     try:
         for city in cities:
-            file_path = source_dir / f"prob_city={city}_res_exclude={args.res_exclude}.parquet"
+            file_path = (
+                source_dir / f"prob_city={city}_res_exclude={args.res_exclude}.parquet"
+            )
 
             if not file_path.exists():
                 missing_files.append((city, file_path))
@@ -152,7 +153,9 @@ def main() -> int:
                     f"NO RESOLUTION   city={city} res={args.resolution} file={file_path}"
                 )
             else:
-                ok_results.append((city, file_path, result["row_count"], result["hex_count"]))
+                ok_results.append(
+                    (city, file_path, result["row_count"], result["hex_count"])
+                )
                 print(
                     f"OK              city={city} rows={result['row_count']} "
                     f"hexes={result['hex_count']} file={file_path.name}"
