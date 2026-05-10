@@ -482,7 +482,7 @@ def main():
 
     parser.add_argument("--resolution", type=int, default=6, help="H3 resolution")
     parser.add_argument(
-        "--city-meta", default="/home/yuanzf/uvi-time-machine/_script/city_meta.csv"
+        "--city-meta", default="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv"
     )
     parser.add_argument("--use-gpu", action="store_true", help="Use GPU acceleration")
     parser.add_argument(
