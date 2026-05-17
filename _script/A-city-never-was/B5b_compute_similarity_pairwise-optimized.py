@@ -9,8 +9,8 @@ import logging
 import argparse
 import warnings
 from pathlib import Path
-from datetime import datetime
-from typing import Dict, List, Tuple, Optional, Union
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, Tuple, Union
 import gc
 import json
 
@@ -38,7 +38,7 @@ except ImportError:
 class OptimizedSimilarityProcessor:
     """Optimized similarity computation with multiple algorithmic improvements."""
 
-    def __init__(self, config: Dict[str, any], log_level: str = "INFO"):
+    def __init__(self, config: Dict[str, Any], log_level: str = "INFO"):
         """
         Initialize the optimized processor.
 
@@ -58,7 +58,8 @@ class OptimizedSimilarityProcessor:
         self.use_approximation = config.get("use_approximation", False)
         self.approximation_dims = config.get("approximation_dims", 64)
         self.batch_size = config.get("batch_size", 5000)
-        self.similarity_threshold = config.get("similarity_threshold", 0.1)
+        self.similarity_threshold = config.get("similarity_threshold", 0.01)
+        self.resume_enabled = config.get("resume", True)
 
         self.logger.info(
             f"Optimization settings: GPU={self.use_gpu}, Sparse={self.use_sparse}, Approx={self.use_approximation}"
@@ -66,18 +67,161 @@ class OptimizedSimilarityProcessor:
 
     def setup_logging(self, log_level: str) -> None:
         """Configure optimized logging."""
-        log_dir = Path("logs")
-        log_dir.mkdir(exist_ok=True)
+        log_dir = self.get_log_dir()
+        log_dir.mkdir(parents=True, exist_ok=True)
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_file = log_dir / f"optimized_similarity_{timestamp}.log"
+        self.log_file = (log_dir / f"optimized_similarity_{timestamp}.log").resolve()
 
-        logging.basicConfig(
-            level=getattr(logging, log_level),
-            format="%(asctime)s - %(levelname)s - %(message)s",
-            handlers=[logging.FileHandler(log_file), logging.StreamHandler()],
+        self.logger = logging.getLogger(f"{__name__}.{id(self)}")
+        self.logger.setLevel(getattr(logging, log_level))
+        self.logger.propagate = False
+
+        for handler in list(self.logger.handlers):
+            handler.close()
+            self.logger.removeHandler(handler)
+
+        formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+
+        file_handler = logging.FileHandler(self.log_file)
+        file_handler.setFormatter(formatter)
+        self.logger.addHandler(file_handler)
+
+        stream_handler = logging.StreamHandler()
+        stream_handler.setFormatter(formatter)
+        self.logger.addHandler(stream_handler)
+
+        self.logger.info("Logging to %s", self.log_file)
+
+    def get_log_dir(self) -> Path:
+        """Return the local directory used for run logs."""
+        configured = self.config.get("log_dir")
+        base_dir = Path(__file__).resolve().parent
+
+        if not configured:
+            return base_dir / "logs"
+
+        log_dir = Path(configured).expanduser()
+        if not log_dir.is_absolute():
+            log_dir = base_dir / log_dir
+        return log_dir.resolve()
+
+    def get_output_dir(self) -> Path:
+        """Return the directory where optimized parquet outputs are stored."""
+        output_dir = Path(self.config["CURATE_FOLDER_EXPORT"]) / "optimized"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        return output_dir
+
+    def get_progress_path(self, output_dir: Path, resolution: int) -> Path:
+        """Return the checkpoint path for a specific resolution."""
+        return output_dir / f"_progress_res={resolution}_optimized.json"
+
+    def discover_completed_output_cities(self, output_dir: Path) -> List[str]:
+        """Infer completed cities from saved parquet partitions when no checkpoint exists."""
+        completed_cities = []
+        prefix = "similarity_city="
+        suffix = "_optimized.parquet"
+
+        for output_file in sorted(output_dir.glob(f"{prefix}*{suffix}")):
+            name = output_file.name
+            if not name.startswith(prefix) or not name.endswith(suffix):
+                continue
+            completed_cities.append(name[len(prefix) : -len(suffix)])
+
+        return completed_cities
+
+    def read_progress(self, progress_path: Path) -> Optional[Dict[str, Any]]:
+        """Load a saved checkpoint if one exists."""
+        if not progress_path.exists():
+            return None
+
+        return json.loads(progress_path.read_text())
+
+    def write_progress(
+        self,
+        progress_path: Path,
+        resolution: int,
+        group_size: int,
+        completed_cities: List[str],
+        pending_cities: List[str],
+        status: str,
+        current_group: Optional[List[str]] = None,
+        error: Optional[str] = None,
+    ) -> None:
+        """Persist checkpoint state atomically so interrupted runs can resume."""
+        payload: Dict[str, Any] = {
+            "resolution": resolution,
+            "group_size": group_size,
+            "completed_cities": completed_cities,
+            "pending_cities": pending_cities,
+            "status": status,
+            "updated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "log_file": str(self.log_file),
+        }
+
+        if current_group:
+            payload["current_group"] = current_group
+        if error:
+            payload["last_error"] = error
+
+        tmp_path = progress_path.with_name(f".{progress_path.name}.tmp")
+        tmp_path.write_text(json.dumps(payload, indent=2))
+        tmp_path.replace(progress_path)
+
+    def resolve_processing_state(
+        self, cities: List[str], progress_path: Path, output_dir: Path
+    ) -> Tuple[List[str], List[str]]:
+        """Resolve which cities still need processing, preferring checkpoint state."""
+        ordered_cities = list(dict.fromkeys(cities))
+        checkpoint = self.read_progress(progress_path) if self.resume_enabled else None
+
+        if checkpoint:
+            completed_set = set(checkpoint.get("completed_cities", []))
+            completed_cities = [city for city in ordered_cities if city in completed_set]
+
+            checkpoint_pending = checkpoint.get("pending_cities", [])
+            pending_seen = set()
+            pending_cities = []
+
+            for city in checkpoint_pending:
+                if (
+                    city in ordered_cities
+                    and city not in completed_set
+                    and city not in pending_seen
+                ):
+                    pending_cities.append(city)
+                    pending_seen.add(city)
+
+            for city in ordered_cities:
+                if city not in completed_set and city not in pending_seen:
+                    pending_cities.append(city)
+
+            if pending_cities:
+                self.logger.info(
+                    "Resuming from checkpoint %s with %d pending cities",
+                    progress_path,
+                    len(pending_cities),
+                )
+            else:
+                self.logger.info("Checkpoint %s reports no pending cities", progress_path)
+
+            return pending_cities, completed_cities
+
+        completed_set = (
+            set(self.discover_completed_output_cities(output_dir))
+            if self.resume_enabled
+            else set()
         )
-        self.logger = logging.getLogger(__name__)
+        completed_cities = [city for city in ordered_cities if city in completed_set]
+        pending_cities = [city for city in ordered_cities if city not in completed_set]
+
+        if completed_cities:
+            self.logger.info(
+                "Recovered %d completed cities from existing output files",
+                len(completed_cities),
+            )
+
+        return pending_cities, completed_cities
 
     def setup_duckdb_optimizations(self) -> None:
         """Configure DuckDB for optimal performance."""
@@ -408,16 +552,21 @@ class OptimizedSimilarityProcessor:
             city_df = df[df["city1"] == city].copy()
 
             output_file = output_dir / f"similarity_city={city}_optimized.parquet"
+            tmp_output_file = output_dir / f".similarity_city={city}_optimized.parquet.tmp"
 
             # Save with compression
             city_df.to_parquet(
-                output_file, index=False, compression="snappy", engine="pyarrow"
+                tmp_output_file, index=False, compression="snappy", engine="pyarrow"
             )
+            tmp_output_file.replace(output_file)
 
             self.logger.debug(f"Saved {len(city_df)} pairs for {city}")
 
     def run(
-        self, city_meta_path: str, resolution: int = 6, group_size: int = 10
+        self,
+        city_meta_path: str,
+        resolution: int = 6,
+        group_size: int = 10,
     ) -> None:
         """
         Run optimized similarity processing.
@@ -436,34 +585,66 @@ class OptimizedSimilarityProcessor:
             self.logger.info(f"Processing {len(cities)} cities")
 
             # Create output directory
-            output_dir = Path(self.config["CURATE_FOLDER_EXPORT"]) / "optimized"
-            output_dir.mkdir(parents=True, exist_ok=True)
+            output_dir = self.get_output_dir()
+            progress_path = self.get_progress_path(output_dir, resolution)
+            pending_cities, completed_cities = self.resolve_processing_state(
+                cities, progress_path, output_dir
+            )
 
-            # Process cities in groups for efficiency
-            all_results = []
+            self.write_progress(
+                progress_path=progress_path,
+                resolution=resolution,
+                group_size=group_size,
+                completed_cities=completed_cities,
+                pending_cities=pending_cities,
+                status="in_progress",
+            )
 
             for i in tqdm(
-                range(0, len(cities), group_size), desc="Processing city groups"
+                range(0, len(pending_cities), group_size), desc="Processing city groups"
             ):
-                city_group = cities[i : i + group_size]
+                city_group = pending_cities[i : i + group_size]
+                remaining_cities = pending_cities[i + group_size :]
 
-                group_results = self.process_city_group(city_group, resolution)
+                try:
+                    group_results = self.process_city_group(city_group, resolution)
 
-                if not group_results.empty:
-                    all_results.append(group_results)
+                    if not group_results.empty:
+                        self.save_results_partitioned(group_results, output_dir)
 
-                # Save intermediate results
-                if len(all_results) >= 5:  # Save every 5 groups
-                    combined = pd.concat(all_results, ignore_index=True)
-                    self.save_results_partitioned(combined, output_dir)
-                    all_results = []
+                    completed_cities.extend(city_group)
+                    self.write_progress(
+                        progress_path=progress_path,
+                        resolution=resolution,
+                        group_size=group_size,
+                        completed_cities=completed_cities,
+                        pending_cities=remaining_cities,
+                        status="in_progress",
+                    )
                     gc.collect()
 
-            # Save final results
-            if all_results:
-                combined = pd.concat(all_results, ignore_index=True)
-                self.save_results_partitioned(combined, output_dir)
+                except Exception as group_error:
+                    failed_pending_cities = city_group + remaining_cities
+                    self.write_progress(
+                        progress_path=progress_path,
+                        resolution=resolution,
+                        group_size=group_size,
+                        completed_cities=completed_cities,
+                        pending_cities=failed_pending_cities,
+                        status="failed",
+                        current_group=city_group,
+                        error=str(group_error),
+                    )
+                    raise
 
+            self.write_progress(
+                progress_path=progress_path,
+                resolution=resolution,
+                group_size=group_size,
+                completed_cities=completed_cities,
+                pending_cities=[],
+                status="completed",
+            )
             self.logger.info("Optimized processing completed successfully")
 
         except Exception as e:
@@ -471,8 +652,19 @@ class OptimizedSimilarityProcessor:
             raise
 
         finally:
-            self.conn.close()
+            self.close()
             gc.collect()
+
+    def close(self) -> None:
+        """Release open resources for one-shot script execution."""
+        if hasattr(self, "conn") and self.conn is not None:
+            self.conn.close()
+            self.conn = None
+
+        if hasattr(self, "logger"):
+            for handler in list(self.logger.handlers):
+                handler.close()
+                self.logger.removeHandler(handler)
 
 
 def main():
@@ -493,9 +685,22 @@ def main():
     )
     parser.add_argument("--group-size", type=int, default=10, help="Cities per group")
     parser.add_argument(
-        "--threshold", type=float, default=0.1, help="Similarity threshold"
+        "--threshold",
+        type=float,
+        default=0.01,
+        help="Similarity threshold; use 0.0 to match the original script behavior",
     )
     parser.add_argument("--memory-limit", default="8GB", help="DuckDB memory limit")
+    parser.add_argument(
+        "--fresh-start",
+        action="store_true",
+        help="Ignore saved progress and recompute all cities from scratch",
+    )
+    parser.add_argument(
+        "--log-dir",
+        default=None,
+        help="Directory for local log files; defaults to a logs folder next to this script",
+    )
 
     args = parser.parse_args()
 
@@ -510,6 +715,8 @@ def main():
         "batch_size": args.batch_size,
         "similarity_threshold": args.threshold,
         "memory_limit": args.memory_limit,
+        "resume": not args.fresh_start,
+        "log_dir": args.log_dir,
     }
 
     # Run processor
