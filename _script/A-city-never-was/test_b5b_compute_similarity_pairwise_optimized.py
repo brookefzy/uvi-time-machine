@@ -9,9 +9,14 @@ import sys
 import tempfile
 import types
 import unittest
+import warnings
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
+
+
+warnings.filterwarnings("ignore", message="GPU support not available.*")
 
 
 MODULE_PATH = (
@@ -55,7 +60,17 @@ def load_module():
     sys.modules.setdefault("scipy.spatial.distance", fake_distance)
 
     fake_pairwise = types.ModuleType("sklearn.metrics.pairwise")
-    fake_pairwise.cosine_similarity = lambda *args, **kwargs: None
+
+    def fake_cosine_similarity(features1, features2=None):
+        left = np.asarray(features1, dtype=float)
+        right = left if features2 is None else np.asarray(features2, dtype=float)
+        left_norm = np.linalg.norm(left, axis=1, keepdims=True)
+        right_norm = np.linalg.norm(right, axis=1, keepdims=True)
+        left_safe = left / np.clip(left_norm, 1e-12, None)
+        right_safe = right / np.clip(right_norm, 1e-12, None)
+        return left_safe @ right_safe.T
+
+    fake_pairwise.cosine_similarity = fake_cosine_similarity
 
     fake_metrics = types.ModuleType("sklearn.metrics")
     fake_metrics.pairwise = fake_pairwise
@@ -100,7 +115,9 @@ def load_module():
     spec = importlib.util.spec_from_file_location("b5b_optimized", MODULE_PATH)
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
-    spec.loader.exec_module(module)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        spec.loader.exec_module(module)
     return module
 
 
@@ -138,7 +155,7 @@ class TestOptimizedSimilarityDefaults(unittest.TestCase):
         self.assertEqual(processor.log_file.parent, MODULE_PATH.parent / "logs")
         self.assertTrue(processor.log_file.exists())
 
-    def test_run_persists_remaining_cities_when_interrupted(self):
+    def test_run_persists_remaining_pairs_when_interrupted(self):
         city_meta_path = Path(self.temp_dir.name) / "city_meta.csv"
         pd.DataFrame({"City": ["Alpha", "Beta", "Gamma"]}).to_csv(
             city_meta_path, index=False
@@ -153,15 +170,15 @@ class TestOptimizedSimilarityDefaults(unittest.TestCase):
         processor = self.module.OptimizedSimilarityProcessor(config, log_level="WARNING")
         self.addCleanup(processor.close)
 
-        processed_groups = []
+        processed_pairs = []
 
-        def fake_process_city_group(cities, _resolution):
-            processed_groups.append(list(cities))
-            if cities == ["Beta"]:
+        def fake_process_city_pair(city1, city2, _resolution):
+            processed_pairs.append((city1, city2))
+            if (city1, city2) == ("Alpha", "Gamma"):
                 raise RuntimeError("boom")
             return pd.DataFrame()
 
-        processor.process_city_group = fake_process_city_group
+        processor.process_city_pair = fake_process_city_pair
 
         with self.assertRaisesRegex(RuntimeError, "boom"):
             processor.run(str(city_meta_path), resolution=6, group_size=1)
@@ -169,12 +186,15 @@ class TestOptimizedSimilarityDefaults(unittest.TestCase):
         progress_path = export_dir / "optimized" / "_progress_res=6_optimized.json"
         progress = json.loads(progress_path.read_text())
 
-        self.assertEqual(processed_groups, [["Alpha"], ["Beta"]])
-        self.assertEqual(progress["completed_cities"], ["Alpha"])
-        self.assertEqual(progress["pending_cities"], ["Beta", "Gamma"])
+        self.assertEqual(processed_pairs, [("Alpha", "Beta"), ("Alpha", "Gamma")])
+        self.assertEqual(progress["completed_pair_keys"], ["Alpha__Beta__res=6"])
+        self.assertEqual(
+            progress["pending_pairs"],
+            [["Alpha", "Gamma"], ["Beta", "Gamma"]],
+        )
         self.assertEqual(progress["status"], "failed")
 
-    def test_run_resumes_from_previously_saved_pending_cities(self):
+    def test_run_resumes_from_previously_saved_pending_pairs(self):
         city_meta_path = Path(self.temp_dir.name) / "city_meta.csv"
         pd.DataFrame({"City": ["Alpha", "Beta", "Gamma"]}).to_csv(
             city_meta_path, index=False
@@ -188,9 +208,8 @@ class TestOptimizedSimilarityDefaults(unittest.TestCase):
             json.dumps(
                 {
                     "resolution": 6,
-                    "group_size": 1,
-                    "completed_cities": ["Alpha"],
-                    "pending_cities": ["Beta", "Gamma"],
+                    "completed_pair_keys": ["Alpha__Beta__res=6"],
+                    "pending_pairs": [["Alpha", "Gamma"], ["Beta", "Gamma"]],
                     "status": "in_progress",
                 }
             )
@@ -204,21 +223,235 @@ class TestOptimizedSimilarityDefaults(unittest.TestCase):
         processor = self.module.OptimizedSimilarityProcessor(config, log_level="WARNING")
         self.addCleanup(processor.close)
 
-        processed_groups = []
+        processed_pairs = []
 
-        def fake_process_city_group(cities, _resolution):
-            processed_groups.append(list(cities))
+        def fake_process_city_pair(city1, city2, _resolution):
+            processed_pairs.append((city1, city2))
             return pd.DataFrame()
 
-        processor.process_city_group = fake_process_city_group
+        processor.process_city_pair = fake_process_city_pair
         processor.run(str(city_meta_path), resolution=6, group_size=1)
 
         progress = json.loads(progress_path.read_text())
 
-        self.assertEqual(processed_groups, [["Beta"], ["Gamma"]])
-        self.assertEqual(progress["completed_cities"], ["Alpha", "Beta", "Gamma"])
-        self.assertEqual(progress["pending_cities"], [])
+        self.assertEqual(processed_pairs, [("Alpha", "Gamma"), ("Beta", "Gamma")])
+        self.assertEqual(
+            progress["completed_pair_keys"],
+            ["Alpha__Beta__res=6", "Alpha__Gamma__res=6", "Beta__Gamma__res=6"],
+        )
+        self.assertEqual(progress["pending_pairs"], [])
         self.assertEqual(progress["status"], "completed")
+
+    def test_create_city_pairs_matches_original_global_order(self):
+        city_meta_path = Path(self.temp_dir.name) / "city_meta.csv"
+        pd.DataFrame({"City": ["Gamma", "Alpha", "Beta", "Alpha"]}).to_csv(
+            city_meta_path, index=False
+        )
+
+        config = {
+            "CURATE_FOLDER_SOURCE": self.temp_dir.name,
+            "CURATE_FOLDER_EXPORT": self.temp_dir.name,
+            "RES_EXCLUDE": 11,
+        }
+
+        processor = self.module.OptimizedSimilarityProcessor(config, log_level="WARNING")
+        self.addCleanup(processor.close)
+
+        city_pairs = processor.create_city_pairs(str(city_meta_path))
+
+        self.assertEqual(
+            city_pairs,
+            [("Alpha", "Beta"), ("Alpha", "Gamma"), ("Beta", "Gamma")],
+        )
+
+    def test_run_resumes_from_previously_completed_pairs(self):
+        city_meta_path = Path(self.temp_dir.name) / "city_meta.csv"
+        pd.DataFrame({"City": ["Alpha", "Beta", "Gamma"]}).to_csv(
+            city_meta_path, index=False
+        )
+
+        export_dir = Path(self.temp_dir.name) / "export"
+        output_dir = export_dir / "optimized"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        progress_path = output_dir / "_progress_res=6_optimized.json"
+        progress_path.write_text(
+            json.dumps(
+                {
+                    "resolution": 6,
+                    "completed_pair_keys": ["Alpha__Beta__res=6"],
+                    "pending_pairs": [["Alpha", "Gamma"], ["Beta", "Gamma"]],
+                    "status": "in_progress",
+                }
+            )
+        )
+
+        config = {
+            "CURATE_FOLDER_SOURCE": self.temp_dir.name,
+            "CURATE_FOLDER_EXPORT": str(export_dir),
+            "RES_EXCLUDE": 11,
+        }
+        processor = self.module.OptimizedSimilarityProcessor(config, log_level="WARNING")
+        self.addCleanup(processor.close)
+
+        processed_pairs = []
+
+        def fake_process_city_pair(city1, city2, _resolution):
+            processed_pairs.append((city1, city2))
+            return pd.DataFrame()
+
+        processor.process_city_pair = fake_process_city_pair
+        processor.run(str(city_meta_path), resolution=6, group_size=10)
+
+        progress = json.loads(progress_path.read_text())
+
+        self.assertEqual(processed_pairs, [("Alpha", "Gamma"), ("Beta", "Gamma")])
+        self.assertEqual(
+            progress["completed_pair_keys"],
+            ["Alpha__Beta__res=6", "Alpha__Gamma__res=6", "Beta__Gamma__res=6"],
+        )
+        self.assertEqual(progress["pending_pairs"], [])
+        self.assertEqual(progress["status"], "completed")
+
+    def test_blocked_city_pair_similarity_matches_exact_results(self):
+        config = {
+            "CURATE_FOLDER_SOURCE": self.temp_dir.name,
+            "CURATE_FOLDER_EXPORT": self.temp_dir.name,
+            "RES_EXCLUDE": 11,
+        }
+        processor = self.module.OptimizedSimilarityProcessor(config, log_level="WARNING")
+        self.addCleanup(processor.close)
+
+        alpha = pd.DataFrame(
+            [
+                {"hex_id": "a1", "city": "Alpha", "0": 1.0, "1": 0.0},
+                {"hex_id": "a2", "city": "Alpha", "0": 0.0, "1": 1.0},
+            ]
+        )
+        beta = pd.DataFrame(
+            [
+                {"hex_id": "b1", "city": "Beta", "0": 1.0, "1": 0.0},
+                {"hex_id": "b2", "city": "Beta", "0": 1.0, "1": 1.0},
+            ]
+        )
+
+        required_columns = ["hex_id", "city", *processor.vector_columns]
+        alpha = alpha.reindex(columns=required_columns, fill_value=0.0)
+        beta = beta.reindex(columns=required_columns, fill_value=0.0)
+
+        def fake_load_city_features(city_name, _resolution):
+            if city_name == "Alpha":
+                return alpha.copy()
+            if city_name == "Beta":
+                return beta.copy()
+            return pd.DataFrame()
+
+        processor.load_city_features = fake_load_city_features
+
+        blocked = processor.compute_city_pair_similarity_blocked(
+            "Alpha", "Beta", resolution=6, row_block_size=1
+        )
+
+        actual = {
+            (row.hex_id1, row.hex_id2, row.city1, row.city2): round(row.similarity, 6)
+            for row in blocked.itertuples(index=False)
+        }
+
+        self.assertEqual(
+            actual,
+            {
+                ("a1", "b1", "Alpha", "Beta"): 1.0,
+                ("a1", "b2", "Alpha", "Beta"): 0.707107,
+                ("a2", "b2", "Alpha", "Beta"): 0.707107,
+                ("b1", "b2", "Beta", "Beta"): 0.707107,
+            },
+        )
+
+    def test_run_without_checkpoint_skips_pairs_for_completed_city_outputs(self):
+        city_meta_path = Path(self.temp_dir.name) / "city_meta.csv"
+        pd.DataFrame({"City": ["Alpha", "Beta", "Gamma"]}).to_csv(
+            city_meta_path, index=False
+        )
+
+        export_dir = Path(self.temp_dir.name) / "export"
+        output_dir = export_dir / "optimized"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        (output_dir / "similarity_city=Alpha_res=6_optimized.parquet").touch()
+
+        config = {
+            "CURATE_FOLDER_SOURCE": self.temp_dir.name,
+            "CURATE_FOLDER_EXPORT": str(export_dir),
+            "RES_EXCLUDE": 11,
+        }
+        processor = self.module.OptimizedSimilarityProcessor(config, log_level="WARNING")
+        self.addCleanup(processor.close)
+
+        processed_pairs = []
+
+        def fake_process_city_pair(city1, city2, _resolution):
+            processed_pairs.append((city1, city2))
+            return pd.DataFrame()
+
+        processor.process_city_pair = fake_process_city_pair
+        processor.run(str(city_meta_path), resolution=6, group_size=10)
+
+        self.assertEqual(processed_pairs, [("Beta", "Gamma")])
+
+    def test_merge_city_results_only_writes_requested_city1_output(self):
+        export_dir = Path(self.temp_dir.name) / "export"
+        config = {
+            "CURATE_FOLDER_SOURCE": self.temp_dir.name,
+            "CURATE_FOLDER_EXPORT": str(export_dir),
+            "RES_EXCLUDE": 11,
+        }
+        processor = self.module.OptimizedSimilarityProcessor(config, log_level="WARNING")
+        self.addCleanup(processor.close)
+
+        output_dir = processor.get_output_dir()
+        pair_dir = processor.get_pair_temp_dir(output_dir, "Alpha", "Beta")
+        shard_path = pair_dir / "part_res=6.parquet"
+        shard_path.touch()
+
+        original_read_parquet = self.module.pd.read_parquet
+        original_to_parquet = pd.DataFrame.to_parquet
+        written_paths = []
+
+        def fake_read_parquet(path, *args, **kwargs):
+            if Path(path) == shard_path:
+                return pd.DataFrame(
+                    [
+                        {
+                            "hex_id1": "a1",
+                            "hex_id2": "b1",
+                            "city1": "Alpha",
+                            "city2": "Beta",
+                            "similarity": 1.0,
+                        },
+                        {
+                            "hex_id1": "b1",
+                            "hex_id2": "b2",
+                            "city1": "Beta",
+                            "city2": "Beta",
+                            "similarity": 0.7,
+                        },
+                    ]
+                )
+            return original_read_parquet(path, *args, **kwargs)
+
+        def fake_to_parquet(self_df, path, *args, **kwargs):
+            written_paths.append(str(path))
+            Path(path).touch()
+
+        self.module.pd.read_parquet = fake_read_parquet
+        pd.DataFrame.to_parquet = fake_to_parquet
+        self.addCleanup(setattr, self.module.pd, "read_parquet", original_read_parquet)
+        self.addCleanup(setattr, pd.DataFrame, "to_parquet", original_to_parquet)
+
+        processor.merge_city_results(output_dir, resolution=6)
+
+        self.assertEqual(len(written_paths), 1)
+        self.assertIn("Alpha", written_paths[0])
+        self.assertIn("res=6", written_paths[0])
+        self.assertNotIn("Beta_optimized.parquet", written_paths[0])
 
 
 if __name__ == "__main__":
