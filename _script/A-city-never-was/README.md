@@ -6,10 +6,10 @@
 ```python B5b_compute_similarity_pairwise.py --res 6``` 
    Optimized resumable version:
 ```bash
-python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5b_compute_similarity_pairwise-optimized.py \
+python B5b_compute_similarity_pairwise-optimized.py \
   --city-meta /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv \
-  --resolution 6 \
-  --group-size 10
+  --resolution 8 \
+  --group-size 5
 ```
 
    Resume behavior:
@@ -18,7 +18,7 @@ python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5
    - Use `--fresh-start` to ignore previous progress and recompute from scratch.
 
    Local debug logs:
-   - Default log folder: `/Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/logs`
+   - Default log folder: `A-city-never-was/logs`
    - Optional override: add `--log-dir /path/to/logs`
 
 3. summarize similarity index for each city.
