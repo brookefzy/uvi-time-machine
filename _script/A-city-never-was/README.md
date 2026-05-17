@@ -6,19 +6,24 @@
 ```python B5b_compute_similarity_pairwise.py --res 6``` 
    Optimized resumable version:
 ```bash
-python B5b_compute_similarity_pairwise-optimized.py \
+python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5b_compute_similarity_pairwise-optimized.py \
   --city-meta /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv \
-  --resolution 8 \
-  --group-size 5
+  --resolution 6 \
+  --row-block-size 1000
 ```
 
    Resume behavior:
-   - If `/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_classifiier_prob_similarity_by_pair/optimized/_progress_res=6_optimized.json` exists, the script resumes from its pending city list.
-   - If that JSON file does not exist, the script scans existing `similarity_city=*_optimized.parquet` files in the `optimized/` output folder and skips cities that are already finished.
+   - The optimized script preserves the original global city-pair behavior. It still evaluates every unique `(city1, city2)` pair, but computes each pair in smaller row blocks to reduce memory use.
+   - If `/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_classifiier_prob_similarity_by_pair/optimized/_progress_res=6_optimized.json` exists, the script resumes from its pending city-pair list.
+   - If that JSON file does not exist, the script scans existing `similarity_city=*_res=<resolution>_optimized.parquet` files in the `optimized/` output folder and skips already completed `city1` outputs.
    - Use `--fresh-start` to ignore previous progress and recompute from scratch.
 
+   Disk usage:
+   - Intermediate exact results are written under `optimized/temp/city1=<city>/city2=<city>/`.
+   - Those temp shards are merged into final `similarity_city=*_res=<resolution>_optimized.parquet` outputs after processing finishes.
+
    Local debug logs:
-   - Default log folder: `A-city-never-was/logs`
+   - Default log folder: `/Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/logs`
    - Optional override: add `--log-dir /path/to/logs`
 
 3. summarize similarity index for each city.
