@@ -43,15 +43,19 @@ python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5
   --resume \
   --agg-progress-file /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_similarity_optimized_progress_res=8.json \
   --duckdb-memory-limit 32GB \
-  --duckdb-temp-dir /lustre1/g/geog_pyloo/05_timemachine/_tmp/duckdb_city_similarity
+  --duckdb-temp-dir /lustre1/g/geog_pyloo/05_timemachine/_tmp/duckdb_city_similarity \
+  --parquet-file-size 512MB
 ```
 
    Notes:
    - `B5c_pairwise_agg_optimized.py` reads temp shards from `optimized/temp/city1=<city>/city2=*/part_res=<resolution>.parquet`
    - It does not require merged per-city optimized parquet files to exist first
    - `--resume` skips cities that already have aggregated output files, and if `--agg-progress-file` is provided it also resumes from that city-level progress JSON
+   - Resume recognizes both a single output parquet file and a chunked parquet dataset directory at `similarity_intracity_city=<city>_res=<resolution>.parquet`
    - Use an explicit `--export-folder` when resuming. The script's default export folder is date-based, so a bare `python B5c_pairwise_agg_optimized.py --resume` on a later day will look in a new folder and will not see yesterday's completed city outputs.
    - The optimized aggregator keeps exact results by default and exports directly from DuckDB instead of materializing the full city result in pandas
+   - By default the optimized aggregator writes a parquet dataset directory per city, split into smaller `part_*.parquet` files to avoid getting stuck on a single massive final write
+   - Set `--parquet-file-size 0` if you explicitly want one single parquet file instead of chunked output
    - If the progress JSON has no pending pairs but still says `in_progress`, the optimized aggregator proceeds and logs a warning
 
 4. process the distance between hexagons and their associated CBD

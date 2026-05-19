@@ -10,6 +10,7 @@ import argparse
 import gc
 import json
 import logging
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -91,11 +92,59 @@ class OptimizedUrbanSimilarityProcessor:
         return Path(progress_path) if progress_path else None
 
     def get_output_file(self, city: str) -> Path:
-        """Return the final aggregated output file for one city."""
+        """Return the final aggregated output path for one city."""
         return (
             Path(self.config["EXPORT_FOLDER"])
             / f"similarity_intracity_city={city}_res={self.config['RES_SEL']}.parquet"
         )
+
+    def output_exists(self, city: str) -> bool:
+        """Return true when a city already has a usable aggregated export."""
+        output_path = self.get_output_file(city)
+        if output_path.is_file():
+            return True
+        if output_path.is_dir():
+            return any(output_path.glob("*.parquet"))
+        return False
+
+    def remove_output_path(self, output_path: Path) -> None:
+        """Remove an output file or dataset directory."""
+        if output_path.is_dir():
+            shutil.rmtree(output_path)
+        elif output_path.exists():
+            output_path.unlink()
+
+    def export_intercity_dataset(self, city: str, export_query: str) -> Path:
+        """Write one city's inter-city result as a parquet file or partitioned dataset."""
+        output_path = self.get_output_file(city)
+        temp_output_path = output_path.with_name(f"{output_path.name}.tmp")
+        parquet_file_size = str(
+            self.config.get("PARQUET_FILE_SIZE_BYTES", "512MB")
+        ).strip()
+
+        self.remove_output_path(temp_output_path)
+        if output_path.exists():
+            self.remove_output_path(output_path)
+
+        try:
+            if parquet_file_size and parquet_file_size.lower() not in {"0", "none", "false"}:
+                copy_options = (
+                    "FORMAT parquet, "
+                    "PER_THREAD_OUTPUT true, "
+                    f"FILE_SIZE_BYTES '{parquet_file_size}', "
+                    "FILENAME_PATTERN 'part_{i}'"
+                )
+            else:
+                copy_options = "FORMAT parquet"
+
+            self.conn.execute(
+                f"COPY ({export_query}) TO '{temp_output_path}' ({copy_options})"
+            )
+            temp_output_path.rename(output_path)
+            return output_path
+        except Exception:
+            self.remove_output_path(temp_output_path)
+            raise
 
     def read_progress(self) -> Optional[Dict[str, Any]]:
         """Load a saved aggregation progress file if present."""
@@ -145,9 +194,7 @@ class OptimizedUrbanSimilarityProcessor:
             pending = [city for city in ordered_cities if city not in completed_set]
             return pending, completed
 
-        completed = [
-            city for city in ordered_cities if self.get_output_file(city).exists()
-        ]
+        completed = [city for city in ordered_cities if self.output_exists(city)]
         pending = [city for city in ordered_cities if city not in set(completed)]
         return pending, completed
 
@@ -248,7 +295,6 @@ class OptimizedUrbanSimilarityProcessor:
             SELECT hex_id1, hex_id2, similarity, city_1, city_2
             FROM deduped
             WHERE city_1 != city_2
-            ORDER BY similarity DESC, hex_id1, hex_id2
         """
 
         inner_count = int(self.conn.execute(inner_count_query).fetchone()[0])
@@ -262,8 +308,7 @@ class OptimizedUrbanSimilarityProcessor:
         )
 
         if inter_count > 0:
-            output_file = self.get_output_file(city)
-            self.conn.execute(f"COPY ({export_query}) TO '{output_file}'")
+            output_file = self.export_intercity_dataset(city, export_query)
             self.logger.debug("Saved inter-city results to: %s", output_file)
 
         gc.collect()
@@ -385,6 +430,11 @@ def main() -> None:
         default=None,
         help="Optional DuckDB thread count",
     )
+    parser.add_argument(
+        "--parquet-file-size",
+        default="512MB",
+        help="Approximate max size for each parquet part file, e.g. 512MB; set to 0 to write a single parquet file",
+    )
     args = parser.parse_args()
 
     today = datetime.now().strftime("%Y%m%d")
@@ -402,6 +452,7 @@ def main() -> None:
         "DUCKDB_MEMORY_LIMIT": args.duckdb_memory_limit,
         "DUCKDB_TEMP_DIR": args.duckdb_temp_dir,
         "DUCKDB_THREADS": args.duckdb_threads,
+        "PARQUET_FILE_SIZE_BYTES": args.parquet_file_size,
     }
     processor = OptimizedUrbanSimilarityProcessor(config, log_level="INFO")
     processor.run(args.city_meta)

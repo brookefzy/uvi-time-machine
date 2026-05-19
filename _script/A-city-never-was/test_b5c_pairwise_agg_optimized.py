@@ -39,6 +39,7 @@ def load_module():
         class FakeConnection:
             def __init__(self):
                 self.last_copy_query = None
+                self.last_copy_output_path = None
 
             def execute(self, query):
                 if "SELECT COUNT(*)" in query and "WITH shard_union AS" in query:
@@ -51,16 +52,31 @@ def load_module():
 
                 if "COPY (" in query and "WITH shard_union AS" in query:
                     self.last_copy_query = query
-                    inner_query, output_path = re.search(
-                        r"COPY \((.*)\) TO '([^']+)'",
+                    inner_query, output_path, options = re.search(
+                        r"COPY \((.*)\) TO '([^']+)'(?: \((.*)\))?",
                         query,
                         flags=re.S,
                     ).groups()
+                    self.last_copy_output_path = Path(output_path)
                     result = self._build_result(inner_query)
                     inter_city = result[result["city_1"] != result["city_2"]].reset_index(
                         drop=True
                     )
-                    pd.DataFrame.to_parquet(inter_city, output_path, index=False)
+                    if options and "FILE_SIZE_BYTES" in options:
+                        output_dir = Path(output_path)
+                        output_dir.mkdir(parents=True, exist_ok=True)
+                        midpoint = max(1, len(inter_city) // 2)
+                        chunks = [inter_city.iloc[:midpoint], inter_city.iloc[midpoint:]]
+                        for idx, chunk in enumerate(chunks):
+                            if chunk.empty:
+                                continue
+                            pd.DataFrame.to_parquet(
+                                chunk.reset_index(drop=True),
+                                output_dir / f"part_{idx}.parquet",
+                                index=False,
+                            )
+                    else:
+                        pd.DataFrame.to_parquet(inter_city, output_path, index=False)
                     return FakeResult(pd.DataFrame())
 
                 if "WITH shard_union AS" not in query:
@@ -138,6 +154,7 @@ class TestOptimizedPairwiseAggregation(unittest.TestCase):
         self.parquet_store = {}
         self._orig_read_parquet = pd.read_parquet
         self._orig_to_parquet = pd.DataFrame.to_parquet
+        self._orig_path_rename = Path.rename
 
         def fake_read_parquet(path, *args, **kwargs):
             path_obj = Path(path)
@@ -151,27 +168,56 @@ class TestOptimizedPairwiseAggregation(unittest.TestCase):
             self.parquet_store[path_obj] = df.copy()
             path_obj.touch()
 
+        def fake_path_rename(path_obj, target):
+            source = Path(path_obj)
+            destination = Path(target)
+            result = self._orig_path_rename(source, destination)
+            moved_entries = {}
+            for stored_path, frame in list(self.parquet_store.items()):
+                try:
+                    relative_path = stored_path.relative_to(source)
+                except ValueError:
+                    continue
+                moved_entries[destination / relative_path] = frame
+                del self.parquet_store[stored_path]
+            self.parquet_store.update(moved_entries)
+            return result
+
         pd.read_parquet = fake_read_parquet
         pd.DataFrame.to_parquet = fake_to_parquet
+        Path.rename = fake_path_rename
 
     def tearDown(self):
         pd.read_parquet = self._orig_read_parquet
         pd.DataFrame.to_parquet = self._orig_to_parquet
+        Path.rename = self._orig_path_rename
         self.temp_dir.cleanup()
 
-    def make_processor(self, resolution=8):
+    def make_processor(self, resolution=8, parquet_file_size="512MB"):
         config = {
             "CURATE_FOLDER_SOURCE": str(self.source_dir),
             "CURATE_FOLDER_EXPORT2": str(self.export_root),
             "EXPORT_FOLDER": str(self.output_dir),
             "RES_SEL": resolution,
             "RESUME": True,
+            "PARQUET_FILE_SIZE_BYTES": parquet_file_size,
         }
         processor = self.module.OptimizedUrbanSimilarityProcessor(
             config, log_level="WARNING"
         )
         self.addCleanup(processor.close)
         return processor
+
+    def read_output_dataset(self, output_path):
+        output_path = Path(output_path)
+        if output_path.is_dir():
+            frames = [
+                self.parquet_store[path]
+                for path in sorted(self.parquet_store)
+                if path.parent == output_path
+            ]
+            return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+        return self.parquet_store[output_path].copy()
 
     def write_pair_shard(self, city1, city2, resolution, rows):
         pair_dir = self.temp_root / f"city1={city1}" / f"city2={city2}"
@@ -180,8 +226,8 @@ class TestOptimizedPairwiseAggregation(unittest.TestCase):
             pair_dir / f"part_res={resolution}.parquet", index=False
         )
 
-    def test_process_city_similarity_reads_temp_shards_and_saves_intercity_output(self):
-        processor = self.make_processor(resolution=8)
+    def test_process_city_similarity_reads_temp_shards_and_saves_partitioned_intercity_output(self):
+        processor = self.make_processor(resolution=8, parquet_file_size="64MB")
         self.write_pair_shard(
             "Alpha",
             "Beta",
@@ -227,9 +273,11 @@ class TestOptimizedPairwiseAggregation(unittest.TestCase):
             self.output_dir / "similarity_intracity_city=Alpha_res=8.parquet"
         )
         self.assertTrue(output_file.exists())
+        self.assertTrue(output_file.is_dir())
 
-        result = pd.read_parquet(output_file)
+        result = self.read_output_dataset(output_file)
         self.assertIsNotNone(processor.conn.last_copy_query)
+        self.assertIn("FILE_SIZE_BYTES '64MB'", processor.conn.last_copy_query)
         self.assertEqual(list(result.columns), ["hex_id1", "hex_id2", "similarity", "city_1", "city_2"])
         self.assertEqual(len(result), 1)
         self.assertEqual(result.iloc[0]["hex_id1"], "a1")
@@ -254,7 +302,10 @@ class TestOptimizedPairwiseAggregation(unittest.TestCase):
         city_meta = self.root / "city_meta.csv"
         pd.DataFrame({"City": ["Alpha", "Beta"]}).to_csv(city_meta, index=False)
         existing_output = self.output_dir / "similarity_intracity_city=Alpha_res=8.parquet"
-        existing_output.touch()
+        existing_output.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame(
+            [{"hex_id1": "a1", "hex_id2": "b1", "similarity": 0.5, "city_1": "Alpha", "city_2": "Beta"}]
+        ).to_parquet(existing_output / "part_0.parquet", index=False)
 
         processed_cities = []
 
