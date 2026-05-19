@@ -38,12 +38,18 @@ python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5
   --city-meta /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv \
   --resolution 8 \
   --pairwise-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_classifiier_prob_similarity_by_pair \
-  --progress-file /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_classifiier_prob_similarity_by_pair/optimized/_progress_res=8_optimized.json
+  --progress-file /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_classifiier_prob_similarity_by_pair/optimized/_progress_res=8_optimized.json \
+  --resume \
+  --agg-progress-file /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_similarity_optimized_progress_res=8.json \
+  --duckdb-memory-limit 8GB \
+  --duckdb-temp-dir /lustre1/g/geog_pyloo/05_timemachine/_tmp/duckdb_city_similarity
 ```
 
    Notes:
    - `B5c_pairwise_agg_optimized.py` reads temp shards from `optimized/temp/city1=<city>/city2=*/part_res=<resolution>.parquet`
    - It does not require merged per-city optimized parquet files to exist first
+   - `--resume` skips cities that already have aggregated output files, and if `--agg-progress-file` is provided it also resumes from that city-level progress JSON
+   - The optimized aggregator keeps exact results by default and exports directly from DuckDB instead of materializing the full city result in pandas
    - If the progress JSON has no pending pairs but still says `in_progress`, the optimized aggregator proceeds and logs a warning
 
 4. process the distance between hexagons and their associated CBD

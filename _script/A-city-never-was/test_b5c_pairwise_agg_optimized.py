@@ -9,6 +9,7 @@ import sys
 import tempfile
 import types
 import unittest
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -30,11 +31,44 @@ def load_module():
             def fetchdf(self):
                 return self._df
 
+            def fetchone(self):
+                if self._df.empty:
+                    return (0,)
+                return tuple(self._df.iloc[0].tolist())
+
         class FakeConnection:
+            def __init__(self):
+                self.last_copy_query = None
+
             def execute(self, query):
+                if "SELECT COUNT(*)" in query and "WITH shard_union AS" in query:
+                    result = self._build_result(query)
+                    if "city_1 != city_2" in query:
+                        count = len(result[result["city_1"] != result["city_2"]])
+                    else:
+                        count = len(result[result["city_1"] == result["city_2"]])
+                    return FakeResult(pd.DataFrame({"count": [count]}))
+
+                if "COPY (" in query and "WITH shard_union AS" in query:
+                    self.last_copy_query = query
+                    inner_query, output_path = re.search(
+                        r"COPY \((.*)\) TO '([^']+)'",
+                        query,
+                        flags=re.S,
+                    ).groups()
+                    result = self._build_result(inner_query)
+                    inter_city = result[result["city_1"] != result["city_2"]].reset_index(
+                        drop=True
+                    )
+                    pd.DataFrame.to_parquet(inter_city, output_path, index=False)
+                    return FakeResult(pd.DataFrame())
+
                 if "WITH shard_union AS" not in query:
                     return FakeResult(pd.DataFrame())
 
+                return FakeResult(self._build_result(query))
+
+            def _build_result(self, query):
                 matches = re.findall(
                     r"'([^']+)' AS shard_city1,\s*'([^']+)' AS shard_city2\s*FROM read_parquet\('([^']+)'\)",
                     query,
@@ -69,7 +103,7 @@ def load_module():
                     .sort_values(["similarity", "hex_id1", "hex_id2"], ascending=[False, True, True])
                     .reset_index(drop=True)
                 )
-                return FakeResult(result[["hex_id1", "hex_id2", "similarity", "city_1", "city_2"]])
+                return result[["hex_id1", "hex_id2", "similarity", "city_1", "city_2"]]
 
             def close(self):
                 return None
@@ -131,6 +165,7 @@ class TestOptimizedPairwiseAggregation(unittest.TestCase):
             "CURATE_FOLDER_EXPORT2": str(self.export_root),
             "EXPORT_FOLDER": str(self.output_dir),
             "RES_SEL": resolution,
+            "RESUME": True,
         }
         processor = self.module.OptimizedUrbanSimilarityProcessor(
             config, log_level="WARNING"
@@ -194,6 +229,7 @@ class TestOptimizedPairwiseAggregation(unittest.TestCase):
         self.assertTrue(output_file.exists())
 
         result = pd.read_parquet(output_file)
+        self.assertIsNotNone(processor.conn.last_copy_query)
         self.assertEqual(list(result.columns), ["hex_id1", "hex_id2", "similarity", "city_1", "city_2"])
         self.assertEqual(len(result), 1)
         self.assertEqual(result.iloc[0]["hex_id1"], "a1")
@@ -212,6 +248,42 @@ class TestOptimizedPairwiseAggregation(unittest.TestCase):
         self.assertFalse(
             (self.output_dir / "similarity_intracity_city=MissingCity_res=8.parquet").exists()
         )
+
+    def test_run_resumes_by_skipping_existing_city_output(self):
+        processor = self.make_processor(resolution=8)
+        city_meta = self.root / "city_meta.csv"
+        pd.DataFrame({"City": ["Alpha", "Beta"]}).to_csv(city_meta, index=False)
+        existing_output = self.output_dir / "similarity_intracity_city=Alpha_res=8.parquet"
+        existing_output.touch()
+
+        processed_cities = []
+
+        def fake_process_city_similarity(city):
+            processed_cities.append(city)
+            return (0, 1)
+
+        processor.process_city_similarity = fake_process_city_similarity
+        processor.run(str(city_meta))
+
+        self.assertEqual(processed_cities, ["Beta"])
+
+    def test_run_writes_progress_file_for_completed_cities(self):
+        processor = self.make_processor(resolution=8)
+        progress_path = self.root / "_agg_progress.json"
+        processor.config["AGG_PROGRESS_PATH"] = str(progress_path)
+        city_meta = self.root / "city_meta.csv"
+        pd.DataFrame({"City": ["Alpha", "Beta"]}).to_csv(city_meta, index=False)
+
+        def fake_process_city_similarity(city):
+            return (0, 1)
+
+        processor.process_city_similarity = fake_process_city_similarity
+        processor.run(str(city_meta))
+
+        progress = json.loads(progress_path.read_text())
+        self.assertEqual(progress["completed_cities"], ["Alpha", "Beta"])
+        self.assertEqual(progress["pending_cities"], [])
+        self.assertEqual(progress["status"], "completed")
 
 
 if __name__ == "__main__":

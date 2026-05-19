@@ -10,7 +10,7 @@ import argparse
 import gc
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -26,6 +26,7 @@ class OptimizedUrbanSimilarityProcessor:
         self.config = config
         self.setup_logging(log_level)
         self.conn = duckdb.connect(":memory:")
+        self.configure_duckdb()
         self.setup_directories()
 
     def setup_logging(self, log_level: str) -> None:
@@ -61,14 +62,94 @@ class OptimizedUrbanSimilarityProcessor:
         """Create necessary directories."""
         Path(self.config["EXPORT_FOLDER"]).mkdir(parents=True, exist_ok=True)
 
+    def configure_duckdb(self) -> None:
+        """Configure DuckDB spill-to-disk settings for large cities."""
+        memory_limit = self.config.get("DUCKDB_MEMORY_LIMIT")
+        temp_directory = self.config.get("DUCKDB_TEMP_DIR")
+        threads = self.config.get("DUCKDB_THREADS")
+
+        if memory_limit:
+            self.conn.execute(f"SET memory_limit='{memory_limit}'")
+        if temp_directory:
+            Path(temp_directory).mkdir(parents=True, exist_ok=True)
+            self.conn.execute(f"SET temp_directory='{temp_directory}'")
+        if threads:
+            self.conn.execute(f"SET threads TO {int(threads)}")
+
     def get_temp_root(self) -> Path:
         """Return the optimized temp shard root."""
         return Path(self.config["CURATE_FOLDER_EXPORT2"]) / "optimized" / "temp"
 
     def get_progress_path(self) -> Optional[Path]:
-        """Return optional optimized progress file path."""
+        """Return optional upstream pairwise progress file path."""
         progress_path = self.config.get("PROGRESS_PATH")
         return Path(progress_path) if progress_path else None
+
+    def get_agg_progress_path(self) -> Optional[Path]:
+        """Return optional aggregation progress file path."""
+        progress_path = self.config.get("AGG_PROGRESS_PATH")
+        return Path(progress_path) if progress_path else None
+
+    def get_output_file(self, city: str) -> Path:
+        """Return the final aggregated output file for one city."""
+        return (
+            Path(self.config["EXPORT_FOLDER"])
+            / f"similarity_intracity_city={city}_res={self.config['RES_SEL']}.parquet"
+        )
+
+    def read_progress(self) -> Optional[Dict[str, Any]]:
+        """Load a saved aggregation progress file if present."""
+        progress_path = self.get_agg_progress_path()
+        if not progress_path or not progress_path.exists():
+            return None
+        return json.loads(progress_path.read_text())
+
+    def write_progress(
+        self,
+        completed_cities: List[str],
+        pending_cities: List[str],
+        status: str,
+    ) -> None:
+        """Persist city-level aggregation progress."""
+        progress_path = self.get_agg_progress_path()
+        if not progress_path:
+            return
+
+        payload = {
+            "resolution": self.config["RES_SEL"],
+            "completed_cities": completed_cities,
+            "pending_cities": pending_cities,
+            "status": status,
+            "updated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "log_file": next(
+                (
+                    handler.baseFilename
+                    for handler in self.logger.handlers
+                    if isinstance(handler, logging.FileHandler)
+                ),
+                None,
+            ),
+        }
+        progress_path.write_text(json.dumps(payload, indent=2))
+
+    def resolve_cities_to_process(self, cities: List[str]) -> Tuple[List[str], List[str]]:
+        """Resolve pending cities from progress and existing output files."""
+        ordered_cities = list(dict.fromkeys(cities))
+        if not self.config.get("RESUME", True):
+            return ordered_cities, []
+
+        progress = self.read_progress()
+        if progress:
+            completed_set = set(progress.get("completed_cities", []))
+            completed = [city for city in ordered_cities if city in completed_set]
+            pending = [city for city in ordered_cities if city not in completed_set]
+            return pending, completed
+
+        completed = [
+            city for city in ordered_cities if self.get_output_file(city).exists()
+        ]
+        pending = [city for city in ordered_cities if city not in set(completed)]
+        return pending, completed
 
     def warn_if_pairwise_not_finished(self) -> None:
         """Warn if the upstream optimized pairwise run looks incomplete."""
@@ -133,7 +214,7 @@ class OptimizedUrbanSimilarityProcessor:
             )
 
         union_query = " UNION ALL ".join(query_parts)
-        query = f"""
+        base_query = f"""
             WITH shard_union AS ({union_query}),
             deduped AS (
                 SELECT
@@ -149,17 +230,29 @@ class OptimizedUrbanSimilarityProcessor:
                     shard_city1,
                     shard_city2
             )
-            SELECT *
+        """
+        inner_count_query = f"""
+            {base_query}
+            SELECT COUNT(*) AS count
             FROM deduped
+            WHERE city_1 = city_2
+        """
+        inter_count_query = f"""
+            {base_query}
+            SELECT COUNT(*) AS count
+            FROM deduped
+            WHERE city_1 != city_2
+        """
+        export_query = f"""
+            {base_query}
+            SELECT hex_id1, hex_id2, similarity, city_1, city_2
+            FROM deduped
+            WHERE city_1 != city_2
             ORDER BY similarity DESC, hex_id1, hex_id2
         """
 
-        result_df = self.conn.execute(query).fetchdf()
-        inner_city = result_df[result_df["city_1"] == result_df["city_2"]]
-        inter_city = result_df[result_df["city_1"] != result_df["city_2"]]
-
-        inner_count = len(inner_city)
-        inter_count = len(inter_city)
+        inner_count = int(self.conn.execute(inner_count_query).fetchone()[0])
+        inter_count = int(self.conn.execute(inter_count_query).fetchone()[0])
 
         self.logger.info(
             "City %s: %d inner-city pairs, %d inter-city pairs",
@@ -169,11 +262,8 @@ class OptimizedUrbanSimilarityProcessor:
         )
 
         if inter_count > 0:
-            output_file = (
-                Path(self.config["EXPORT_FOLDER"])
-                / f"similarity_intracity_city={city}_res={self.config['RES_SEL']}.parquet"
-            )
-            inter_city.to_parquet(output_file, index=False)
+            output_file = self.get_output_file(city)
+            self.conn.execute(f"COPY ({export_query}) TO '{output_file}'")
             self.logger.debug("Saved inter-city results to: %s", output_file)
 
         gc.collect()
@@ -188,20 +278,41 @@ class OptimizedUrbanSimilarityProcessor:
 
             city_meta = pd.read_csv(city_meta_path)
             cities = city_meta["City"].dropna().tolist()
-            self.logger.info("Processing %d cities", len(cities))
+            pending_cities, completed_cities = self.resolve_cities_to_process(cities)
+            self.logger.info(
+                "Processing %d cities (%d already completed)",
+                len(pending_cities),
+                len(completed_cities),
+            )
+            self.write_progress(completed_cities, pending_cities, "in_progress")
 
             total_inner = 0
             total_inter = 0
-            for city in tqdm(cities, desc="Processing cities"):
-                inner_count, inter_count = self.process_city_similarity(city)
-                total_inner += inner_count
-                total_inter += inter_count
+            for idx, city in enumerate(tqdm(pending_cities, desc="Processing cities")):
+                try:
+                    inner_count, inter_count = self.process_city_similarity(city)
+                    total_inner += inner_count
+                    total_inter += inter_count
+                    completed_cities.append(city)
+                    self.write_progress(
+                        completed_cities,
+                        pending_cities[idx + 1 :],
+                        "in_progress",
+                    )
+                except Exception:
+                    self.write_progress(
+                        completed_cities,
+                        pending_cities[idx:],
+                        "failed",
+                    )
+                    raise
 
             self.logger.info(
                 "Processing complete. Total: %d inner-city pairs, %d inter-city pairs",
                 total_inner,
                 total_inter,
             )
+            self.write_progress(completed_cities, [], "completed")
         finally:
             self.close()
             gc.collect()
@@ -248,6 +359,32 @@ def main() -> None:
         default=None,
         help="Optional optimized pairwise progress JSON; warns if pending pairs remain",
     )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Skip cities that already have aggregated outputs or are marked completed in the aggregation progress file",
+    )
+    parser.add_argument(
+        "--agg-progress-file",
+        default=None,
+        help="Optional city-level aggregation progress JSON for resume support",
+    )
+    parser.add_argument(
+        "--duckdb-memory-limit",
+        default=None,
+        help="Optional DuckDB memory limit, for example 8GB",
+    )
+    parser.add_argument(
+        "--duckdb-temp-dir",
+        default=None,
+        help="Optional DuckDB temp spill directory for large city aggregations",
+    )
+    parser.add_argument(
+        "--duckdb-threads",
+        type=int,
+        default=None,
+        help="Optional DuckDB thread count",
+    )
     args = parser.parse_args()
 
     today = datetime.now().strftime("%Y%m%d")
@@ -260,6 +397,11 @@ def main() -> None:
         "EXPORT_FOLDER": export_folder,
         "RES_SEL": args.resolution,
         "PROGRESS_PATH": args.progress_file,
+        "RESUME": args.resume,
+        "AGG_PROGRESS_PATH": args.agg_progress_file,
+        "DUCKDB_MEMORY_LIMIT": args.duckdb_memory_limit,
+        "DUCKDB_TEMP_DIR": args.duckdb_temp_dir,
+        "DUCKDB_THREADS": args.duckdb_threads,
     }
     processor = OptimizedUrbanSimilarityProcessor(config, log_level="INFO")
     processor.run(args.city_meta)
