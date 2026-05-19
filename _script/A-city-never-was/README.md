@@ -28,6 +28,24 @@ python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5
 
 3. summarize similarity index for each city.
 ```python B5c_pairwise_agg.py``` 
+   Pairing:
+   - Use `B5c_pairwise_agg.py` with `B5b_compute_similarity_pairwise.py`
+   - Use `B5c_pairwise_agg_optimized.py` with `B5b_compute_similarity_pairwise-optimized.py`
+
+   Optimized aggregation example:
+```bash
+python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5c_pairwise_agg_optimized.py \
+  --city-meta /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv \
+  --resolution 8 \
+  --pairwise-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_classifiier_prob_similarity_by_pair \
+  --progress-file /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_classifiier_prob_similarity_by_pair/optimized/_progress_res=8_optimized.json
+```
+
+   Notes:
+   - `B5c_pairwise_agg_optimized.py` reads temp shards from `optimized/temp/city1=<city>/city2=*/part_res=<resolution>.parquet`
+   - It does not require merged per-city optimized parquet files to exist first
+   - If the progress JSON has no pending pairs but still says `in_progress`, the optimized aggregator proceeds and logs a warning
+
 4. process the distance between hexagons and their associated CBD
 ```python B6a_h3_distance_processor.py```
 
