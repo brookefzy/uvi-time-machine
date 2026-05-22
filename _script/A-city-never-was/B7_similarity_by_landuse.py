@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 """
 Summarize inter-city similarity by landuse bucket from optimized pairwise shards.
+
+Default CLI:
+    python B7_similarity_by_landuse.py \
+      --zero-fill-avg \
+      --use-two-phase \
+      --landuse-source stage3 \
+      --tier-method pct \
+      --res 8
 """
 
 import argparse
@@ -16,12 +24,13 @@ from typing import Iterable
 import duckdb
 import pandas as pd
 
-
 DEFAULT_PAIRWISE_ROOT = (
     "/lustre1/g/geog_pyloo/05_timemachine/_curated/"
     "c_city_classifiier_prob_similarity_by_pair"
 )
-DEFAULT_STAGE2_LANDUSE_ROOT = "/lustre1/g/geog_pyloo/05_timemachine/_transformed/landuse"
+DEFAULT_STAGE2_LANDUSE_ROOT = (
+    "/lustre1/g/geog_pyloo/05_timemachine/_transformed/landuse"
+)
 DEFAULT_STAGE3_LANDUSE_ROOT = (
     "/lustre1/g/geog_pyloo/05_timemachine/_transformed/landuse_poi_res=8"
 )
@@ -264,7 +273,9 @@ def get_landuse_keys(source: str) -> list[str]:
     raise ValueError(f"Unsupported landuse source: {source}")
 
 
-def resolve_landuse_keys(landuse_key: str | None, landuse_source_name: str) -> list[str]:
+def resolve_landuse_keys(
+    landuse_key: str | None, landuse_source_name: str
+) -> list[str]:
     """Resolve the requested landuse selection."""
     if landuse_key == "allhex":
         return ["all"]
@@ -347,7 +358,9 @@ def get_pairwise_temp_pattern(pairwise_root: str, res: int) -> str:
 
 def default_optimized_city_root(res: int) -> str:
     """Return the legacy optimized-city root for one resolution."""
-    return str(Path(DEFAULT_PAIRWISE_ROOT).parent / f"c_city_similarity_optimized_res={res}")
+    return str(
+        Path(DEFAULT_PAIRWISE_ROOT).parent / f"c_city_similarity_optimized_res={res}"
+    )
 
 
 def detect_pairwise_source(pairwise_root: str, res: int) -> PairwiseSourceConfig:
@@ -403,7 +416,9 @@ def collect_pairwise_input_paths(pairwise_config: PairwiseSourceConfig) -> list[
             continue
         if path.is_dir():
             expanded_paths.extend(
-                sorted(str(child) for child in path.glob("*.parquet") if child.is_file())
+                sorted(
+                    str(child) for child in path.glob("*.parquet") if child.is_file()
+                )
             )
     return expanded_paths
 
@@ -548,7 +563,9 @@ def load_landuse_hex_ids(
     """
     fallback_df = con.execute(query_fallback).df()
     return (
-        pd.concat([primary_df, fallback_df], ignore_index=True)[["hex_id", "city_lower"]]
+        pd.concat([primary_df, fallback_df], ignore_index=True)[
+            ["hex_id", "city_lower"]
+        ]
         .drop_duplicates()
         .reset_index(drop=True)
     )
@@ -712,7 +729,9 @@ def aggregate_similarity_two_phase(
     """Aggregate filtered similarities one input dataset at a time."""
     files = collect_pairwise_input_paths(pairwise_config)
     if not files:
-        raise FileNotFoundError(f"No pairwise files found: {pairwise_config.glob_pattern}")
+        raise FileNotFoundError(
+            f"No pairwise files found: {pairwise_config.glob_pattern}"
+        )
 
     con.register("hex_filter_two_phase", hex_ids_df[["hex_id"]].drop_duplicates())
     norm_city1 = NORMALIZE_CITY_SQL.format(col=pairwise_config.city1_column)
@@ -761,13 +780,17 @@ def aggregate_similarity_two_phase(
         FROM hex_pair_max
         GROUP BY city_1, city_2
         """
-        for city_1, city_2, max_similarity, sum_similarity, pair_count in con.execute(query).fetchall():
+        for city_1, city_2, max_similarity, sum_similarity, pair_count in con.execute(
+            query
+        ).fetchall():
             key = (city_1, city_2)
             current = aggregates.setdefault(
                 key,
                 {"max_similarity": 0.0, "sum_similarity": 0.0, "pair_count": 0},
             )
-            current["max_similarity"] = max(current["max_similarity"], float(max_similarity))
+            current["max_similarity"] = max(
+                current["max_similarity"], float(max_similarity)
+            )
             current["sum_similarity"] += float(sum_similarity)
             current["pair_count"] += int(pair_count)
 
@@ -819,8 +842,8 @@ def aggregate_similarity_zero_fill_two_phase(
             sum_similarity = 0.0
             max_similarity = 0.0
             if aggregate_row is not None:
-                sum_similarity = (
-                    float(aggregate_row["avg(similarity)"]) * int(aggregate_row["pair_count"])
+                sum_similarity = float(aggregate_row["avg(similarity)"]) * int(
+                    aggregate_row["pair_count"]
                 )
                 max_similarity = float(aggregate_row["max(similarity)"])
             rows.append(
@@ -829,7 +852,9 @@ def aggregate_similarity_zero_fill_two_phase(
                     "city_2": city_2,
                     "max(similarity)": max_similarity,
                     "avg(similarity)": (
-                        sum_similarity / expected_pair_count if expected_pair_count > 0 else 0
+                        sum_similarity / expected_pair_count
+                        if expected_pair_count > 0
+                        else 0
                     ),
                     "pair_count": expected_pair_count,
                 }
@@ -960,7 +985,9 @@ def run_similarity_by_landuse(
             coverage.city_count,
         )
         if coverage.city_names:
-            logger.info("Cities with landuse coverage: %s", ", ".join(coverage.city_names))
+            logger.info(
+                "Cities with landuse coverage: %s", ", ".join(coverage.city_names)
+            )
 
         if check_only:
             return {}
@@ -988,7 +1015,11 @@ def run_similarity_by_landuse(
         logger.info(
             "Loaded %d similarity-covered hex IDs across %d cities",
             len(similarity_hex_df),
-            similarity_hex_df["city_lower"].nunique() if not similarity_hex_df.empty else 0,
+            (
+                similarity_hex_df["city_lower"].nunique()
+                if not similarity_hex_df.empty
+                else 0
+            ),
         )
 
         results: dict[str, pd.DataFrame] = {}
@@ -1040,7 +1071,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--landuse",
         default="all",
-        choices=sorted(set(get_landuse_keys("stage2")) | set(get_landuse_keys("stage3")))
+        choices=sorted(
+            set(get_landuse_keys("stage2")) | set(get_landuse_keys("stage3"))
+        )
         + ["all", "allhex"],
         help="Landuse bucket to process, 'all' for all buckets, or 'allhex' for no landuse filter.",
     )
