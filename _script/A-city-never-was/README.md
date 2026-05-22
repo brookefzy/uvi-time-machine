@@ -61,6 +61,25 @@ python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5
 4. process the distance between hexagons and their associated CBD
 ```python B6a_h3_distance_processor.py```
 
+5. summarize inter-city similarity by landuse bucket from optimized pairwise shards.
+```bash
+python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B7_similarity_by_landuse.py \
+  --resolution 8 \
+  --landuse-source stage3 \
+  --pairwise-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_classifiier_prob_similarity_by_pair \
+  --stage3-landuse-root /lustre1/g/geog_pyloo/05_timemachine/_transformed/landuse_poi_res=8 \
+  --export-folder /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_similarity_by_landuse \
+  --duckdb-memory-limit 32GB \
+  --duckdb-temp-dir /lustre1/g/geog_pyloo/05_timemachine/_tmp/duckdb_city_similarity_by_landuse
+```
+
+   Notes:
+   - `B7_similarity_by_landuse.py` depends on the detailed optimized pairwise temp shards under `optimized/temp/city1=*/city2=*/part_res=<resolution>.parquet`
+   - `B5c_pairwise_agg_optimized.py` finishing is useful context, but its city-level outputs are not enough for landuse filtering because B7 still needs `hex_id1` and `hex_id2`
+   - The migrated B7 script defaults to remote-server paths instead of the older local Dropbox project paths
+   - Use `--check-only` to inspect landuse resolution coverage before a full run
+   - The current stage3 POI-tier data appears sparse at `res=8`; if coverage is present for fewer than two cities the script stops unless you add `--allow-sparse-landuse`
+
 # Use ochestrator. To be updated to include all steps later.
 ```
 # Run all pipelines
