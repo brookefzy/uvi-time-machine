@@ -51,7 +51,7 @@ class TestB7SimilarityByLanduseHelpers(unittest.TestCase):
     def test_remote_defaults_target_server_paths(self):
         self.assertEqual(
             self.module.DEFAULT_PAIRWISE_ROOT,
-            "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_classifiier_prob_similarity_by_pair",
+            "/lustre1/g/geog_pyloo/05_timemachine/_curated",
         )
         self.assertEqual(
             self.module.DEFAULT_STAGE3_LANDUSE_ROOT,
@@ -150,6 +150,30 @@ class TestB7SimilarityByLanduseHelpers(unittest.TestCase):
         self.assertEqual(
             paths,
             [str(dataset_part), str(single_file)],
+        )
+
+    def test_default_optimized_city_root_targets_resolution_specific_folder(self):
+        self.assertEqual(
+            self.module.default_optimized_city_root(8),
+            "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_similarity_optimized_res=8",
+        )
+        self.assertEqual(
+            self.module.default_optimized_city_root(6),
+            "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_similarity_optimized_res=6",
+        )
+
+    def test_resolve_pairwise_root_uses_resolution_specific_default_when_unset(self):
+        self.assertEqual(
+            self.module.resolve_pairwise_root(None, 8),
+            "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_similarity_optimized_res=8",
+        )
+        self.assertEqual(
+            self.module.resolve_pairwise_root("", 7),
+            "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_similarity_optimized_res=7",
+        )
+        self.assertEqual(
+            self.module.resolve_pairwise_root("/tmp/custom", 8),
+            "/tmp/custom",
         )
 
 

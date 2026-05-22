@@ -9,6 +9,9 @@ Default CLI:
       --landuse-source stage3 \
       --tier-method pct \
       --res 8
+
+When --pairwise-root is omitted, the script defaults to:
+    /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_similarity_optimized_res=<res>
 """
 
 import argparse
@@ -25,8 +28,7 @@ import duckdb
 import pandas as pd
 
 DEFAULT_PAIRWISE_ROOT = (
-    "/lustre1/g/geog_pyloo/05_timemachine/_curated/"
-    "c_city_classifiier_prob_similarity_by_pair"
+    "/lustre1/g/geog_pyloo/05_timemachine/_curated"
 )
 DEFAULT_STAGE2_LANDUSE_ROOT = (
     "/lustre1/g/geog_pyloo/05_timemachine/_transformed/landuse"
@@ -358,9 +360,14 @@ def get_pairwise_temp_pattern(pairwise_root: str, res: int) -> str:
 
 def default_optimized_city_root(res: int) -> str:
     """Return the legacy optimized-city root for one resolution."""
-    return str(
-        Path(DEFAULT_PAIRWISE_ROOT).parent / f"c_city_similarity_optimized_res={res}"
-    )
+    return str(Path(DEFAULT_PAIRWISE_ROOT) / f"c_city_similarity_optimized_res={res}")
+
+
+def resolve_pairwise_root(pairwise_root: str | None, res: int) -> str:
+    """Resolve the effective pairwise root, defaulting to optimized-city outputs."""
+    if pairwise_root:
+        return pairwise_root
+    return default_optimized_city_root(res)
 
 
 def detect_pairwise_source(pairwise_root: str, res: int) -> PairwiseSourceConfig:
@@ -381,17 +388,6 @@ def detect_pairwise_source(pairwise_root: str, res: int) -> PairwiseSourceConfig
             source="optimized_city",
             root=pairwise_root,
             glob_pattern=city_pattern,
-            city1_column="city_1",
-            city2_column="city_2",
-        )
-
-    fallback_root = default_optimized_city_root(res)
-    fallback_pattern = get_pairwise_city_dataset_pattern(fallback_root, res)
-    if pairwise_root == DEFAULT_PAIRWISE_ROOT and glob(fallback_pattern):
-        return PairwiseSourceConfig(
-            source="optimized_city",
-            root=fallback_root,
-            glob_pattern=fallback_pattern,
             city1_column="city_1",
             city2_column="city_2",
         )
@@ -929,7 +925,7 @@ def process_landuse_type(
 
 
 def run_similarity_by_landuse(
-    pairwise_root: str,
+    pairwise_root: str | None,
     landuse_source: str,
     landuse_key: str,
     export_folder: str,
@@ -950,6 +946,7 @@ def run_similarity_by_landuse(
     logger = setup_logging(log_level)
     export_path = Path(export_folder)
     export_path.mkdir(parents=True, exist_ok=True)
+    effective_pairwise_root = resolve_pairwise_root(pairwise_root, res)
 
     con = create_connection(
         memory_limit=duckdb_memory_limit,
@@ -1004,7 +1001,7 @@ def run_similarity_by_landuse(
                 "Re-run with --allow-sparse-landuse to continue anyway."
             )
 
-        pairwise_config = detect_pairwise_source(pairwise_root, res)
+        pairwise_config = detect_pairwise_source(effective_pairwise_root, res)
         logger.info(
             "Using pairwise source '%s' from %s",
             pairwise_config.source,
@@ -1059,8 +1056,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--pairwise-root",
-        default=DEFAULT_PAIRWISE_ROOT,
-        help="Remote root folder containing optimized pairwise temp shards.",
+        default=None,
+        help=(
+            "Optional pairwise root override. When omitted, B7 uses "
+            "c_city_similarity_optimized_res=<resolution> under the curated root."
+        ),
     )
     parser.add_argument(
         "--landuse-source",

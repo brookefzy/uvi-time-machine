@@ -76,6 +76,7 @@ python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B7
    Notes:
    - `B7_similarity_by_landuse.py` depends on the detailed optimized pairwise temp shards under `optimized/temp/city1=*/city2=*/part_res=<resolution>.parquet`
    - It also supports legacy B5c-style per-city parquet outputs in both forms: a single parquet file like `.../similarity_intracity_city=<city>_res=8.parquet` and a parquet dataset directory like `.../similarity_intracity_city=<city>_res=8.parquet/part_0.parquet`
+   - If `--pairwise-root` is omitted, B7 now defaults to the pre-aggregated source `.../_curated/c_city_similarity_optimized_res=<resolution>`
    - Legacy CLI aliases are supported via the `similarity_by_landuse.py` wrapper: `--res` maps to `--resolution`, and `--use-two-phase` streams one parquet dataset at a time to reduce memory pressure
    - `B5c_pairwise_agg_optimized.py` finishing is useful context, but its city-level outputs are not enough for landuse filtering because B7 still needs `hex_id1` and `hex_id2`
    - The migrated B7 script defaults to remote-server paths instead of the older local Dropbox project paths
