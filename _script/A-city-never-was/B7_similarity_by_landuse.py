@@ -4,6 +4,7 @@ Summarize inter-city similarity by landuse bucket from optimized pairwise shards
 """
 
 import argparse
+from glob import glob
 import logging
 import os
 import unicodedata
@@ -157,6 +158,15 @@ class ResolutionCoverageReport:
     city_names: list[str]
     city_count: int
     is_sparse: bool
+
+
+@dataclass(frozen=True)
+class PairwiseSourceConfig:
+    source: str
+    root: str
+    glob_pattern: str
+    city1_column: str
+    city2_column: str
 
 
 def normalize_city_name(city: str) -> str:
@@ -318,6 +328,11 @@ def inspect_landuse_resolution_coverage(
     return summarize_resolution_coverage(records, resolution=-1)
 
 
+def get_pairwise_city_dataset_pattern(pairwise_root: str, res: int) -> str:
+    """Return the glob for aggregated per-city similarity datasets."""
+    return os.path.join(pairwise_root, f"*res={res}.parquet")
+
+
 def get_pairwise_temp_pattern(pairwise_root: str, res: int) -> str:
     """Return the glob for optimized pairwise temp shards."""
     return str(
@@ -330,19 +345,102 @@ def get_pairwise_temp_pattern(pairwise_root: str, res: int) -> str:
     )
 
 
-def load_similarity_hex_ids(con, pairwise_root: str, res: int) -> pd.DataFrame:
+def default_optimized_city_root(res: int) -> str:
+    """Return the legacy optimized-city root for one resolution."""
+    return str(Path(DEFAULT_PAIRWISE_ROOT).parent / f"c_city_similarity_optimized_res={res}")
+
+
+def detect_pairwise_source(pairwise_root: str, res: int) -> PairwiseSourceConfig:
+    """Detect whether pairwise input is temp shards or aggregated city datasets."""
+    temp_pattern = get_pairwise_temp_pattern(pairwise_root, res)
+    if glob(temp_pattern):
+        return PairwiseSourceConfig(
+            source="temp_shards",
+            root=pairwise_root,
+            glob_pattern=temp_pattern,
+            city1_column="city1",
+            city2_column="city2",
+        )
+
+    city_pattern = get_pairwise_city_dataset_pattern(pairwise_root, res)
+    if glob(city_pattern):
+        return PairwiseSourceConfig(
+            source="optimized_city",
+            root=pairwise_root,
+            glob_pattern=city_pattern,
+            city1_column="city_1",
+            city2_column="city_2",
+        )
+
+    fallback_root = default_optimized_city_root(res)
+    fallback_pattern = get_pairwise_city_dataset_pattern(fallback_root, res)
+    if pairwise_root == DEFAULT_PAIRWISE_ROOT and glob(fallback_pattern):
+        return PairwiseSourceConfig(
+            source="optimized_city",
+            root=fallback_root,
+            glob_pattern=fallback_pattern,
+            city1_column="city_1",
+            city2_column="city_2",
+        )
+
+    raise FileNotFoundError(
+        "Could not detect supported pairwise inputs. "
+        f"Checked temp shards at {temp_pattern} and optimized-city datasets at {city_pattern}."
+    )
+
+
+def collect_pairwise_input_paths(pairwise_config: PairwiseSourceConfig) -> list[str]:
+    """Expand a pairwise source config into concrete parquet file paths."""
+    matched_paths = sorted(glob(pairwise_config.glob_pattern))
+    if pairwise_config.source != "optimized_city":
+        return matched_paths
+
+    expanded_paths: list[str] = []
+    for matched_path in matched_paths:
+        path = Path(matched_path)
+        if path.is_file():
+            expanded_paths.append(str(path))
+            continue
+        if path.is_dir():
+            expanded_paths.extend(
+                sorted(str(child) for child in path.glob("*.parquet") if child.is_file())
+            )
+    return expanded_paths
+
+
+def sql_quote_path(path: str) -> str:
+    """Return one SQL-safe single-quoted path."""
+    return "'" + path.replace("'", "''") + "'"
+
+
+def build_read_parquet_arg(pairwise_config: PairwiseSourceConfig) -> str:
+    """Return a DuckDB read_parquet argument using explicit file paths."""
+    paths = collect_pairwise_input_paths(pairwise_config)
+    if not paths:
+        raise FileNotFoundError(
+            f"No pairwise parquet files found for source pattern: {pairwise_config.glob_pattern}"
+        )
+    if len(paths) == 1:
+        return sql_quote_path(paths[0])
+    return "[" + ", ".join(sql_quote_path(path) for path in paths) + "]"
+
+
+def load_similarity_hex_ids(
+    con,
+    pairwise_config: PairwiseSourceConfig,
+) -> pd.DataFrame:
     """Derive the set of similarity-covered hex IDs by city from temp shards."""
-    pattern = get_pairwise_temp_pattern(pairwise_root, res)
-    norm_city1 = NORMALIZE_CITY_SQL.format(col="city1")
-    norm_city2 = NORMALIZE_CITY_SQL.format(col="city2")
+    pairwise_arg = build_read_parquet_arg(pairwise_config)
+    norm_city1 = NORMALIZE_CITY_SQL.format(col=pairwise_config.city1_column)
+    norm_city2 = NORMALIZE_CITY_SQL.format(col=pairwise_config.city2_column)
     query = f"""
     SELECT DISTINCT city_lower, hex_id
     FROM (
         SELECT {norm_city1} AS city_lower, CAST(hex_id1 AS VARCHAR) AS hex_id
-        FROM read_parquet('{pattern}')
+        FROM read_parquet({pairwise_arg})
         UNION ALL
         SELECT {norm_city2} AS city_lower, CAST(hex_id2 AS VARCHAR) AS hex_id
-        FROM read_parquet('{pattern}')
+        FROM read_parquet({pairwise_arg})
     )
     ORDER BY city_lower, hex_id
     """
@@ -467,15 +565,14 @@ def compute_city_hex_counts(hex_ids_df: pd.DataFrame) -> pd.DataFrame:
 
 def aggregate_similarity(
     con,
-    pairwise_root: str,
-    res: int,
+    pairwise_config: PairwiseSourceConfig,
     hex_ids_df: pd.DataFrame,
 ) -> pd.DataFrame:
     """Aggregate filtered similarities by city pair."""
-    pattern = get_pairwise_temp_pattern(pairwise_root, res)
+    pairwise_arg = build_read_parquet_arg(pairwise_config)
     con.register("hex_filter", hex_ids_df[["hex_id"]].drop_duplicates())
-    norm_city1 = NORMALIZE_CITY_SQL.format(col="city1")
-    norm_city2 = NORMALIZE_CITY_SQL.format(col="city2")
+    norm_city1 = NORMALIZE_CITY_SQL.format(col=pairwise_config.city1_column)
+    norm_city2 = NORMALIZE_CITY_SQL.format(col=pairwise_config.city2_column)
     query = f"""
     WITH filtered AS (
         SELECT
@@ -484,7 +581,7 @@ def aggregate_similarity(
             CAST(hex_id1 AS VARCHAR) AS hex_id1,
             CAST(hex_id2 AS VARCHAR) AS hex_id2,
             similarity
-        FROM read_parquet('{pattern}')
+        FROM read_parquet({pairwise_arg})
         WHERE CAST(hex_id1 AS VARCHAR) IN (SELECT hex_id FROM hex_filter)
           AND CAST(hex_id2 AS VARCHAR) IN (SELECT hex_id FROM hex_filter)
     ),
@@ -523,17 +620,16 @@ def aggregate_similarity(
 
 def aggregate_similarity_zero_fill(
     con,
-    pairwise_root: str,
-    res: int,
+    pairwise_config: PairwiseSourceConfig,
     hex_ids_df: pd.DataFrame,
 ) -> pd.DataFrame:
     """Aggregate filtered similarities with zero-fill average scoring."""
-    pattern = get_pairwise_temp_pattern(pairwise_root, res)
+    pairwise_arg = build_read_parquet_arg(pairwise_config)
     city_hex_counts = compute_city_hex_counts(hex_ids_df)
     con.register("hex_filter", hex_ids_df[["hex_id"]].drop_duplicates())
     con.register("city_hex_counts", city_hex_counts)
-    norm_city1 = NORMALIZE_CITY_SQL.format(col="city1")
-    norm_city2 = NORMALIZE_CITY_SQL.format(col="city2")
+    norm_city1 = NORMALIZE_CITY_SQL.format(col=pairwise_config.city1_column)
+    norm_city2 = NORMALIZE_CITY_SQL.format(col=pairwise_config.city2_column)
     query = f"""
     WITH counts AS (
         SELECT city_lower AS city_1, hex_count AS hex_count_1 FROM city_hex_counts
@@ -557,7 +653,7 @@ def aggregate_similarity_zero_fill(
             CAST(hex_id1 AS VARCHAR) AS hex_id1,
             CAST(hex_id2 AS VARCHAR) AS hex_id2,
             similarity
-        FROM read_parquet('{pattern}')
+        FROM read_parquet({pairwise_arg})
         WHERE CAST(hex_id1 AS VARCHAR) IN (SELECT hex_id FROM hex_filter)
           AND CAST(hex_id2 AS VARCHAR) IN (SELECT hex_id FROM hex_filter)
     ),
@@ -608,16 +704,150 @@ def aggregate_similarity_zero_fill(
     return con.execute(query).df()
 
 
+def aggregate_similarity_two_phase(
+    con,
+    pairwise_config: PairwiseSourceConfig,
+    hex_ids_df: pd.DataFrame,
+) -> pd.DataFrame:
+    """Aggregate filtered similarities one input dataset at a time."""
+    files = collect_pairwise_input_paths(pairwise_config)
+    if not files:
+        raise FileNotFoundError(f"No pairwise files found: {pairwise_config.glob_pattern}")
+
+    con.register("hex_filter_two_phase", hex_ids_df[["hex_id"]].drop_duplicates())
+    norm_city1 = NORMALIZE_CITY_SQL.format(col=pairwise_config.city1_column)
+    norm_city2 = NORMALIZE_CITY_SQL.format(col=pairwise_config.city2_column)
+
+    aggregates: dict[tuple[str, str], dict[str, float | int]] = {}
+    for filepath in files:
+        query = f"""
+        WITH filtered AS (
+            SELECT
+                {norm_city1} AS city1_norm,
+                {norm_city2} AS city2_norm,
+                CAST(hex_id1 AS VARCHAR) AS hex_id1,
+                CAST(hex_id2 AS VARCHAR) AS hex_id2,
+                similarity
+            FROM read_parquet('{filepath}')
+            WHERE CAST(hex_id1 AS VARCHAR) IN (SELECT hex_id FROM hex_filter_two_phase)
+              AND CAST(hex_id2 AS VARCHAR) IN (SELECT hex_id FROM hex_filter_two_phase)
+        ),
+        normalized AS (
+            SELECT
+                CASE WHEN city1_norm <= city2_norm THEN city1_norm ELSE city2_norm END AS city_1,
+                CASE WHEN city1_norm <= city2_norm THEN city2_norm ELSE city1_norm END AS city_2,
+                CASE WHEN city1_norm <= city2_norm THEN hex_id1 ELSE hex_id2 END AS hex_id1,
+                CASE WHEN city1_norm <= city2_norm THEN hex_id2 ELSE hex_id1 END AS hex_id2,
+                similarity
+            FROM filtered
+        ),
+        hex_pair_max AS (
+            SELECT
+                city_1,
+                city_2,
+                hex_id1,
+                hex_id2,
+                MAX(similarity) AS similarity
+            FROM normalized
+            WHERE city_1 != city_2
+            GROUP BY city_1, city_2, hex_id1, hex_id2
+        )
+        SELECT
+            city_1,
+            city_2,
+            MAX(similarity) AS max_similarity,
+            SUM(similarity) AS sum_similarity,
+            COUNT(*) AS pair_count
+        FROM hex_pair_max
+        GROUP BY city_1, city_2
+        """
+        for city_1, city_2, max_similarity, sum_similarity, pair_count in con.execute(query).fetchall():
+            key = (city_1, city_2)
+            current = aggregates.setdefault(
+                key,
+                {"max_similarity": 0.0, "sum_similarity": 0.0, "pair_count": 0},
+            )
+            current["max_similarity"] = max(current["max_similarity"], float(max_similarity))
+            current["sum_similarity"] += float(sum_similarity)
+            current["pair_count"] += int(pair_count)
+
+    rows = [
+        {
+            "city_1": city_1,
+            "city_2": city_2,
+            "max(similarity)": values["max_similarity"],
+            "avg(similarity)": values["sum_similarity"] / values["pair_count"],
+            "pair_count": values["pair_count"],
+        }
+        for (city_1, city_2), values in sorted(aggregates.items())
+        if values["pair_count"] > 0
+    ]
+    return pd.DataFrame(rows)
+
+
+def aggregate_similarity_zero_fill_two_phase(
+    con,
+    pairwise_config: PairwiseSourceConfig,
+    hex_ids_df: pd.DataFrame,
+) -> pd.DataFrame:
+    """Aggregate filtered similarities one input dataset at a time with zero-fill averages."""
+    city_hex_counts = compute_city_hex_counts(hex_ids_df)
+    summary_df = aggregate_similarity_two_phase(
+        con=con,
+        pairwise_config=pairwise_config,
+        hex_ids_df=hex_ids_df,
+    )
+
+    if summary_df.empty:
+        aggregated = {}
+    else:
+        aggregated = {
+            (row["city_1"], row["city_2"]): row for row in summary_df.to_dict("records")
+        }
+
+    city_counts = {
+        row["city_lower"]: int(row["hex_count"])
+        for row in city_hex_counts.to_dict("records")
+    }
+    rows = []
+    for city_1 in sorted(city_counts):
+        for city_2 in sorted(city_counts):
+            if city_1 >= city_2:
+                continue
+            expected_pair_count = city_counts[city_1] * city_counts[city_2]
+            aggregate_row = aggregated.get((city_1, city_2))
+            sum_similarity = 0.0
+            max_similarity = 0.0
+            if aggregate_row is not None:
+                sum_similarity = (
+                    float(aggregate_row["avg(similarity)"]) * int(aggregate_row["pair_count"])
+                )
+                max_similarity = float(aggregate_row["max(similarity)"])
+            rows.append(
+                {
+                    "city_1": city_1,
+                    "city_2": city_2,
+                    "max(similarity)": max_similarity,
+                    "avg(similarity)": (
+                        sum_similarity / expected_pair_count if expected_pair_count > 0 else 0
+                    ),
+                    "pair_count": expected_pair_count,
+                }
+            )
+    return pd.DataFrame(rows)
+
+
 def process_landuse_type(
     con,
     logger: logging.Logger,
-    pairwise_root: str,
+    pairwise_config: PairwiseSourceConfig,
     landuse_type: str,
     similarity_hex_df: pd.DataFrame,
     landuse_config: LanduseSourceConfig,
     export_folder: str,
     res: int,
     zero_fill_avg: bool,
+    use_two_phase: bool,
     tier_method: str,
 ) -> pd.DataFrame:
     """Run one landuse summary and write its CSV."""
@@ -635,18 +865,28 @@ def process_landuse_type(
         logger.warning("No hexes found for %s at resolution %s", landuse_type, res)
         return pd.DataFrame()
 
-    if zero_fill_avg:
+    if zero_fill_avg and use_two_phase:
+        summary_df = aggregate_similarity_zero_fill_two_phase(
+            con=con,
+            pairwise_config=pairwise_config,
+            hex_ids_df=hex_ids_df,
+        )
+    elif zero_fill_avg:
         summary_df = aggregate_similarity_zero_fill(
             con=con,
-            pairwise_root=pairwise_root,
-            res=res,
+            pairwise_config=pairwise_config,
+            hex_ids_df=hex_ids_df,
+        )
+    elif use_two_phase:
+        summary_df = aggregate_similarity_two_phase(
+            con=con,
+            pairwise_config=pairwise_config,
             hex_ids_df=hex_ids_df,
         )
     else:
         summary_df = aggregate_similarity(
             con=con,
-            pairwise_root=pairwise_root,
-            res=res,
+            pairwise_config=pairwise_config,
             hex_ids_df=hex_ids_df,
         )
 
@@ -670,6 +910,7 @@ def run_similarity_by_landuse(
     export_folder: str,
     res: int,
     zero_fill_avg: bool,
+    use_two_phase: bool,
     stage2_landuse_root: str,
     stage3_landuse_root: str,
     tier_method: str,
@@ -736,7 +977,14 @@ def run_similarity_by_landuse(
                 "Re-run with --allow-sparse-landuse to continue anyway."
             )
 
-        similarity_hex_df = load_similarity_hex_ids(con, pairwise_root, res)
+        pairwise_config = detect_pairwise_source(pairwise_root, res)
+        logger.info(
+            "Using pairwise source '%s' from %s",
+            pairwise_config.source,
+            pairwise_config.root,
+        )
+
+        similarity_hex_df = load_similarity_hex_ids(con, pairwise_config)
         logger.info(
             "Loaded %d similarity-covered hex IDs across %d cities",
             len(similarity_hex_df),
@@ -748,13 +996,14 @@ def run_similarity_by_landuse(
             summary_df = process_landuse_type(
                 con=con,
                 logger=logger,
-                pairwise_root=pairwise_root,
+                pairwise_config=pairwise_config,
                 landuse_type=current_landuse_type,
                 similarity_hex_df=similarity_hex_df,
                 landuse_config=landuse_config,
                 export_folder=export_folder,
                 res=res,
                 zero_fill_avg=zero_fill_avg,
+                use_two_phase=use_two_phase,
                 tier_method=tier_method,
             )
             results[current_landuse_type] = summary_df
@@ -764,12 +1013,15 @@ def run_similarity_by_landuse(
         con.close()
 
 
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
+    """Build the CLI parser for direct use and regression tests."""
     parser = argparse.ArgumentParser(
         description="Summarize inter-city similarity by landuse bucket from optimized pairwise shards."
     )
     parser.add_argument(
         "--resolution",
+        "--res",
+        dest="resolution",
         type=int,
         default=8,
         help="H3 resolution to process.",
@@ -819,6 +1071,11 @@ def main() -> None:
         help="Use expected hex-pair counts to compute zero-fill average similarity.",
     )
     parser.add_argument(
+        "--use-two-phase",
+        action="store_true",
+        help="Stream pairwise inputs one dataset at a time to reduce memory pressure.",
+    )
+    parser.add_argument(
         "--allow-sparse-landuse",
         action="store_true",
         help="Continue even when the requested landuse resolution is present for fewer than two cities.",
@@ -850,6 +1107,11 @@ def main() -> None:
         default="INFO",
         help="Logging level.",
     )
+    return parser
+
+
+def main() -> None:
+    parser = build_parser()
     args = parser.parse_args()
 
     run_similarity_by_landuse(
@@ -859,6 +1121,7 @@ def main() -> None:
         export_folder=args.export_folder,
         res=args.resolution,
         zero_fill_avg=args.zero_fill_avg,
+        use_two_phase=args.use_two_phase,
         stage2_landuse_root=args.stage2_landuse_root,
         stage3_landuse_root=args.stage3_landuse_root,
         tier_method=args.tier_method,

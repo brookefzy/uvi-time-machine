@@ -4,6 +4,8 @@ Regression tests for B7_similarity_by_landuse.py.
 """
 
 import importlib.util
+import tempfile
+import os
 import sys
 import types
 import unittest
@@ -96,6 +98,59 @@ class TestB7SimilarityByLanduseHelpers(unittest.TestCase):
         self.assertEqual(report.city_count, 1)
         self.assertEqual(report.city_names, ["malegaon"])
         self.assertTrue(report.is_sparse)
+
+    def test_build_parser_accepts_legacy_cli_aliases(self):
+        parser = self.module.build_parser()
+        args = parser.parse_args(
+            [
+                "--zero-fill-avg",
+                "--use-two-phase",
+                "--landuse-source",
+                "stage3",
+                "--tier-method",
+                "pct",
+                "--res",
+                "8",
+            ]
+        )
+        self.assertTrue(args.zero_fill_avg)
+        self.assertTrue(args.use_two_phase)
+        self.assertEqual(args.resolution, 8)
+        self.assertEqual(args.landuse_source, "stage3")
+        self.assertEqual(args.tier_method, "pct")
+
+    def test_detect_pairwise_source_supports_optimized_city_datasets(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dataset_dir = os.path.join(
+                tmpdir, "similarity_intracity_city=Alpha_res=8.parquet"
+            )
+            os.makedirs(dataset_dir)
+            Path(dataset_dir, "part_0.parquet").touch()
+
+            config = self.module.detect_pairwise_source(tmpdir, 8)
+
+        self.assertEqual(config.source, "optimized_city")
+        self.assertEqual(config.city1_column, "city_1")
+        self.assertEqual(config.city2_column, "city_2")
+        self.assertEqual(config.glob_pattern, os.path.join(tmpdir, "*res=8.parquet"))
+
+    def test_collect_pairwise_input_paths_supports_mixed_optimized_city_layouts(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            single_file = Path(tmpdir, "similarity_intracity_city=Sydney_res=8.parquet")
+            single_file.touch()
+
+            dataset_dir = Path(tmpdir, "similarity_intracity_city=Astrakhan_res=8.parquet")
+            dataset_dir.mkdir()
+            dataset_part = dataset_dir / "part_0.parquet"
+            dataset_part.touch()
+
+            config = self.module.detect_pairwise_source(tmpdir, 8)
+            paths = self.module.collect_pairwise_input_paths(config)
+
+        self.assertEqual(
+            paths,
+            [str(dataset_part), str(single_file)],
+        )
 
 
 if __name__ == "__main__":
