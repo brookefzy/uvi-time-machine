@@ -27,9 +27,7 @@ from typing import Iterable
 import duckdb
 import pandas as pd
 
-DEFAULT_PAIRWISE_ROOT = (
-    "/lustre1/g/geog_pyloo/05_timemachine/_curated"
-)
+DEFAULT_PAIRWISE_ROOT = "/lustre1/g/geog_pyloo/05_timemachine/_curated"
 DEFAULT_STAGE2_LANDUSE_ROOT = (
     "/lustre1/g/geog_pyloo/05_timemachine/_transformed/landuse"
 )
