@@ -99,6 +99,40 @@ class TestShardRowLabelChecks(unittest.TestCase):
         self.assertAlmostEqual(row["max_similarity_delta"], 0.81999)
         self.assertAlmostEqual(row["sum_similarity_delta"], 10.99)
 
+    def test_compare_script_normalizes_city_filters_like_b7(self):
+        self.assertEqual(
+            self.compare_module.normalize_city_name_for_filter("Hong Kong"),
+            "hongkong",
+        )
+        self.assertEqual(
+            self.compare_module.normalize_city_name_for_filter("HongKong"),
+            "hongkong",
+        )
+        self.assertEqual(
+            self.compare_module.normalize_city_name_for_filter("Portland, OR"),
+            "portland",
+        )
+
+    def test_compare_script_resolves_raw_and_normalized_city_filters(self):
+        available = ["Hong Kong", "Portland, OR", "Singapore"]
+
+        self.assertEqual(
+            self.compare_module.resolve_city_filter_value("Hong Kong", available),
+            "Hong Kong",
+        )
+        self.assertEqual(
+            self.compare_module.resolve_city_filter_value("hongkong", available),
+            "Hong Kong",
+        )
+        self.assertEqual(
+            self.compare_module.resolve_city_filter_value("HongKong", available),
+            "Hong Kong",
+        )
+        self.assertEqual(
+            self.compare_module.resolve_city_filter_value("portland", available),
+            "Portland, OR",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -13,6 +13,7 @@ import sys
 from glob import glob
 from pathlib import Path
 from typing import Any
+import unicodedata
 
 import duckdb
 import pandas as pd
@@ -22,6 +23,92 @@ DEFAULT_PAIRWISE_ROOT = (
     "/lustre1/g/geog_pyloo/05_timemachine/_curated/"
     "c_city_classifiier_prob_similarity_by_pair"
 )
+
+US_STATE_CODES = {
+    "al",
+    "ak",
+    "az",
+    "ar",
+    "ca",
+    "co",
+    "ct",
+    "de",
+    "fl",
+    "ga",
+    "hi",
+    "id",
+    "il",
+    "in",
+    "ia",
+    "ks",
+    "ky",
+    "la",
+    "me",
+    "md",
+    "ma",
+    "mi",
+    "mn",
+    "ms",
+    "mo",
+    "mt",
+    "ne",
+    "nv",
+    "nh",
+    "nj",
+    "nm",
+    "ny",
+    "nc",
+    "nd",
+    "oh",
+    "ok",
+    "or",
+    "pa",
+    "ri",
+    "sc",
+    "sd",
+    "tn",
+    "tx",
+    "ut",
+    "vt",
+    "va",
+    "wa",
+    "wv",
+    "wi",
+    "wy",
+}
+
+
+def normalize_city_name_for_filter(city: str) -> str:
+    """Normalize a city name the same way B7 does for cross-source joins."""
+    normalized = unicodedata.normalize("NFD", city)
+    cleaned = normalized.lower().replace(",", "").replace(" ", "")
+    if "," in city and len(cleaned) > 4 and cleaned[-2:] in US_STATE_CODES:
+        return cleaned[:-2]
+    return cleaned
+
+
+def resolve_city_filter_value(
+    requested_value: str | None, available_city_values: list[str]
+) -> str | None:
+    """Resolve a raw or normalized city filter to one exact shard directory value."""
+    if not requested_value:
+        return None
+    if requested_value in available_city_values:
+        return requested_value
+
+    requested_normalized = normalize_city_name_for_filter(requested_value)
+    matches = [
+        value
+        for value in available_city_values
+        if normalize_city_name_for_filter(value) == requested_normalized
+    ]
+    if not matches:
+        return requested_value
+    if len(matches) > 1:
+        raise ValueError(
+            f"City filter '{requested_value}' is ambiguous across shard directories: {matches}"
+        )
+    return matches[0]
 
 
 def build_metric_diff(current_df: pd.DataFrame, fixed_df: pd.DataFrame) -> pd.DataFrame:
@@ -91,12 +178,36 @@ def collect_shard_paths(
     limit: int | None,
 ) -> list[str]:
     """Return matching optimized temp shard parquet paths."""
+    temp_root = Path(pairwise_root) / "optimized" / "temp"
+    available_city1_values = sorted(
+        path.name.split("=", 1)[1]
+        for path in temp_root.glob("city1=*")
+        if path.is_dir()
+    )
+    resolved_city1 = resolve_city_filter_value(city1_filter, available_city1_values)
+
+    available_city2_values: list[str] = []
+    if resolved_city1:
+        city1_root = temp_root / f"city1={resolved_city1}"
+        available_city2_values = sorted(
+            path.name.split("=", 1)[1]
+            for path in city1_root.glob("city2=*")
+            if path.is_dir()
+        )
+    else:
+        available_city2_values = sorted(
+            {
+                path.name.split("=", 1)[1]
+                for path in temp_root.glob("city1=*/city2=*")
+                if path.is_dir()
+            }
+        )
+    resolved_city2 = resolve_city_filter_value(city2_filter, available_city2_values)
+
     pattern = (
-        Path(pairwise_root)
-        / "optimized"
-        / "temp"
-        / f"city1={city1_filter or '*'}"
-        / f"city2={city2_filter or '*'}"
+        temp_root
+        / f"city1={resolved_city1 or '*'}"
+        / f"city2={resolved_city2 or '*'}"
         / f"part_res={resolution}.parquet"
     )
     paths = sorted(glob(str(pattern)))

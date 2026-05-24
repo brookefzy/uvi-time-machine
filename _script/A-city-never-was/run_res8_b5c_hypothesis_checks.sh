@@ -7,15 +7,9 @@ OUTPUT_DIR="${OUTPUT_DIR:-/tmp/res8_b5c_hypothesis_checks}"
 CITY1="${CITY1:-}"
 CITY2="${CITY2:-}"
 LIMIT="${LIMIT:-}"
+COMPARE_LIMIT="${COMPARE_LIMIT:-$LIMIT}"
 
 mkdir -p "$OUTPUT_DIR"
-
-label_args=(
-  --resolution "$RESOLUTION"
-  --pairwise-root "$PAIRWISE_ROOT"
-  --only-problematic
-  --output-csv "$OUTPUT_DIR/res${RESOLUTION}_shard_label_check.csv"
-)
 
 compare_args=(
   --resolution "$RESOLUTION"
@@ -29,26 +23,19 @@ if [[ -n "$CITY1" ]]; then
 fi
 
 if [[ -n "$CITY2" ]]; then
-  label_args+=(--city2 "$CITY2")
   compare_args+=(--city2 "$CITY2")
 fi
 
-if [[ -n "$LIMIT" ]]; then
-  label_args+=(--limit "$LIMIT")
-  compare_args+=(--limit "$LIMIT")
+if [[ -n "$COMPARE_LIMIT" ]]; then
+  compare_args+=(--limit "$COMPARE_LIMIT")
 fi
 
-echo "Running shard row-label check"
-python3 check_b5c_shard_row_labels.py "${label_args[@]}" | tee "$OUTPUT_DIR/res${RESOLUTION}_shard_label_check.stdout.txt"
-
-echo
 echo "Running current-vs-row-label comparison"
+echo "Hint: CITY1/CITY2 accept either raw shard names like 'Hong Kong' or normalized forms like 'hongkong'."
 python3 compare_b5c_current_vs_row_labels.py "${compare_args[@]}" | tee "$OUTPUT_DIR/res${RESOLUTION}_b5c_compare.stdout.txt"
 
 echo
 echo "Outputs written to: $OUTPUT_DIR"
-echo "  - $OUTPUT_DIR/res${RESOLUTION}_shard_label_check.csv"
-echo "  - $OUTPUT_DIR/res${RESOLUTION}_shard_label_check.stdout.txt"
 echo "  - $OUTPUT_DIR/res${RESOLUTION}_b5c_compare_diff.csv"
 echo "  - $OUTPUT_DIR/res${RESOLUTION}_b5c_compare_leakage.csv"
 echo "  - $OUTPUT_DIR/res${RESOLUTION}_b5c_compare.stdout.txt"
