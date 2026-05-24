@@ -15,21 +15,21 @@ checks:
 
 Sample remote run for Hong Kong:
 
-    python3 /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/inspect_b5b_res8_artifacts.py \
+    python3 inspect_b5b_res8_artifacts.py \
       --resolution 8 \
       --city1 hongkong \
       --limit 25 \
       --example-limit 25 \
-      --output-prefix '/Users/yuan/Dropbox (Personal)/Personal Work/_Projects2025/urban-sim-flow/_data/_transformed/res8_b5b_artifact_checks/hongkong_res8'
-
+      --output-prefix '/lustre1/g/geog_pyloo/05_timemachine/_tmp/res8_b5b_artifact_checks/hongkong_res8'
+    
 Smaller quick-check variant:
 
-    python3 /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/inspect_b5b_res8_artifacts.py \
+    python3 inspect_b5b_res8_artifacts.py \
       --resolution 8 \
       --city1 hongkong \
       --limit 5 \
       --example-limit 10 \
-      --output-prefix '/Users/yuan/Dropbox (Personal)/Personal Work/_Projects2025/urban-sim-flow/_data/_transformed/res8_b5b_artifact_checks/hongkong_res8_small'
+      --output-prefix '/lustre1/g/geog_pyloo/05_timemachine/_tmp/res8_b5b_artifact_checks/hongkong_res8_small'
 """
 
 import argparse
