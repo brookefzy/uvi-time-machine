@@ -9,7 +9,7 @@ import logging
 import argparse
 import warnings
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple, Union
 import gc
 import json
@@ -123,6 +123,81 @@ class OptimizedSimilarityProcessor:
         temp_dir = output_dir / "temp"
         temp_dir.mkdir(parents=True, exist_ok=True)
         return temp_dir
+
+    def iter_resolution_artifacts(self, output_dir: Path, resolution: int) -> List[Path]:
+        """Return resolution-specific progress, temp shard, and final output paths."""
+        artifacts: List[Path] = []
+        progress_path = self.get_progress_path(output_dir, resolution)
+        if progress_path.exists():
+            artifacts.append(progress_path)
+
+        artifacts.extend(
+            sorted(output_dir.glob(f"similarity_city=*_res={resolution}_optimized.parquet"))
+        )
+        artifacts.extend(
+            sorted(output_dir.glob(f".similarity_city=*_res={resolution}_optimized.parquet.tmp"))
+        )
+
+        temp_dir = output_dir / "temp"
+        if temp_dir.exists():
+            artifacts.extend(
+                sorted(temp_dir.glob(f"city1=*/city2=*/part_res={resolution}.parquet"))
+            )
+            artifacts.extend(
+                sorted(temp_dir.glob(f"city1=*/city2=*/.part_res={resolution}.parquet.tmp"))
+            )
+
+        return artifacts
+
+    def purge_resolution_outputs(
+        self,
+        output_dir: Path,
+        resolution: int,
+        before_date: Optional[date] = None,
+    ) -> Dict[str, int]:
+        """Delete resolution-specific artifacts, optionally only those older than a cutoff date."""
+        files_deleted = 0
+        directories_deleted = 0
+
+        for artifact_path in self.iter_resolution_artifacts(output_dir, resolution):
+            if before_date is not None:
+                modified_date = datetime.fromtimestamp(artifact_path.stat().st_mtime).date()
+                if modified_date >= before_date:
+                    continue
+            artifact_path.unlink(missing_ok=True)
+            files_deleted += 1
+
+        temp_dir = output_dir / "temp"
+        if temp_dir.exists():
+            for city2_dir in sorted(temp_dir.glob("city1=*/city2=*"), reverse=True):
+                try:
+                    city2_dir.rmdir()
+                    directories_deleted += 1
+                except OSError:
+                    pass
+            for city1_dir in sorted(temp_dir.glob("city1=*"), reverse=True):
+                try:
+                    city1_dir.rmdir()
+                    directories_deleted += 1
+                except OSError:
+                    pass
+            try:
+                temp_dir.rmdir()
+                directories_deleted += 1
+            except OSError:
+                pass
+
+        self.logger.info(
+            "Purged %d resolution=%d artifacts%s and pruned %d directories",
+            files_deleted,
+            resolution,
+            f" older than {before_date.isoformat()}" if before_date else "",
+            directories_deleted,
+        )
+        return {
+            "files_deleted": files_deleted,
+            "directories_deleted": directories_deleted,
+        }
 
     def discover_completed_output_cities(
         self, output_dir: Path, resolution: int
@@ -781,6 +856,14 @@ class OptimizedSimilarityProcessor:
 
             # Create output directory
             output_dir = self.get_output_dir()
+            purge_all_for_resolution = self.config.get("purge_all_for_resolution", False)
+            purge_before_date = self.config.get("purge_before_date")
+            if purge_all_for_resolution or purge_before_date:
+                self.purge_resolution_outputs(
+                    output_dir=output_dir,
+                    resolution=resolution,
+                    before_date=purge_before_date,
+                )
             progress_path = self.get_progress_path(output_dir, resolution)
             pending_pairs, completed_pair_keys = self.resolve_processing_state(
                 city_pairs, progress_path, resolution, output_dir
@@ -901,6 +984,16 @@ def main():
         help="Ignore saved progress and recompute all cities from scratch",
     )
     parser.add_argument(
+        "--purge-all-for-resolution",
+        action="store_true",
+        help="Delete all existing temp shards, final outputs, and checkpoint files for this resolution before starting.",
+    )
+    parser.add_argument(
+        "--purge-before-date",
+        default=None,
+        help="Delete existing temp shards, final outputs, and checkpoint files for this resolution last modified before YYYY-MM-DD before starting.",
+    )
+    parser.add_argument(
         "--log-dir",
         default=None,
         help="Directory for local log files; defaults to a logs folder next to this script",
@@ -909,6 +1002,10 @@ def main():
     args = parser.parse_args()
 
     # Configuration
+    purge_before_date = None
+    if args.purge_before_date:
+        purge_before_date = datetime.strptime(args.purge_before_date, "%Y-%m-%d").date()
+
     config = {
         "CURATE_FOLDER_SOURCE": "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_classifiier_prob_hex_summary",
         "CURATE_FOLDER_EXPORT": "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_classifiier_prob_similarity_by_pair",
@@ -921,6 +1018,8 @@ def main():
         "similarity_threshold": args.threshold,
         "memory_limit": args.memory_limit,
         "resume": not args.fresh_start,
+        "purge_all_for_resolution": args.purge_all_for_resolution,
+        "purge_before_date": purge_before_date,
         "log_dir": args.log_dir,
     }
 

@@ -5,11 +5,13 @@ Regression tests for B5b_compute_similarity_pairwise-optimized.py.
 
 import importlib.util
 import json
+import os
 import sys
 import tempfile
 import types
 import unittest
 import warnings
+from datetime import date, datetime
 from pathlib import Path
 
 import numpy as np
@@ -300,6 +302,8 @@ class TestOptimizedSimilarityDefaults(unittest.TestCase):
             return pd.DataFrame()
 
         processor.process_city_pair = fake_process_city_pair
+        processor.merge_city_results = lambda *_args, **_kwargs: None
+        processor.cleanup_temp_outputs = lambda *_args, **_kwargs: None
         processor.run(str(city_meta_path), resolution=6, group_size=10)
 
         progress = json.loads(progress_path.read_text())
@@ -394,6 +398,104 @@ class TestOptimizedSimilarityDefaults(unittest.TestCase):
         processor.run(str(city_meta_path), resolution=6, group_size=10)
 
         self.assertEqual(processed_pairs, [("Beta", "Gamma")])
+
+    def test_run_with_purge_all_for_resolution_recomputes_from_clean_state(self):
+        city_meta_path = Path(self.temp_dir.name) / "city_meta.csv"
+        pd.DataFrame({"City": ["Alpha", "Beta", "Gamma"]}).to_csv(
+            city_meta_path, index=False
+        )
+
+        export_dir = Path(self.temp_dir.name) / "export"
+        output_dir = export_dir / "optimized"
+        temp_dir = output_dir / "temp" / "city1=Alpha" / "city2=Beta"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        (output_dir / "_progress_res=6_optimized.json").write_text(
+            json.dumps(
+                {
+                    "resolution": 6,
+                    "completed_pair_keys": ["Alpha__Beta__res=6"],
+                    "pending_pairs": [["Alpha", "Gamma"], ["Beta", "Gamma"]],
+                    "status": "in_progress",
+                }
+            )
+        )
+        (output_dir / "similarity_city=Alpha_res=6_optimized.parquet").touch()
+        (temp_dir / "part_res=6.parquet").touch()
+
+        config = {
+            "CURATE_FOLDER_SOURCE": self.temp_dir.name,
+            "CURATE_FOLDER_EXPORT": str(export_dir),
+            "RES_EXCLUDE": 11,
+            "purge_all_for_resolution": True,
+        }
+        processor = self.module.OptimizedSimilarityProcessor(config, log_level="WARNING")
+        self.addCleanup(processor.close)
+
+        processed_pairs = []
+
+        def fake_process_city_pair(city1, city2, _resolution):
+            processed_pairs.append((city1, city2))
+            return pd.DataFrame()
+
+        processor.process_city_pair = fake_process_city_pair
+        processor.run(str(city_meta_path), resolution=6, group_size=10)
+
+        self.assertEqual(
+            processed_pairs,
+            [("Alpha", "Beta"), ("Alpha", "Gamma"), ("Beta", "Gamma")],
+        )
+
+    def test_purge_resolution_outputs_before_date_only_removes_older_matching_files(self):
+        export_dir = Path(self.temp_dir.name) / "export"
+        config = {
+            "CURATE_FOLDER_SOURCE": self.temp_dir.name,
+            "CURATE_FOLDER_EXPORT": str(export_dir),
+            "RES_EXCLUDE": 11,
+        }
+        processor = self.module.OptimizedSimilarityProcessor(config, log_level="WARNING")
+        self.addCleanup(processor.close)
+
+        output_dir = processor.get_output_dir()
+        temp_pair_dir = output_dir / "temp" / "city1=Alpha" / "city2=Beta"
+        temp_pair_dir.mkdir(parents=True, exist_ok=True)
+        stale_progress = output_dir / "_progress_res=6_optimized.json"
+        stale_final = output_dir / "similarity_city=Alpha_res=6_optimized.parquet"
+        fresh_final = output_dir / "similarity_city=Beta_res=6_optimized.parquet"
+        other_resolution = output_dir / "similarity_city=Alpha_res=7_optimized.parquet"
+        stale_temp = temp_pair_dir / "part_res=6.parquet"
+        other_temp = temp_pair_dir / "part_res=7.parquet"
+
+        for path in [
+            stale_progress,
+            stale_final,
+            fresh_final,
+            other_resolution,
+            stale_temp,
+            other_temp,
+        ]:
+            path.touch()
+
+        stale_ts = datetime(2024, 5, 17, 12, 0, 0).timestamp()
+        fresh_ts = datetime(2026, 5, 23, 12, 0, 0).timestamp()
+        os.utime(stale_progress, (stale_ts, stale_ts))
+        os.utime(stale_final, (stale_ts, stale_ts))
+        os.utime(stale_temp, (stale_ts, stale_ts))
+        os.utime(fresh_final, (fresh_ts, fresh_ts))
+        os.utime(other_resolution, (stale_ts, stale_ts))
+        os.utime(other_temp, (stale_ts, stale_ts))
+
+        summary = processor.purge_resolution_outputs(
+            output_dir, resolution=6, before_date=date(2026, 5, 23)
+        )
+
+        self.assertEqual(summary["files_deleted"], 3)
+        self.assertFalse(stale_progress.exists())
+        self.assertFalse(stale_final.exists())
+        self.assertFalse(stale_temp.exists())
+        self.assertTrue(fresh_final.exists())
+        self.assertTrue(other_resolution.exists())
+        self.assertTrue(other_temp.exists())
 
     def test_merge_city_results_only_writes_requested_city1_output(self):
         export_dir = Path(self.temp_dir.name) / "export"
