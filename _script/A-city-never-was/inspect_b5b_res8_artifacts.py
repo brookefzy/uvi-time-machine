@@ -244,8 +244,8 @@ def build_city_source_summary_query(source_path: str, resolution: int) -> str:
         COUNT(*) AS row_count,
         COUNT(DISTINCT hex_id) AS unique_hex_count,
         COUNT(*) - COUNT(DISTINCT hex_id) AS duplicate_hex_row_count,
-        d.duplicate_hex_id_count AS duplicate_hex_id_count,
-        d.multi_vector_hex_count AS multi_vector_hex_count,
+        MAX(d.duplicate_hex_id_count) AS duplicate_hex_id_count,
+        MAX(d.multi_vector_hex_count) AS multi_vector_hex_count,
         COUNT(DISTINCT vector_hash) AS unique_vector_count,
         COUNT(*) - COUNT(DISTINCT vector_hash) AS duplicate_vector_row_count
     FROM source s

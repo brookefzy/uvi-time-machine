@@ -95,8 +95,14 @@ class TestB5bArtifactDebugHelpers(unittest.TestCase):
     def test_city_source_summary_query_uses_aggregated_alias_columns(self):
         query = self.module.build_city_source_summary_query("/tmp/source.parquet", 8)
 
-        self.assertIn("duplicate_hex_id_count", query)
-        self.assertIn("multi_vector_hex_count", query)
+        self.assertIn(
+            "MAX(d.duplicate_hex_id_count) AS duplicate_hex_id_count",
+            query,
+        )
+        self.assertIn(
+            "MAX(d.multi_vector_hex_count) AS multi_vector_hex_count",
+            query,
+        )
         self.assertNotIn("d.n_rows", query)
         self.assertNotIn("d.n_vectors", query)
 
