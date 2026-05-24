@@ -92,6 +92,14 @@ class TestB5bArtifactDebugHelpers(unittest.TestCase):
         self.assertEqual(summary["sim_eq_1_equal_hash_count"], 1)
         self.assertEqual(summary["sim_eq_1_unequal_hash_count"], 1)
 
+    def test_city_source_summary_query_uses_aggregated_alias_columns(self):
+        query = self.module.build_city_source_summary_query("/tmp/source.parquet", 8)
+
+        self.assertIn("duplicate_hex_id_count", query)
+        self.assertIn("multi_vector_hex_count", query)
+        self.assertNotIn("d.n_rows", query)
+        self.assertNotIn("d.n_vectors", query)
+
 
 if __name__ == "__main__":
     unittest.main()

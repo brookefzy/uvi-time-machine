@@ -223,12 +223,9 @@ def get_source_path(source_root: str, city: str, res_exclude: int) -> str:
     return str(Path(source_root) / f"prob_city={city}_res_exclude={res_exclude}.parquet")
 
 
-def get_city_source_summary(
-    con: Any, source_root: str, city: str, resolution: int, res_exclude: int
-) -> dict[str, int | str]:
-    """Aggregate one city's source feature diagnostics in SQL."""
-    source_path = get_source_path(source_root, city, res_exclude)
-    query = f"""
+def build_city_source_summary_query(source_path: str, resolution: int) -> str:
+    """Return the SQL query for one city's source feature diagnostics."""
+    return f"""
     WITH source AS (
         {build_source_query(source_path, resolution)}
     ),
@@ -236,23 +233,32 @@ def get_city_source_summary(
         SELECT hex_id, COUNT(*) AS n_rows, COUNT(DISTINCT vector_hash) AS n_vectors
         FROM source
         GROUP BY hex_id
+    ),
+    dup_summary AS (
+        SELECT
+            COALESCE(SUM(CASE WHEN n_rows > 1 THEN 1 ELSE 0 END), 0) AS duplicate_hex_id_count,
+            COALESCE(SUM(CASE WHEN n_vectors > 1 THEN 1 ELSE 0 END), 0) AS multi_vector_hex_count
+        FROM dup_hex
     )
     SELECT
         COUNT(*) AS row_count,
         COUNT(DISTINCT hex_id) AS unique_hex_count,
         COUNT(*) - COUNT(DISTINCT hex_id) AS duplicate_hex_row_count,
-        COALESCE(SUM(CASE WHEN d.n_rows > 1 THEN 1 ELSE 0 END), 0) AS duplicate_hex_id_count,
-        COALESCE(SUM(CASE WHEN d.n_vectors > 1 THEN 1 ELSE 0 END), 0) AS multi_vector_hex_count,
+        d.duplicate_hex_id_count AS duplicate_hex_id_count,
+        d.multi_vector_hex_count AS multi_vector_hex_count,
         COUNT(DISTINCT vector_hash) AS unique_vector_count,
         COUNT(*) - COUNT(DISTINCT vector_hash) AS duplicate_vector_row_count
     FROM source s
-    CROSS JOIN (
-        SELECT
-            COALESCE(SUM(CASE WHEN n_rows > 1 THEN 1 ELSE 0 END), 0) AS duplicate_hex_id_count,
-            COALESCE(SUM(CASE WHEN n_vectors > 1 THEN 1 ELSE 0 END), 0) AS multi_vector_hex_count
-        FROM dup_hex
-    ) d
+    CROSS JOIN dup_summary d
     """
+
+
+def get_city_source_summary(
+    con: Any, source_root: str, city: str, resolution: int, res_exclude: int
+) -> dict[str, int | str]:
+    """Aggregate one city's source feature diagnostics in SQL."""
+    source_path = get_source_path(source_root, city, res_exclude)
+    query = build_city_source_summary_query(source_path, resolution)
     row_count, unique_hex_count, duplicate_hex_row_count, duplicate_hex_id_count, multi_vector_hex_count, unique_vector_count, duplicate_vector_row_count = con.execute(
         query
     ).fetchone()
