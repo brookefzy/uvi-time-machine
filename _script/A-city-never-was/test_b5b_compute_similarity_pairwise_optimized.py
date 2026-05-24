@@ -362,7 +362,6 @@ class TestOptimizedSimilarityDefaults(unittest.TestCase):
                 ("a1", "b1", "Alpha", "Beta"): 1.0,
                 ("a1", "b2", "Alpha", "Beta"): 0.707107,
                 ("a2", "b2", "Alpha", "Beta"): 0.707107,
-                ("b1", "b2", "Beta", "Beta"): 0.707107,
             },
         )
 

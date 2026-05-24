@@ -652,6 +652,8 @@ class OptimizedSimilarityProcessor:
                 for row_idx, col_idx in zip(rows, cols):
                     global_row = block_start_i + row_idx
                     global_col = block_start_j + col_idx
+                    if city1 != city2 and city_labels[global_row] == city_labels[global_col]:
+                        continue
                     results.append(
                         {
                             "hex_id1": hex_ids[global_row],
