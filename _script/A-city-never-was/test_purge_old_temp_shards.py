@@ -83,6 +83,18 @@ class TestPurgeOldTempShards(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "optimized/temp"):
             self.module.validate_temp_root(bad_root)
 
+    def test_scan_stats_reports_total_oldest_and_newest_dates(self):
+        old_file = self.temp_root / "city1=Accra" / "city2=Berezniki" / "part_res=8.parquet"
+        new_file = self.temp_root / "city1=Accra" / "city2=Boston" / "part_res=8.parquet"
+        self.touch_with_mtime(old_file, datetime(2025, 5, 17, 12, 0, 0))
+        self.touch_with_mtime(new_file, datetime(2026, 5, 24, 12, 0, 0))
+
+        stats = self.module.scan_stats(self.temp_root)
+
+        self.assertEqual(stats["total_files"], 2)
+        self.assertEqual(stats["oldest_date"], date(2025, 5, 17))
+        self.assertEqual(stats["newest_date"], date(2026, 5, 24))
+
 
 if __name__ == "__main__":
     unittest.main()

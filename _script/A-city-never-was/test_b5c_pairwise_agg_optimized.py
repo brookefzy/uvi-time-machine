@@ -98,6 +98,21 @@ def load_module():
                     frame["shard_city2"] = city2
                     frames.append(frame)
 
+                if not frames:
+                    final_file_matches = re.findall(
+                        r"FROM read_parquet\('([^']+)'\)",
+                        query,
+                        flags=re.S,
+                    )
+                    for path in final_file_matches:
+                        frame = pd.read_parquet(path)[
+                            ["hex_id1", "hex_id2", "similarity", "city1", "city2"]
+                        ].copy()
+                        frame = frame.rename(
+                            columns={"city1": "shard_city1", "city2": "shard_city2"}
+                        )
+                        frames.append(frame)
+
                 shard_union = pd.concat(frames, ignore_index=True)
                 shard_union["hex_id1_norm"] = shard_union[["hex_id1", "hex_id2"]].min(axis=1)
                 shard_union["hex_id2_norm"] = shard_union[["hex_id1", "hex_id2"]].max(axis=1)
@@ -226,6 +241,14 @@ class TestOptimizedPairwiseAggregation(unittest.TestCase):
             pair_dir / f"part_res={resolution}.parquet", index=False
         )
 
+    def write_merged_city_file(self, city, resolution, rows):
+        output_dir = self.export_root / "optimized"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame(rows).to_parquet(
+            output_dir / f"similarity_city={city}_res={resolution}_optimized.parquet",
+            index=False,
+        )
+
     def test_process_city_similarity_reads_temp_shards_and_saves_partitioned_intercity_output(self):
         processor = self.make_processor(resolution=8, parquet_file_size="64MB")
         self.write_pair_shard(
@@ -296,6 +319,47 @@ class TestOptimizedPairwiseAggregation(unittest.TestCase):
         self.assertFalse(
             (self.output_dir / "similarity_intracity_city=MissingCity_res=8.parquet").exists()
         )
+
+    def test_process_city_similarity_falls_back_to_merged_city_file_when_temp_shards_are_cleaned_up(self):
+        processor = self.make_processor(resolution=8, parquet_file_size="0")
+        self.write_merged_city_file(
+            "Alpha",
+            8,
+            [
+                {
+                    "hex_id1": "a1",
+                    "hex_id2": "b1",
+                    "city1": "Alpha",
+                    "city2": "Beta",
+                    "similarity": 0.8,
+                },
+                {
+                    "hex_id1": "a1",
+                    "hex_id2": "a2",
+                    "city1": "Alpha",
+                    "city2": "Alpha",
+                    "similarity": 0.7,
+                },
+            ],
+        )
+
+        inner_count, inter_count = processor.process_city_similarity("Alpha")
+
+        self.assertEqual(inner_count, 1)
+        self.assertEqual(inter_count, 1)
+
+        output_file = (
+            self.output_dir / "similarity_intracity_city=Alpha_res=8.parquet"
+        )
+        self.assertTrue(output_file.exists())
+
+        result = self.read_output_dataset(output_file)
+        self.assertEqual(list(result.columns), ["hex_id1", "hex_id2", "similarity", "city_1", "city_2"])
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result.iloc[0]["hex_id1"], "a1")
+        self.assertEqual(result.iloc[0]["hex_id2"], "b1")
+        self.assertEqual(result.iloc[0]["city_1"], "Alpha")
+        self.assertEqual(result.iloc[0]["city_2"], "Beta")
 
     def test_run_resumes_by_skipping_existing_city_output(self):
         processor = self.make_processor(resolution=8)

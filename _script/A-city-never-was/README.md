@@ -49,7 +49,8 @@ python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5
 
    Notes:
    - `B5c_pairwise_agg_optimized.py` reads temp shards from `optimized/temp/city1=<city>/city2=*/part_res=<resolution>.parquet`
-   - It does not require merged per-city optimized parquet files to exist first
+   - If those temp shards have already been cleaned up after a completed `B5b_compute_similarity_pairwise-optimized.py` run, it falls back to merged files at `optimized/similarity_city=<city>_res=<resolution>_optimized.parquet`
+   - It does not require merged per-city optimized parquet files to exist first, but can use them when temp shards are no longer present
    - `--resume` skips cities that already have aggregated output files, and if `--agg-progress-file` is provided it also resumes from that city-level progress JSON
    - Resume recognizes both a single output parquet file and a chunked parquet dataset directory at `similarity_intracity_city=<city>_res=<resolution>.parquet`
    - Use an explicit `--export-folder` when resuming. The script's default export folder is date-based, so a bare `python B5c_pairwise_agg_optimized.py --resume` on a later day will look in a new folder and will not see yesterday's completed city outputs.

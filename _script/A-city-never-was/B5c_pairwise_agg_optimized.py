@@ -237,17 +237,18 @@ class OptimizedUrbanSimilarityProcessor:
 
         return shard_files
 
-    def process_city_similarity(self, city: str) -> Tuple[int, int]:
-        """Aggregate similarity data for one city1 from optimized temp shards."""
-        self.logger.info("Processing similarity data for city: %s", city)
-        shard_files = self.get_city_shard_files(city)
+    def get_merged_city_file(self, city: str) -> Path:
+        """Return the merged optimized pairwise file for one city1."""
+        return (
+            Path(self.config["CURATE_FOLDER_EXPORT2"])
+            / "optimized"
+            / f"similarity_city={city}_res={self.config['RES_SEL']}_optimized.parquet"
+        )
 
-        if not shard_files:
-            self.logger.warning("No temp shard files found for city: %s", city)
-            return 0, 0
-
+    def get_city_source_queries(self, city: str) -> List[str]:
+        """Return DuckDB source queries for one city from temp shards or merged output."""
         query_parts = []
-        for shard_file, city2 in shard_files:
+        for shard_file, city2 in self.get_city_shard_files(city):
             query_parts.append(
                 f"""
                 SELECT
@@ -259,6 +260,36 @@ class OptimizedUrbanSimilarityProcessor:
                 FROM read_parquet('{shard_file}')
                 """
             )
+
+        if query_parts:
+            return query_parts
+
+        merged_city_file = self.get_merged_city_file(city)
+        if merged_city_file.exists():
+            query_parts.append(
+                f"""
+                SELECT
+                    hex_id1,
+                    hex_id2,
+                    similarity,
+                    city1 AS shard_city1,
+                    city2 AS shard_city2
+                FROM read_parquet('{merged_city_file}')
+                """
+            )
+
+        return query_parts
+
+    def process_city_similarity(self, city: str) -> Tuple[int, int]:
+        """Aggregate similarity data for one city1 from optimized temp shards."""
+        self.logger.info("Processing similarity data for city: %s", city)
+        query_parts = self.get_city_source_queries(city)
+
+        if not query_parts:
+            self.logger.warning(
+                "No optimized pairwise shard or merged files found for city: %s", city
+            )
+            return 0, 0
 
         union_query = " UNION ALL ".join(query_parts)
         base_query = f"""

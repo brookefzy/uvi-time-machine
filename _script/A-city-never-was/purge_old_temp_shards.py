@@ -56,6 +56,21 @@ def collect_purge_targets(temp_root: Path, before_date: date) -> list[Path]:
     return targets
 
 
+def scan_stats(temp_root: Path) -> dict[str, date | int | None]:
+    """Return total file count plus oldest/newest observed modification dates."""
+    root = validate_temp_root(temp_root)
+    files = [path for path in sorted(root.rglob("*")) if path.is_file()]
+    if not files:
+        return {"total_files": 0, "oldest_date": None, "newest_date": None}
+
+    modified_dates = [datetime.fromtimestamp(path.stat().st_mtime).date() for path in files]
+    return {
+        "total_files": len(files),
+        "oldest_date": min(modified_dates),
+        "newest_date": max(modified_dates),
+    }
+
+
 def prune_empty_parents(root: Path, start_dirs: Iterable[Path]) -> int:
     """Remove empty directories between each start dir and the root."""
     root = root.resolve()
@@ -118,6 +133,17 @@ def format_preview(targets: list[Path], limit: int = 20) -> str:
     return "\n".join(lines)
 
 
+def format_stats(stats: dict[str, date | int | None]) -> str:
+    """Format scan stats for dry-run diagnostics."""
+    if stats["total_files"] == 0:
+        return "Scanned files: 0"
+    return (
+        f"Scanned files: {stats['total_files']}\n"
+        f"Oldest mtime: {stats['oldest_date']}\n"
+        f"Newest mtime: {stats['newest_date']}"
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Purge files older than a cutoff date from the optimized/temp tree only."
@@ -148,6 +174,8 @@ def main() -> int:
         print(f"ERROR: temp root not found: {temp_root}")
         return 2
 
+    stats = scan_stats(temp_root)
+    print(format_stats(stats))
     targets = collect_purge_targets(temp_root, args.before_date)
     print(format_preview(targets))
 
