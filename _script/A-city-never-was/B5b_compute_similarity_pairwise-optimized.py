@@ -8,6 +8,7 @@ import os
 import logging
 import argparse
 import warnings
+import re
 from pathlib import Path
 from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -36,6 +37,15 @@ except ImportError:
     warnings.warn("GPU support not available. Install cupy for GPU acceleration.")
 
 
+DEFAULT_CURATE_FOLDER_SOURCE = (
+    "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_classifiier_prob_hex_summary"
+)
+DEFAULT_CURATE_FOLDER_EXPORT = (
+    "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_classifiier_prob_similarity_by_pair"
+)
+DEFAULT_INPUT_TEMPLATE = "prob_city={city}_res_exclude={res_exclude}.parquet"
+
+
 class OptimizedSimilarityProcessor:
     """Optimized similarity computation with multiple algorithmic improvements."""
 
@@ -51,7 +61,25 @@ class OptimizedSimilarityProcessor:
         self.setup_logging(log_level)
         self.conn = duckdb.connect(":memory:")
         self.setup_duckdb_optimizations()
-        self.vector_columns = [str(x) for x in range(127)]
+        self.source_root = Path(
+            config.get("CURATE_FOLDER_SOURCE", DEFAULT_CURATE_FOLDER_SOURCE)
+        )
+        self.output_root = Path(
+            config.get("CURATE_FOLDER_EXPORT", DEFAULT_CURATE_FOLDER_EXPORT)
+        )
+        self.input_template = config.get("INPUT_TEMPLATE", DEFAULT_INPUT_TEMPLATE)
+        self.feature_prefix = config.get("FEATURE_PREFIX")
+        if self.feature_prefix == "":
+            self.feature_prefix = None
+        configured_metric = config.get("METRIC_LABEL")
+        self.metric_label = configured_metric if self.feature_prefix else None
+        self.keep_temp = config.get("keep_temp", False)
+        self._vector_contract_by_city: Dict[str, List[str]] = {}
+        self.vector_columns = (
+            self.resolve_vector_columns(None)
+            if self.feature_prefix
+            else [str(x) for x in range(127)]
+        )
 
         # Optimization parameters
         self.use_gpu = config.get("use_gpu", False) and GPU_AVAILABLE
@@ -110,9 +138,127 @@ class OptimizedSimilarityProcessor:
 
     def get_output_dir(self) -> Path:
         """Return the directory where optimized parquet outputs are stored."""
-        output_dir = Path(self.config["CURATE_FOLDER_EXPORT"]) / "optimized"
+        output_dir = self.output_root / "optimized"
         output_dir.mkdir(parents=True, exist_ok=True)
         return output_dir
+
+    def build_input_path(self, city: str) -> Path:
+        """Return the configured H3 vector parquet path for one city."""
+        return self.source_root / self.input_template.format(
+            city=city,
+            res_exclude=self.config["RES_EXCLUDE"],
+        )
+
+    def _schema_columns(self, path: Path) -> List[str]:
+        """Return parquet schema columns without materializing data when possible."""
+        try:
+            import pyarrow.parquet as pq
+
+            return list(pq.read_schema(path).names)
+        except Exception:
+            return list(pd.read_parquet(path).columns)
+
+    def resolve_vector_columns(
+        self, df_or_path: Optional[Union[pd.DataFrame, Path, str]]
+    ) -> List[str]:
+        """Resolve classifier or prefix-discovered vector columns deterministically."""
+        if not self.feature_prefix:
+            return [str(x) for x in range(127)]
+
+        if df_or_path is None:
+            return []
+
+        if isinstance(df_or_path, pd.DataFrame):
+            columns = list(df_or_path.columns)
+        else:
+            columns = self._schema_columns(Path(df_or_path))
+
+        prefix = re.escape(self.feature_prefix)
+        matches = []
+        for column in columns:
+            match = re.fullmatch(rf"{prefix}(\d+)", str(column))
+            if match:
+                matches.append((int(match.group(1)), str(column)))
+
+        if not matches:
+            raise ValueError(f"No vector columns found with prefix {self.feature_prefix!r}")
+
+        matches.sort(key=lambda item: item[0])
+        suffixes = [suffix for suffix, _column in matches]
+        expected_suffixes = list(range(suffixes[0], suffixes[0] + len(suffixes)))
+        if suffixes != expected_suffixes or suffixes[0] != 0:
+            raise ValueError(
+                f"Vector columns with prefix {self.feature_prefix!r} must be contiguous from 0"
+            )
+
+        return [column for _suffix, column in matches]
+
+    def validate_input_contracts(
+        self, cities: List[str], resolution: Optional[int] = None
+    ) -> List[str]:
+        """Validate all city vector dimensions before pairwise computation starts."""
+        if not self.feature_prefix:
+            self.vector_columns = [str(x) for x in range(127)]
+            return self.vector_columns
+
+        expected_columns: Optional[List[str]] = None
+        expected_city: Optional[str] = None
+        self._vector_contract_by_city = {}
+        missing_inputs: List[str] = []
+        empty_resolution_inputs: List[str] = []
+
+        for city in cities:
+            file_path = self.build_input_path(city)
+            if not file_path.exists():
+                missing_inputs.append(f"{city}: {file_path}")
+                continue
+
+            columns = self.resolve_vector_columns(file_path)
+            self._vector_contract_by_city[city] = columns
+            if resolution is not None:
+                res_values = pd.read_parquet(file_path, columns=["res"])
+                if res_values[res_values["res"] == resolution].empty:
+                    empty_resolution_inputs.append(
+                        f"{city}: {file_path.name} has no res={resolution} rows"
+                    )
+
+            if expected_columns is None:
+                expected_columns = columns
+                expected_city = city
+                continue
+
+            if columns != expected_columns:
+                raise ValueError(
+                    "Inconsistent vector columns for city "
+                    f"{city} file {file_path.name}: found {len(columns)} vector columns "
+                    f"but {expected_city} has {len(expected_columns)} vector columns"
+                )
+
+        if missing_inputs:
+            raise FileNotFoundError(
+                "Missing input files for configured vector pipeline: "
+                + "; ".join(missing_inputs)
+            )
+
+        if empty_resolution_inputs:
+            raise ValueError(
+                "Input files have no rows for requested resolution: "
+                + "; ".join(empty_resolution_inputs)
+            )
+
+        if expected_columns is None:
+            raise FileNotFoundError(
+                f"No input files found under {self.source_root} using {self.input_template}"
+            )
+
+        self.vector_columns = expected_columns
+        return self.vector_columns
+
+    def similarity_keep_mask(self, similarity_block: np.ndarray) -> np.ndarray:
+        """Return mask of similarities to persist for the configured threshold."""
+        if self.feature_prefix and self.similarity_threshold <= -1.0:
+            return similarity_block >= self.similarity_threshold
+        return similarity_block > self.similarity_threshold
 
     def get_progress_path(self, output_dir: Path, resolution: int) -> Path:
         """Return the checkpoint path for a specific resolution."""
@@ -363,13 +509,12 @@ class OptimizedSimilarityProcessor:
         """
         self.logger.info(f"Loading features for {len(cities)} cities")
 
+        self.validate_input_contracts(cities, resolution=resolution)
+
         # Build optimized query using DuckDB
         file_patterns = []
         for city in cities:
-            pattern = (
-                f"prob_city={city}_res_exclude={self.config['RES_EXCLUDE']}.parquet"
-            )
-            file_path = Path(self.config["CURATE_FOLDER_SOURCE"]) / pattern
+            file_path = self.build_input_path(city)
             if file_path.exists():
                 file_patterns.append((city, str(file_path)))
 
@@ -538,10 +683,12 @@ class OptimizedSimilarityProcessor:
                 # Keep only values above threshold
                 if i == j:
                     # For diagonal blocks, keep upper triangle only
-                    sim_block = np.triu(sim_block, k=1)
+                    sim_block = sim_block.copy()
+                    lower_rows, lower_cols = np.tril_indices_from(sim_block, k=0)
+                    sim_block[lower_rows, lower_cols] = -np.inf
 
                 # Find non-zero values above threshold
-                rows, cols = np.where(sim_block > self.similarity_threshold)
+                rows, cols = np.where(self.similarity_keep_mask(sim_block))
 
                 # Adjust indices to global coordinates
                 global_rows = rows + i
@@ -626,7 +773,7 @@ class OptimizedSimilarityProcessor:
         # Create result DataFrame
         results = []
         for idx in range(len(rows)):
-            if similarities[idx] > self.similarity_threshold:
+            if self.similarity_keep_mask(np.asarray([similarities[idx]])).item():
                 results.append(
                     {
                         "hex_id1": hex_ids[rows[idx]],
@@ -651,22 +798,24 @@ class OptimizedSimilarityProcessor:
         self, city_name: str, resolution: int
     ) -> pd.DataFrame:
         """Load feature vectors for a specific city."""
-        pattern = (
-            f"prob_city={city_name}_res_exclude={self.config['RES_EXCLUDE']}.parquet"
-        )
-        file_path = Path(self.config["CURATE_FOLDER_SOURCE"]) / pattern
+        file_path = self.build_input_path(city_name)
 
         if not file_path.exists():
             self.logger.warning("File not found: %s", file_path)
             return pd.DataFrame()
 
-        cols = ", ".join([f'"{col}"' for col in self.vector_columns])
-        query = f"""
-            SELECT hex_id, {cols}
-            FROM read_parquet('{file_path}')
-            WHERE res = {resolution}
-        """
-        df = self.conn.execute(query).fetchdf()
+        if self.feature_prefix and city_name not in self._vector_contract_by_city:
+            columns = self.validate_input_contracts([city_name], resolution=resolution)
+        else:
+            columns = self._vector_contract_by_city.get(city_name, self.vector_columns)
+            if self.feature_prefix and columns != self.vector_columns:
+                raise ValueError(
+                    f"Inconsistent vector columns for city {city_name} file {file_path.name}"
+                )
+
+        read_columns = ["hex_id", "res", *columns]
+        df = pd.read_parquet(file_path, columns=read_columns)
+        df = df[df["res"] == resolution].drop(columns=["res"]).reset_index(drop=True)
         df["city"] = city_name
         return df
 
@@ -721,9 +870,11 @@ class OptimizedSimilarityProcessor:
                 similarity_block = cosine_similarity(block_i, block_j)
 
                 if block_start_i == block_start_j:
-                    similarity_block = np.triu(similarity_block, k=1)
+                    similarity_block = similarity_block.copy()
+                    lower_rows, lower_cols = np.tril_indices_from(similarity_block, k=0)
+                    similarity_block[lower_rows, lower_cols] = -np.inf
 
-                rows, cols = np.where(similarity_block > self.similarity_threshold)
+                rows, cols = np.where(self.similarity_keep_mask(similarity_block))
                 for row_idx, col_idx in zip(rows, cols):
                     global_row = block_start_i + row_idx
                     global_col = block_start_j + col_idx
@@ -758,6 +909,10 @@ class OptimizedSimilarityProcessor:
         """Persist one city pair result shard atomically."""
         if df.empty:
             return
+
+        if self.metric_label and "metric" not in df.columns:
+            df = df.copy()
+            df["metric"] = self.metric_label
 
         pair_dir = self.get_pair_temp_dir(output_dir, city1, city2)
         shard_file = pair_dir / f"part_res={resolution}.parquet"
@@ -852,6 +1007,8 @@ class OptimizedSimilarityProcessor:
         try:
             # Load city list
             city_pairs = self.create_city_pairs(city_meta_path)
+            input_cities = sorted({city for pair in city_pairs for city in pair})
+            self.validate_input_contracts(input_cities, resolution=resolution)
             self.logger.info("Processing %d city pairs", len(city_pairs))
 
             # Create output directory
@@ -913,7 +1070,8 @@ class OptimizedSimilarityProcessor:
                     raise
 
             self.merge_city_results(output_dir, resolution)
-            self.cleanup_temp_outputs(output_dir)
+            if not self.keep_temp:
+                self.cleanup_temp_outputs(output_dir)
             self.write_progress(
                 progress_path=progress_path,
                 resolution=resolution,
@@ -975,7 +1133,7 @@ def main():
         "--threshold",
         type=float,
         default=0.01,
-        help="Similarity threshold; use 0.0 to match the original script behavior",
+        help="Similarity threshold; use -1.0 for all DINOv3 cosine pairs",
     )
     parser.add_argument("--memory-limit", default="8GB", help="DuckDB memory limit")
     parser.add_argument(
@@ -998,6 +1156,42 @@ def main():
         default=None,
         help="Directory for local log files; defaults to a logs folder next to this script",
     )
+    parser.add_argument(
+        "--source-root",
+        default=DEFAULT_CURATE_FOLDER_SOURCE,
+        help="Root folder containing per-city H3 vector parquet inputs",
+    )
+    parser.add_argument(
+        "--output-root",
+        default=DEFAULT_CURATE_FOLDER_EXPORT,
+        help="Root folder where optimized pairwise outputs are written",
+    )
+    parser.add_argument(
+        "--input-template",
+        default=DEFAULT_INPUT_TEMPLATE,
+        help="Input filename template with {city} and {res_exclude} placeholders",
+    )
+    parser.add_argument(
+        "--feature-prefix",
+        default=None,
+        help="Discover vector columns by prefix, e.g. e_; omit for classifier columns 0..126",
+    )
+    parser.add_argument(
+        "--metric-label",
+        default="cosine",
+        help="Metric label added to configurable-vector pairwise shards",
+    )
+    parser.add_argument(
+        "--res-exclude",
+        type=int,
+        default=11,
+        help="Exclusion resolution used in input filenames",
+    )
+    parser.add_argument(
+        "--keep-temp",
+        action="store_true",
+        help="Keep optimized/temp pair shards after successful merge",
+    )
 
     args = parser.parse_args()
 
@@ -1007,9 +1201,13 @@ def main():
         purge_before_date = datetime.strptime(args.purge_before_date, "%Y-%m-%d").date()
 
     config = {
-        "CURATE_FOLDER_SOURCE": "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_classifiier_prob_hex_summary",
-        "CURATE_FOLDER_EXPORT": "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_classifiier_prob_similarity_by_pair",
-        "RES_EXCLUDE": 11,
+        "CURATE_FOLDER_SOURCE": args.source_root,
+        "CURATE_FOLDER_EXPORT": args.output_root,
+        "RES_EXCLUDE": args.res_exclude,
+        "INPUT_TEMPLATE": args.input_template,
+        "FEATURE_PREFIX": args.feature_prefix,
+        "METRIC_LABEL": args.metric_label,
+        "keep_temp": args.keep_temp,
         "use_gpu": args.use_gpu,
         "use_sparse": True,
         "use_approximation": args.use_approximation,

@@ -21,126 +21,125 @@ MODULE_PATH = (
 
 
 def load_module():
-    if "duckdb" not in sys.modules:
-        fake_duckdb = types.ModuleType("duckdb")
+    fake_duckdb = types.ModuleType("duckdb")
 
-        class FakeResult:
-            def __init__(self, df):
-                self._df = df
+    class FakeResult:
+        def __init__(self, df):
+            self._df = df
 
-            def fetchdf(self):
-                return self._df
+        def fetchdf(self):
+            return self._df
 
-            def fetchone(self):
-                if self._df.empty:
-                    return (0,)
-                return tuple(self._df.iloc[0].tolist())
+        def fetchone(self):
+            if self._df.empty:
+                return (0,)
+            return tuple(self._df.iloc[0].tolist())
 
-        class FakeConnection:
-            def __init__(self):
-                self.last_copy_query = None
-                self.last_copy_output_path = None
+    class FakeConnection:
+        def __init__(self):
+            self.last_copy_query = None
+            self.last_copy_output_path = None
 
-            def execute(self, query):
-                if "SELECT COUNT(*)" in query and "WITH shard_union AS" in query:
-                    result = self._build_result(query)
-                    if "city_1 != city_2" in query:
-                        count = len(result[result["city_1"] != result["city_2"]])
-                    else:
-                        count = len(result[result["city_1"] == result["city_2"]])
-                    return FakeResult(pd.DataFrame({"count": [count]}))
+        def execute(self, query):
+            if "SELECT COUNT(*)" in query and "WITH shard_union AS" in query:
+                result = self._build_result(query)
+                if "city_1 != city_2" in query:
+                    count = len(result[result["city_1"] != result["city_2"]])
+                else:
+                    count = len(result[result["city_1"] == result["city_2"]])
+                return FakeResult(pd.DataFrame({"count": [count]}))
 
-                if "COPY (" in query and "WITH shard_union AS" in query:
-                    self.last_copy_query = query
-                    inner_query, output_path, options = re.search(
-                        r"COPY \((.*)\) TO '([^']+)'(?: \((.*)\))?",
-                        query,
-                        flags=re.S,
-                    ).groups()
-                    self.last_copy_output_path = Path(output_path)
-                    result = self._build_result(inner_query)
-                    inter_city = result[result["city_1"] != result["city_2"]].reset_index(
-                        drop=True
-                    )
-                    if options and "FILE_SIZE_BYTES" in options:
-                        output_dir = Path(output_path)
-                        output_dir.mkdir(parents=True, exist_ok=True)
-                        midpoint = max(1, len(inter_city) // 2)
-                        chunks = [inter_city.iloc[:midpoint], inter_city.iloc[midpoint:]]
-                        for idx, chunk in enumerate(chunks):
-                            if chunk.empty:
-                                continue
-                            pd.DataFrame.to_parquet(
-                                chunk.reset_index(drop=True),
-                                output_dir / f"part_{idx}.parquet",
-                                index=False,
-                            )
-                    else:
-                        pd.DataFrame.to_parquet(inter_city, output_path, index=False)
-                    return FakeResult(pd.DataFrame())
+            if "COPY (" in query and "WITH shard_union AS" in query:
+                self.last_copy_query = query
+                inner_query, output_path, options = re.search(
+                    r"COPY \((.*)\) TO '([^']+)'(?: \((.*)\))?",
+                    query,
+                    flags=re.S,
+                ).groups()
+                self.last_copy_output_path = Path(output_path)
+                result = self._build_result(inner_query)
+                inter_city = result[result["city_1"] != result["city_2"]].reset_index(
+                    drop=True
+                )
+                if options and "FILE_SIZE_BYTES" in options:
+                    output_dir = Path(output_path)
+                    output_dir.mkdir(parents=True, exist_ok=True)
+                    midpoint = max(1, len(inter_city) // 2)
+                    chunks = [inter_city.iloc[:midpoint], inter_city.iloc[midpoint:]]
+                    for idx, chunk in enumerate(chunks):
+                        if chunk.empty:
+                            continue
+                        pd.DataFrame.to_parquet(
+                            chunk.reset_index(drop=True),
+                            output_dir / f"part_{idx}.parquet",
+                            index=False,
+                        )
+                else:
+                    pd.DataFrame.to_parquet(inter_city, output_path, index=False)
+                return FakeResult(pd.DataFrame())
 
-                if "WITH shard_union AS" not in query:
-                    return FakeResult(pd.DataFrame())
+            if "WITH shard_union AS" not in query:
+                return FakeResult(pd.DataFrame())
 
-                return FakeResult(self._build_result(query))
+            return FakeResult(self._build_result(query))
 
-            def _build_result(self, query):
-                matches = re.findall(
-                    r"'([^']+)' AS shard_city1,\s*'([^']+)' AS shard_city2\s*FROM read_parquet\('([^']+)'\)",
+        def _build_result(self, query):
+            matches = re.findall(
+                r"'([^']+)' AS shard_city1,\s*'([^']+)' AS shard_city2\s*FROM read_parquet\('([^']+)'\)",
+                query,
+                flags=re.S,
+            )
+
+            frames = []
+            for city1, city2, path in matches:
+                frame = pd.read_parquet(path)[["hex_id1", "hex_id2", "similarity"]].copy()
+                frame["shard_city1"] = city1
+                frame["shard_city2"] = city2
+                frames.append(frame)
+
+            if not frames:
+                final_file_matches = re.findall(
+                    r"FROM read_parquet\('([^']+)'\)",
                     query,
                     flags=re.S,
                 )
-
-                frames = []
-                for city1, city2, path in matches:
-                    frame = pd.read_parquet(path)[["hex_id1", "hex_id2", "similarity"]].copy()
-                    frame["shard_city1"] = city1
-                    frame["shard_city2"] = city2
+                for path in final_file_matches:
+                    frame = pd.read_parquet(path)[
+                        ["hex_id1", "hex_id2", "similarity", "city1", "city2"]
+                    ].copy()
+                    frame = frame.rename(
+                        columns={"city1": "shard_city1", "city2": "shard_city2"}
+                    )
                     frames.append(frame)
 
-                if not frames:
-                    final_file_matches = re.findall(
-                        r"FROM read_parquet\('([^']+)'\)",
-                        query,
-                        flags=re.S,
-                    )
-                    for path in final_file_matches:
-                        frame = pd.read_parquet(path)[
-                            ["hex_id1", "hex_id2", "similarity", "city1", "city2"]
-                        ].copy()
-                        frame = frame.rename(
-                            columns={"city1": "shard_city1", "city2": "shard_city2"}
-                        )
-                        frames.append(frame)
+            shard_union = pd.concat(frames, ignore_index=True)
+            shard_union["hex_id1_norm"] = shard_union[["hex_id1", "hex_id2"]].min(axis=1)
+            shard_union["hex_id2_norm"] = shard_union[["hex_id1", "hex_id2"]].max(axis=1)
 
-                shard_union = pd.concat(frames, ignore_index=True)
-                shard_union["hex_id1_norm"] = shard_union[["hex_id1", "hex_id2"]].min(axis=1)
-                shard_union["hex_id2_norm"] = shard_union[["hex_id1", "hex_id2"]].max(axis=1)
-
-                result = (
-                    shard_union.groupby(
-                        ["hex_id1_norm", "hex_id2_norm", "shard_city1", "shard_city2"],
-                        as_index=False,
-                    )["similarity"]
-                    .max()
-                    .rename(
-                        columns={
-                            "hex_id1_norm": "hex_id1",
-                            "hex_id2_norm": "hex_id2",
-                            "shard_city1": "city_1",
-                            "shard_city2": "city_2",
-                        }
-                    )
-                    .sort_values(["similarity", "hex_id1", "hex_id2"], ascending=[False, True, True])
-                    .reset_index(drop=True)
+            result = (
+                shard_union.groupby(
+                    ["hex_id1_norm", "hex_id2_norm", "shard_city1", "shard_city2"],
+                    as_index=False,
+                )["similarity"]
+                .max()
+                .rename(
+                    columns={
+                        "hex_id1_norm": "hex_id1",
+                        "hex_id2_norm": "hex_id2",
+                        "shard_city1": "city_1",
+                        "shard_city2": "city_2",
+                    }
                 )
-                return result[["hex_id1", "hex_id2", "similarity", "city_1", "city_2"]]
+                .sort_values(["similarity", "hex_id1", "hex_id2"], ascending=[False, True, True])
+                .reset_index(drop=True)
+            )
+            return result[["hex_id1", "hex_id2", "similarity", "city_1", "city_2"]]
 
-            def close(self):
-                return None
+        def close(self):
+            return None
 
-        fake_duckdb.connect = lambda *_args, **_kwargs: FakeConnection()
-        sys.modules["duckdb"] = fake_duckdb
+    fake_duckdb.connect = lambda *_args, **_kwargs: FakeConnection()
+    sys.modules["duckdb"] = fake_duckdb
 
     if "tqdm" not in sys.modules:
         fake_tqdm = types.ModuleType("tqdm")
@@ -360,6 +359,99 @@ class TestOptimizedPairwiseAggregation(unittest.TestCase):
         self.assertEqual(result.iloc[0]["hex_id2"], "b1")
         self.assertEqual(result.iloc[0]["city_1"], "Alpha")
         self.assertEqual(result.iloc[0]["city_2"], "Beta")
+
+    def test_dinov3_temp_shards_with_metadata_export_intercity_rows_only(self):
+        processor = self.make_processor(resolution=8, parquet_file_size="0")
+        self.write_pair_shard(
+            "Alpha",
+            "Beta",
+            8,
+            [
+                {
+                    "hex_id1": "a1",
+                    "hex_id2": "b1",
+                    "city1": "Alpha",
+                    "city2": "Beta",
+                    "similarity": 0.95,
+                    "metric": "cosine",
+                    "model_name": "dinov3-test",
+                },
+                {
+                    "hex_id1": "a2",
+                    "hex_id2": "b2",
+                    "city1": "Alpha",
+                    "city2": "Beta",
+                    "similarity": 0.50,
+                    "metric": "cosine",
+                    "model_name": "dinov3-test",
+                },
+            ],
+        )
+        self.write_pair_shard(
+            "Alpha",
+            "Alpha",
+            8,
+            [
+                {
+                    "hex_id1": "a1",
+                    "hex_id2": "a2",
+                    "city1": "Alpha",
+                    "city2": "Alpha",
+                    "similarity": 0.99,
+                    "metric": "cosine",
+                    "model_name": "dinov3-test",
+                }
+            ],
+        )
+
+        inner_count, inter_count = processor.process_city_similarity("Alpha")
+
+        self.assertEqual(inner_count, 1)
+        self.assertEqual(inter_count, 2)
+        result = self.read_output_dataset(
+            self.output_dir / "similarity_intracity_city=Alpha_res=8.parquet"
+        )
+        self.assertEqual(list(result.columns), ["hex_id1", "hex_id2", "similarity", "city_1", "city_2"])
+        self.assertEqual(len(result), 2)
+        self.assertTrue((result["city_1"] != result["city_2"]).all())
+
+    def test_dinov3_merged_optimized_file_exports_intercity_rows_only_after_temp_cleanup(self):
+        processor = self.make_processor(resolution=8, parquet_file_size="0")
+        self.write_merged_city_file(
+            "Alpha",
+            8,
+            [
+                {
+                    "hex_id1": "a1",
+                    "hex_id2": "b1",
+                    "city1": "Alpha",
+                    "city2": "Beta",
+                    "similarity": 0.95,
+                    "metric": "cosine",
+                    "model_name": "dinov3-test",
+                },
+                {
+                    "hex_id1": "a1",
+                    "hex_id2": "a2",
+                    "city1": "Alpha",
+                    "city2": "Alpha",
+                    "similarity": 0.99,
+                    "metric": "cosine",
+                    "model_name": "dinov3-test",
+                },
+            ],
+        )
+
+        inner_count, inter_count = processor.process_city_similarity("Alpha")
+
+        self.assertEqual(inner_count, 1)
+        self.assertEqual(inter_count, 1)
+        result = self.read_output_dataset(
+            self.output_dir / "similarity_intracity_city=Alpha_res=8.parquet"
+        )
+        self.assertEqual(list(result.columns), ["hex_id1", "hex_id2", "similarity", "city_1", "city_2"])
+        self.assertEqual(len(result), 1)
+        self.assertTrue((result["city_1"] != result["city_2"]).all())
 
     def test_run_resumes_by_skipping_existing_city_output(self):
         processor = self.make_processor(resolution=8)

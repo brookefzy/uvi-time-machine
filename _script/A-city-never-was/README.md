@@ -59,6 +59,160 @@ python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5
    - Set `--parquet-file-size 0` if you explicitly want one single parquet file instead of chunked output
    - If the progress JSON has no pending pairs but still says `in_progress`, the optimized aggregator proceeds and logs a warning
 
+## DINOv3 visual similarity pipeline
+
+The DINOv3 pipeline runs beside the classifier-probability B5 pipeline and writes to separate `c_city_dinov3_*` folders. Do not overwrite classifier outputs when testing DINOv3.
+
+Recommended server order:
+1. Verify the model/checkpoint on the server with a two-image smoke test before any all-city run. If the checkpoint is already staged on disk, set `MODEL_NAME` to that local path and pass `--local-files-only`. If it is not found on disk and the node has internet access, set `MODEL_NAME` to the verified Hugging Face or timm model ID and omit `--local-files-only` so the backend downloads it into the model cache. After that first download, rerun with `--local-files-only` for production jobs.
+
+```bash
+MODEL_NAME="<verified-dinov3-checkpoint-or-local-path>"
+
+python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py \
+  --city "Hong Kong" \
+  --valfolder /lustre1/g/geog_pyloo/05_timemachine/_transformed/t_classifier_img_yolo8_inf_dir \
+  --output-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_embed_smoke \
+  --model-name "${MODEL_NAME}" \
+  --backend transformers \
+  --batch-size 2 \
+  --device cuda \
+  --local-files-only \
+  --limit 2
+```
+
+Download-on-miss smoke test, only for a connected node:
+
+```bash
+MODEL_NAME="<verified-huggingface-or-timm-dinov3-model-id>"
+
+python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py \
+  --city "Hong Kong" \
+  --valfolder /lustre1/g/geog_pyloo/05_timemachine/_transformed/t_classifier_img_yolo8_inf_dir \
+  --output-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_embed_smoke \
+  --model-name "${MODEL_NAME}" \
+  --backend transformers \
+  --batch-size 2 \
+  --device cuda \
+  --limit 2
+```
+
+2. Run one-city image embedding smoke test, for example Hong Kong with `--limit 256`, and validate row count, one `embedding_dim`, finite `e_*` columns, near-unit vector norms, and no duplicate `name`.
+
+```bash
+MODEL_NAME="<verified-dinov3-checkpoint-or-local-path-or-downloaded-model-id>"
+
+python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py \
+  --city "Hong Kong" \
+  --valfolder /lustre1/g/geog_pyloo/05_timemachine/_transformed/t_classifier_img_yolo8_inf_dir \
+  --output-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_embed \
+  --model-name "${MODEL_NAME}" \
+  --backend transformers \
+  --batch-size 32 \
+  --device cuda \
+  --local-files-only \
+  --limit 256
+```
+
+3. Run all-city image embeddings with `B5d_dinov3_embed_city.py`.
+
+```bash
+MODEL_NAME="<verified-dinov3-checkpoint-or-local-path>"
+CITY_META=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv
+
+CITY_META="${CITY_META}" python - <<'PY' | while IFS= read -r CITY; do
+import os
+import pandas as pd
+city_meta = pd.read_csv(os.environ["CITY_META"])
+for city in city_meta["City"].dropna().drop_duplicates():
+    print(city)
+PY
+  python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py \
+    --city "${CITY}" \
+    --valfolder /lustre1/g/geog_pyloo/05_timemachine/_transformed/t_classifier_img_yolo8_inf_dir \
+    --output-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_embed \
+    --model-name "${MODEL_NAME}" \
+    --backend transformers \
+    --batch-size 64 \
+    --device cuda \
+    --local-files-only
+done
+```
+
+4. Aggregate embeddings to H3 with `B5e_dinov3_vector_summary.py`; confirm every city has nonzero `res=8` rows and approximately unit-norm H3 vectors.
+
+```bash
+CITY_META=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv
+
+CITY_META="${CITY_META}" python - <<'PY' | while IFS= read -r CITY; do
+import os
+import pandas as pd
+city_meta = pd.read_csv(os.environ["CITY_META"])
+for city in city_meta["City"].dropna().drop_duplicates():
+    print(city)
+PY
+  python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5e_dinov3_vector_summary.py \
+    --city "${CITY}" \
+    --rootfolder /lustre1/g/geog_pyloo/05_timemachine \
+    --input-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_embed \
+    --output-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_hex_summary \
+    --train-test-folder /lustre1/g/geog_pyloo/05_timemachine/_transformed/t_classifier_img_yolo8 \
+    --res-exclude 11 \
+    --log-level INFO
+done
+```
+
+5. Run pairwise cosine with the optimized B5b script against DINOv3 H3 vectors. For the first production DINOv3 run, use `--threshold -1.0` so the city-pair averages are not biased by dropping low, zero, or negative cosine similarities.
+
+```bash
+python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5b_compute_similarity_pairwise-optimized.py \
+  --resolution 8 \
+  --city-meta /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv \
+  --source-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_hex_summary \
+  --output-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_similarity_by_pair \
+  --input-template 'dinov3_city={city}_res_exclude={res_exclude}.parquet' \
+  --feature-prefix e_ \
+  --threshold -1.0 \
+  --row-block-size 1000 \
+  --memory-limit 16GB \
+  --log-dir logs/dinov3_similarity
+```
+
+6. Aggregate optimized pairwise outputs with B5c. This works after B5b has removed temp shards because B5c can fall back to merged `optimized/similarity_city=<City>_res=8_optimized.parquet` files.
+
+```bash
+python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5c_pairwise_agg_optimized.py \
+  --resolution 8 \
+  --city-meta /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv \
+  --pairwise-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_similarity_by_pair \
+  --export-folder /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_similarity_$(date +%Y%m%d) \
+  --progress-file /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_similarity_by_pair/optimized/_progress_res=8_optimized.json \
+  --resume \
+  --agg-progress-file /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_similarity_agg_progress_res=8.json \
+  --duckdb-memory-limit 32GB \
+  --duckdb-temp-dir /lustre1/g/geog_pyloo/05_timemachine/_tmp/duckdb_dinov3_similarity \
+  --duckdb-threads 8 \
+  --parquet-file-size 512MB
+```
+
+7. Build the city-pair model table:
+
+```bash
+python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5h_summarize_dinov3_citypair_similarity.py \
+  --input-folder /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_similarity_$(date +%Y%m%d) \
+  --output /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_similarity_summary_res=8.parquet \
+  --city-meta /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv
+```
+
+Validation checklist:
+- One embedding dimension across all city input files before pairwise computation starts.
+- No null or non-finite image/H3 embedding values.
+- H3 vectors are approximately unit norm after mean pooling.
+- Every city has nonzero `res=8` H3 rows.
+- Pairwise progress JSON reaches a completed state, or merged optimized outputs exist for every expected city.
+- Final B5c aggregated outputs contain no rows where `city_1 == city_2`.
+- B5h summary row count equals `n * (n - 1) / 2` unordered city pairs when `--city-meta` or `--expected-city-count` is provided.
+
 4. process the distance between hexagons and their associated CBD
 ```python B6a_h3_distance_processor.py```
 

@@ -1,0 +1,265 @@
+#!/usr/bin/env python3
+"""Per-city DINOv3 image embedding export."""
+
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+from pathlib import Path
+from typing import Callable, Sequence
+
+import numpy as np
+import pandas as pd
+
+from dinov3_utils import (
+    atomic_write_parquet,
+    build_embedding_columns,
+    discover_embedding_columns,
+    l2_normalize_rows,
+    load_embedding_backend,
+    resolve_city_file_stem,
+)
+
+
+DEFAULT_VALFOLDER = (
+    "/lustre1/g/geog_pyloo/05_timemachine/_transformed/t_classifier_img_yolo8_inf_dir"
+)
+DEFAULT_OUTPUT_ROOT = (
+    "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_embed"
+)
+
+
+def load_city_image_index(valfolder: str | Path, city_file_stem: str) -> pd.DataFrame:
+    """Load one city's image index parquet and ensure `name` exists."""
+    path = Path(valfolder) / f"{city_file_stem}.parquet"
+    if not path.exists():
+        raise FileNotFoundError(f"city image index not found: {path}")
+
+    df = pd.read_parquet(path).copy()
+    if "path" not in df.columns:
+        raise ValueError(f"{path} must contain a path column")
+    if "name" not in df.columns:
+        df["name"] = df["path"].apply(lambda value: Path(str(value)).name)
+    return df
+
+
+def collect_finished_names(
+    curated_city_folder: str | Path,
+    expected_model_name: str | None = None,
+) -> set[str]:
+    """Collect finished names after validating previous embedding chunks."""
+    folder = Path(curated_city_folder)
+    if not folder.exists():
+        return set()
+
+    names: set[str] = set()
+    expected_embedding_dim: int | None = None
+    expected_columns: list[str] | None = None
+    for parquet_path in sorted(folder.glob("*.parquet")):
+        try:
+            df = pd.read_parquet(parquet_path)
+        except Exception as exc:
+            raise RuntimeError(f"failed reading existing shard {parquet_path}: {exc}") from exc
+
+        required = {"name", "embedding_dim"}
+        missing = sorted(required.difference(df.columns))
+        if missing:
+            raise ValueError(f"existing shard {parquet_path} is missing columns: {missing}")
+
+        if df["name"].duplicated().any():
+            duplicates = df.loc[df["name"].duplicated(), "name"].head().tolist()
+            raise ValueError(f"duplicate names in existing shard {parquet_path}: {duplicates}")
+
+        shard_names = df["name"].dropna().astype(str).tolist()
+        duplicate_across_shards = sorted(set(names).intersection(shard_names))
+        if duplicate_across_shards:
+            raise ValueError(
+                f"duplicate names across existing shards: {duplicate_across_shards[:5]}"
+            )
+
+        if df["embedding_dim"].nunique() != 1:
+            raise ValueError(f"existing shard {parquet_path} contains mixed embedding_dim values")
+        shard_dim = int(df["embedding_dim"].iloc[0])
+        if expected_embedding_dim is None:
+            expected_embedding_dim = shard_dim
+        elif shard_dim != expected_embedding_dim:
+            raise ValueError(
+                f"existing shard {parquet_path} embedding_dim={shard_dim} does not "
+                f"match previous embedding_dim={expected_embedding_dim}"
+            )
+
+        if expected_model_name is not None and "model_name" in df.columns:
+            model_values = set(df["model_name"].dropna().astype(str).tolist())
+            if model_values and model_values != {expected_model_name}:
+                raise ValueError(
+                    f"existing shard {parquet_path} model_name values {sorted(model_values)} "
+                    f"do not match requested model_name={expected_model_name}"
+                )
+
+        embedding_cols = discover_embedding_columns(df)
+        if len(embedding_cols) != shard_dim:
+            raise ValueError(
+                f"existing shard {parquet_path} embedding_dim={shard_dim} does not match "
+                f"{len(embedding_cols)} embedding columns"
+            )
+        if expected_columns is None:
+            expected_columns = embedding_cols
+        elif embedding_cols != expected_columns:
+            raise ValueError(f"existing shard {parquet_path} has incompatible embedding columns")
+
+        values = df[embedding_cols].to_numpy(dtype=float)
+        if not np.isfinite(values).all():
+            raise ValueError(f"existing shard {parquet_path} contains non-finite values")
+        norms = np.linalg.norm(values, axis=1)
+        nonzero = norms > 1e-12
+        if nonzero.any() and not np.allclose(norms[nonzero], 1.0, atol=1e-5):
+            raise ValueError(f"existing shard {parquet_path} contains non-normalized vectors")
+
+        names.update(shard_names)
+    return names
+
+
+def build_pending_batches(
+    df: pd.DataFrame,
+    finished_names: set[str],
+    chunk_size: int,
+) -> list[pd.DataFrame]:
+    """Return pending rows split into chunk-size batches."""
+    pending = df[~df["name"].isin(finished_names)].reset_index(drop=True)
+    return [
+        pending.iloc[start : start + chunk_size].reset_index(drop=True)
+        for start in range(0, len(pending), chunk_size)
+    ]
+
+
+def validate_embedding_frame(df: pd.DataFrame) -> None:
+    """Validate one output shard before writing."""
+    if df["name"].duplicated().any():
+        duplicates = df.loc[df["name"].duplicated(), "name"].head().tolist()
+        raise ValueError(f"duplicate names in embedding shard: {duplicates}")
+
+    if df["embedding_dim"].nunique() != 1:
+        raise ValueError("embedding shard contains multiple embedding_dim values")
+
+    embedding_cols = discover_embedding_columns(df)
+    values = df[embedding_cols].to_numpy(dtype=float)
+    if not np.isfinite(values).all():
+        raise ValueError("embedding shard contains non-finite values")
+
+    norms = np.linalg.norm(values, axis=1)
+    nonzero = norms > 1e-12
+    if nonzero.any() and not np.allclose(norms[nonzero], 1.0, atol=1e-5):
+        raise ValueError("nonzero embedding rows must be L2-normalized")
+
+
+def _build_embedding_frame(
+    batch: pd.DataFrame,
+    embeddings: np.ndarray,
+    model_name: str,
+) -> pd.DataFrame:
+    normalized = l2_normalize_rows(np.asarray(embeddings, dtype=float))
+    if normalized.ndim != 2:
+        raise ValueError("embedder must return a 2D array")
+    if len(batch) != normalized.shape[0]:
+        raise ValueError("embedder row count does not match input batch")
+
+    embedding_cols = build_embedding_columns(normalized.shape[1])
+    df = pd.DataFrame(normalized, columns=embedding_cols)
+    df.insert(0, "embedding_dim", normalized.shape[1])
+    df.insert(0, "model_name", model_name)
+    df.insert(0, "panoid", batch["name"].astype(str).str[:22].to_numpy())
+    df.insert(0, "name", batch["name"].astype(str).to_numpy())
+    return df
+
+
+def embed_city(
+    city: str,
+    city_file_stem: str | None,
+    valfolder: str | Path,
+    output_root: str | Path,
+    model_name: str,
+    backend_name: str,
+    batch_size: int,
+    device: str,
+    local_files_only: bool,
+    limit: int | None = None,
+    backend_loader: Callable[..., tuple] = load_embedding_backend,
+    embedder: Callable[..., np.ndarray] | None = None,
+) -> list[Path]:
+    """Embed one city and return written parquet shard paths."""
+    if batch_size <= 0:
+        raise ValueError("batch_size must be positive")
+
+    city_stem = resolve_city_file_stem(city, city_file_stem)
+    output_dir = Path(output_root) / city_stem
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    df = load_city_image_index(valfolder, city_stem)
+    finished_names = collect_finished_names(output_dir, expected_model_name=model_name)
+    pending = df[~df["name"].isin(finished_names)].reset_index(drop=True)
+    if limit is not None:
+        pending = pending.head(limit).reset_index(drop=True)
+    batches = build_pending_batches(pending, set(), batch_size)
+
+    if not batches:
+        return []
+
+    model, processor = backend_loader(
+        model_name=model_name,
+        device=device,
+        backend=backend_name,
+        local_files_only=local_files_only,
+    )
+    embedder = embedder or __import__("dinov3_utils").embed_image_batch
+
+    written: list[Path] = []
+    for batch_index, batch in enumerate(batches):
+        embeddings = embedder(batch["path"].tolist(), model, processor, device)
+        shard = _build_embedding_frame(batch, embeddings, model_name)
+        validate_embedding_frame(shard)
+        timestamp = dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S_%f")
+        output_path = output_dir / f"{city_stem}_{timestamp}_{batch_index:04d}.parquet"
+        atomic_write_parquet(shard, output_path)
+        written.append(output_path)
+
+    return written
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Embed one city's images with DINOv3")
+    parser.add_argument("--city", required=True, help="Display city name, e.g. Hong Kong")
+    parser.add_argument("--city-file-stem", default=None, help="Override city parquet stem")
+    parser.add_argument("--valfolder", default=DEFAULT_VALFOLDER)
+    parser.add_argument("--output-root", default=DEFAULT_OUTPUT_ROOT)
+    parser.add_argument("--model-name", required=True)
+    parser.add_argument("--backend", default="transformers", choices=["transformers", "timm"])
+    parser.add_argument("--batch-size", type=int, default=64)
+    parser.add_argument("--device", default="cuda")
+    parser.add_argument(
+        "--local-files-only",
+        action="store_true",
+        help="Use only local/cache model files; omit once on a connected node to download a verified model ID",
+    )
+    parser.add_argument("--limit", type=int, default=None)
+    return parser
+
+
+def main() -> None:
+    args = build_parser().parse_args()
+    written = embed_city(
+        city=args.city,
+        city_file_stem=args.city_file_stem,
+        valfolder=args.valfolder,
+        output_root=args.output_root,
+        model_name=args.model_name,
+        backend_name=args.backend,
+        batch_size=args.batch_size,
+        device=args.device,
+        local_files_only=args.local_files_only,
+        limit=args.limit,
+    )
+    print(f"Wrote {len(written)} shard(s)")
+
+
+if __name__ == "__main__":
+    main()
