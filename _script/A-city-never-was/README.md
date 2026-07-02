@@ -1,3 +1,11 @@
+# Development environment
+```
+cd /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/
+source .venv/bin/activate
+cd /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was
+uv pip install -r requirements.txt
+
+```
 # Usage
 * TO-DO: add previous steps
 1.  summarizes the all probablity vector at resolution 6,7,8 for each city
@@ -73,7 +81,7 @@ CITY_META=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_met
 
 python dinov3_pipeline.py \
   --stage smoke \
-  --city "Hong Kong" \
+  --city "Saidpur" \
   --city-meta "${CITY_META}" \
   --model-name "${MODEL_NAME}" \
   --execute
