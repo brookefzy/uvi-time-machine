@@ -76,7 +76,7 @@ Pipeline orchestrator:
 ```bash
 cd /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was
 
-MODEL_NAME="facebook/dinov3-vitb16-pretrain-lvd1689m"
+MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint"
 CITY_META=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv
 
 python dinov3_pipeline.py \
@@ -94,7 +94,7 @@ SLURM production run for 127 cities and 30M+ images:
 ```bash
 cd /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was
 
-export MODEL_NAME="facebook/dinov3-vitb16-pretrain-lvd1689m"
+export MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint"
 export CITY_META=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv
 export REPO_DIR=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was
 
@@ -118,7 +118,7 @@ Recommended server order:
    The card is manually gated. Accept the model license on Hugging Face first, then authenticate on the server with `huggingface-cli login` or set `HF_TOKEN`. To prefill the cache on a connected node:
 
 ```bash
-MODEL_NAME="facebook/dinov3-vitb16-pretrain-lvd1689m"
+MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint"
 
 huggingface-cli download "${MODEL_NAME}" \
   --include config.json preprocessor_config.json model.safetensors
@@ -127,10 +127,10 @@ huggingface-cli download "${MODEL_NAME}" \
 1. Verify the model/checkpoint on the server with a two-image smoke test before any all-city run. If the checkpoint is already staged on disk, set `MODEL_NAME` to that local path and pass `--local-files-only`. If it is not found on disk and the node has internet access, set `MODEL_NAME` to the verified Hugging Face or timm model ID and omit `--local-files-only` so the backend downloads it into the model cache. After that first download, rerun with `--local-files-only` for production jobs.
 
 ```bash
-MODEL_NAME="facebook/dinov3-vitb16-pretrain-lvd1689m"
+MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint"
 
 python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py \
-  --city "Hong Kong" \
+  --city "Saidpur" \
   --valfolder /lustre1/g/geog_pyloo/05_timemachine/_transformed/t_classifier_img_yolo8_inf_dir \
   --output-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_embed_smoke \
   --model-name "${MODEL_NAME}" \
@@ -144,7 +144,7 @@ python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5
 Download-on-miss smoke test, only for a connected node:
 
 ```bash
-MODEL_NAME="facebook/dinov3-vitb16-pretrain-lvd1689m"
+MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint"
 
 python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py \
   --city "Hong Kong" \
@@ -160,7 +160,7 @@ python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5
 2. Run one-city image embedding smoke test, for example Hong Kong with `--limit 256`, and validate row count, one `embedding_dim`, finite `e_*` columns, near-unit vector norms, and no duplicate `name`.
 
 ```bash
-MODEL_NAME="facebook/dinov3-vitb16-pretrain-lvd1689m"
+MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint"
 
 python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py \
   --city "Hong Kong" \
@@ -177,7 +177,7 @@ python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5
 3. Run all-city image embeddings with `B5d_dinov3_embed_city.py`.
 
 ```bash
-MODEL_NAME="facebook/dinov3-vitb16-pretrain-lvd1689m"
+MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint"
 CITY_META=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv
 
 CITY_META="${CITY_META}" python - <<'PY' | while IFS= read -r CITY; do
