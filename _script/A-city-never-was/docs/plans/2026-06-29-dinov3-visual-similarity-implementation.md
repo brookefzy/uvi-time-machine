@@ -44,6 +44,7 @@
 3. Parameterize `B5b_compute_similarity_pairwise-optimized.py` rather than fork it if the edits stay narrow: source root, output root, filename template, vector prefix, metric label, and optional metadata columns.
 4. Reuse `B5c_pairwise_agg_optimized.py` with its existing CLI roots. Modify only if DINOv3 metadata columns such as `metric` or `model_name` must be preserved in aggregated outputs.
 5. Treat the DINOv3 model identifier as an environment-specific configuration. The DINOv3 paper is real, but the exact local/Hugging Face checkpoint name must be verified on the server before production.
+6. Default verified Hugging Face card for this pipeline: `facebook/dinov3-vitb16-pretrain-lvd1689m` at `https://huggingface.co/facebook/dinov3-vitb16-pretrain-lvd1689m`. This card is manually gated; accept the license and authenticate with `huggingface-cli login` or `HF_TOKEN` before direct download.
 
 ## Output Contract
 
@@ -114,14 +115,23 @@ python B5d_dinov3_embed_city.py \
   --city "Hong Kong" \
   --valfolder /lustre1/g/geog_pyloo/05_timemachine/_transformed/t_classifier_img_yolo8_inf_dir \
   --output-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_embed \
-  --model-name <verified-dinov3-checkpoint-or-local-path> \
+  --model-name facebook/dinov3-vitb16-pretrain-lvd1689m \
   --backend transformers \
   --batch-size 64 \
   --device cuda \
   --local-files-only
 ```
 
-If the checkpoint is not present on disk and the server node is allowed to reach the model registry, run the same smoke test once without `--local-files-only` and with `--model-name <verified-huggingface-or-timm-dinov3-model-id>` so the backend downloads the model into cache. After the cache is populated, keep `--local-files-only` for production all-city runs.
+If the checkpoint is not present on disk and the server node is allowed to reach the model registry, run the same smoke test once without `--local-files-only` and with `--model-name facebook/dinov3-vitb16-pretrain-lvd1689m` so the backend downloads the model into cache. After the cache is populated, keep `--local-files-only` for production all-city runs.
+
+Default connected-node cache-fill command:
+
+```bash
+MODEL_NAME="facebook/dinov3-vitb16-pretrain-lvd1689m"
+
+huggingface-cli download "${MODEL_NAME}" \
+  --include config.json preprocessor_config.json model.safetensors
+```
 
 4. Add `--city-file-stem` for names with punctuation or non-standard server file stems. Default to `resolve_city_file_stem(city)`.
 5. Mirror `B3_inference_city_prob.py` resume semantics, but use atomic writes and expose `--limit` for smoke tests.

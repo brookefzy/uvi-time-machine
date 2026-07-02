@@ -57,7 +57,7 @@ Recommended columns:
 ## Assumptions to Confirm Before Running on Server
 
 1. The remote server has GPU access and can install or already has compatible PyTorch, torchvision, transformers/timm, and pyarrow.
-2. DINOv3 weights can be downloaded once to a server cache, or pre-downloaded and referenced with `--model-path` if the compute node has no internet. If the model is not found on disk and the node is connected, run the smoke test without `--local-files-only` so the verified model ID downloads directly into cache; then rerun production jobs with `--local-files-only`.
+2. DINOv3 weights can be downloaded once to a server cache, or pre-downloaded and referenced with `--model-path` if the compute node has no internet. Default verified Hugging Face card: `facebook/dinov3-vitb16-pretrain-lvd1689m` at `https://huggingface.co/facebook/dinov3-vitb16-pretrain-lvd1689m`. The card is manually gated, so accept the license and authenticate with `huggingface-cli login` or `HF_TOKEN` before downloading. If the model is not found on disk and the node is connected, run the smoke test without `--local-files-only` so the verified model ID downloads directly into cache; then rerun production jobs with `--local-files-only`.
 3. Existing city names in `city_meta.csv` should remain title-cased, while image-list files use lowercase no-space city abbreviations, matching the current scripts.
 4. H3 resolution 8 and exclusion resolution 11 should be the first production run, because that is the current downstream comparison setting.
 5. The first deliverable is cosine-based DINOv3 similarity. Distributional metrics should be implemented only after image-level and H3-level embedding files pass validation.
@@ -168,7 +168,7 @@ python B5d_dinov3_embed_city.py \
   --city "Hong Kong" \
   --valfolder /lustre1/g/geog_pyloo/05_timemachine/_transformed/t_classifier_img_yolo8_inf_dir \
   --output-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_embed \
-  --model-name facebook/dinov3-vitl16-pretrain-lvd1689m \
+  --model-name facebook/dinov3-vitb16-pretrain-lvd1689m \
   --batch-size 64 \
   --device cuda \
   --local-files-only
@@ -202,7 +202,7 @@ python B5d_dinov3_embed_city.py \
   --batch-size 32 \
   --device cuda \
   --limit 256 \
-  --model-name facebook/dinov3-vitl16-pretrain-lvd1689m
+  --model-name facebook/dinov3-vitb16-pretrain-lvd1689m
 ```
 
 Expected: one parquet shard appears under `c_city_dinov3_embed/hongkong/`, with 256 or fewer rows and no null embeddings.
@@ -247,7 +247,7 @@ Write a sidecar JSON for each city/exclusion output:
 ```json
 {
   "city": "Hong Kong",
-  "model_name": "facebook/dinov3-vitl16-pretrain-lvd1689m",
+  "model_name": "facebook/dinov3-vitb16-pretrain-lvd1689m",
   "embedding_dim": 1024,
   "total_images_after_exclusion": 12345,
   "total_hexagons_res8": 678,
@@ -417,7 +417,14 @@ From the script directory on the server:
 python -m pip install -r requirements.txt
 ```
 
-If model download is blocked on compute nodes, download DINOv3 weights on a login node or connected environment, then run with `--local-files-only` and the correct cache/model path. If model download is allowed and the checkpoint is not on disk, omit `--local-files-only` for the first two-image smoke test so the backend downloads the verified model ID directly.
+If model download is blocked on compute nodes, download DINOv3 weights on a login node or connected environment, then run with `--local-files-only` and the correct cache/model path. If model download is allowed and the checkpoint is not on disk, omit `--local-files-only` for the first two-image smoke test so the backend downloads `facebook/dinov3-vitb16-pretrain-lvd1689m` directly.
+
+```bash
+MODEL_NAME="facebook/dinov3-vitb16-pretrain-lvd1689m"
+
+huggingface-cli download "${MODEL_NAME}" \
+  --include config.json preprocessor_config.json model.safetensors
+```
 
 **Step 2: Run one-city embedding smoke test**
 

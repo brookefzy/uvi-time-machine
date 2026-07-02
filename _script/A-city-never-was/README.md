@@ -63,11 +63,63 @@ python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5
 
 The DINOv3 pipeline runs beside the classifier-probability B5 pipeline and writes to separate `c_city_dinov3_*` folders. Do not overwrite classifier outputs when testing DINOv3.
 
+Pipeline orchestrator:
+
+```bash
+cd /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was
+
+MODEL_NAME="facebook/dinov3-vitb16-pretrain-lvd1689m"
+CITY_META=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv
+
+python dinov3_pipeline.py \
+  --stage smoke \
+  --city "Hong Kong" \
+  --city-meta "${CITY_META}" \
+  --model-name "${MODEL_NAME}" \
+  --execute
+```
+
+Use `--stage embed`, `--stage aggregate`, `--stage pairwise`, `--stage b5c`, `--stage summary`, or `--stage all` to run other stages. Without `--execute`, the orchestrator prints the exact commands instead of running them.
+
+SLURM production run for 127 cities and 30M+ images:
+
+```bash
+cd /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was
+
+export MODEL_NAME="facebook/dinov3-vitb16-pretrain-lvd1689m"
+export CITY_META=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv
+export REPO_DIR=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was
+
+bash slurm/submit_dinov3_pipeline.sh
+```
+
+The SLURM scripts use city-level arrays for the two per-city stages:
+
+- `slurm/dinov3_01_embed_array.sbatch`: `#SBATCH --array=1-127%8`, one GPU job per city, capped at 8 concurrent cities.
+- `slurm/dinov3_02_h3_array.sbatch`: `#SBATCH --array=1-127%24`, one CPU job per city, capped at 24 concurrent cities.
+- `slurm/dinov3_03_pairwise.sbatch`, `slurm/dinov3_04_b5c_aggregate.sbatch`, and `slurm/dinov3_05_summary.sbatch` run after the city arrays complete.
+
+Tune `--partition`, `--gres`, `--mem`, `--time`, and the `%` array concurrency caps in the `.sbatch` files for the actual cluster limits. The embedding stage is resumable because each city writes chunked parquet shards and skips already written image names.
+
 Recommended server order:
+0. Use the verified Hugging Face model card for the default DINOv3 backbone:
+   - Model ID: `facebook/dinov3-vitb16-pretrain-lvd1689m`
+   - Model card: `https://huggingface.co/facebook/dinov3-vitb16-pretrain-lvd1689m`
+   - Direct weights URL: `https://huggingface.co/facebook/dinov3-vitb16-pretrain-lvd1689m/resolve/main/model.safetensors`
+
+   The card is manually gated. Accept the model license on Hugging Face first, then authenticate on the server with `huggingface-cli login` or set `HF_TOKEN`. To prefill the cache on a connected node:
+
+```bash
+MODEL_NAME="facebook/dinov3-vitb16-pretrain-lvd1689m"
+
+huggingface-cli download "${MODEL_NAME}" \
+  --include config.json preprocessor_config.json model.safetensors
+```
+
 1. Verify the model/checkpoint on the server with a two-image smoke test before any all-city run. If the checkpoint is already staged on disk, set `MODEL_NAME` to that local path and pass `--local-files-only`. If it is not found on disk and the node has internet access, set `MODEL_NAME` to the verified Hugging Face or timm model ID and omit `--local-files-only` so the backend downloads it into the model cache. After that first download, rerun with `--local-files-only` for production jobs.
 
 ```bash
-MODEL_NAME="<verified-dinov3-checkpoint-or-local-path>"
+MODEL_NAME="facebook/dinov3-vitb16-pretrain-lvd1689m"
 
 python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py \
   --city "Hong Kong" \
@@ -84,7 +136,7 @@ python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5
 Download-on-miss smoke test, only for a connected node:
 
 ```bash
-MODEL_NAME="<verified-huggingface-or-timm-dinov3-model-id>"
+MODEL_NAME="facebook/dinov3-vitb16-pretrain-lvd1689m"
 
 python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py \
   --city "Hong Kong" \
@@ -100,7 +152,7 @@ python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5
 2. Run one-city image embedding smoke test, for example Hong Kong with `--limit 256`, and validate row count, one `embedding_dim`, finite `e_*` columns, near-unit vector norms, and no duplicate `name`.
 
 ```bash
-MODEL_NAME="<verified-dinov3-checkpoint-or-local-path-or-downloaded-model-id>"
+MODEL_NAME="facebook/dinov3-vitb16-pretrain-lvd1689m"
 
 python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py \
   --city "Hong Kong" \
@@ -117,7 +169,7 @@ python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5
 3. Run all-city image embeddings with `B5d_dinov3_embed_city.py`.
 
 ```bash
-MODEL_NAME="<verified-dinov3-checkpoint-or-local-path>"
+MODEL_NAME="facebook/dinov3-vitb16-pretrain-lvd1689m"
 CITY_META=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv
 
 CITY_META="${CITY_META}" python - <<'PY' | while IFS= read -r CITY; do
