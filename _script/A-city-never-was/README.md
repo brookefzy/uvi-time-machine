@@ -14,7 +14,7 @@ uv pip install -r requirements.txt
 ```python B5b_compute_similarity_pairwise.py --res 6``` 
    Optimized resumable version:
 ```bash
-python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5b_compute_similarity_pairwise-optimized.py \
+python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5b_compute_similarity_pairwise-optimized.py \
   --city-meta /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv \
   --resolution 6 \
   --row-block-size 1000
@@ -31,7 +31,7 @@ python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5
    - Those temp shards are merged into final `similarity_city=*_res=<resolution>_optimized.parquet` outputs after processing finishes.
 
    Local debug logs:
-   - Default log folder: `/Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/logs`
+   - Default log folder: `/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/logs`
    - Optional override: add `--log-dir /path/to/logs`
 
 3. summarize similarity index for each city.
@@ -42,7 +42,7 @@ python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5
 
    Optimized aggregation example:
 ```bash
-python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5c_pairwise_agg_optimized.py \
+python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5c_pairwise_agg_optimized.py \
   --city-meta /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv \
   --resolution 8 \
   --pairwise-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_classifiier_prob_similarity_by_pair \
@@ -129,7 +129,7 @@ huggingface-cli download "${MODEL_NAME}" \
 ```bash
 MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint"
 
-python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py \
+python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py \
   --city "Saidpur" \
   --valfolder /lustre1/g/geog_pyloo/05_timemachine/_transformed/t_classifier_img_yolo8_inf_dir \
   --output-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_embed_smoke \
@@ -146,7 +146,7 @@ Download-on-miss smoke test, only for a connected node:
 ```bash
 MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint"
 
-python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py \
+python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py \
   --city "Hong Kong" \
   --valfolder /lustre1/g/geog_pyloo/05_timemachine/_transformed/t_classifier_img_yolo8_inf_dir \
   --output-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_embed_smoke \
@@ -162,7 +162,7 @@ python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5
 ```bash
 MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint"
 
-python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py \
+python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py \
   --city "Hong Kong" \
   --valfolder /lustre1/g/geog_pyloo/05_timemachine/_transformed/t_classifier_img_yolo8_inf_dir \
   --output-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_embed \
@@ -187,7 +187,7 @@ city_meta = pd.read_csv(os.environ["CITY_META"])
 for city in city_meta["City"].dropna().drop_duplicates():
     print(city)
 PY
-  python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py \
+  python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py \
     --city "${CITY}" \
     --valfolder /lustre1/g/geog_pyloo/05_timemachine/_transformed/t_classifier_img_yolo8_inf_dir \
     --output-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_embed \
@@ -211,7 +211,7 @@ city_meta = pd.read_csv(os.environ["CITY_META"])
 for city in city_meta["City"].dropna().drop_duplicates():
     print(city)
 PY
-  python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5e_dinov3_vector_summary.py \
+  python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5e_dinov3_vector_summary.py \
     --city "${CITY}" \
     --rootfolder /lustre1/g/geog_pyloo/05_timemachine \
     --input-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_embed \
@@ -225,7 +225,7 @@ done
 5. Run pairwise cosine with the optimized B5b script against DINOv3 H3 vectors. For the first production DINOv3 run, use `--threshold -1.0` so the city-pair averages are not biased by dropping low, zero, or negative cosine similarities.
 
 ```bash
-python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5b_compute_similarity_pairwise-optimized.py \
+python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5b_compute_similarity_pairwise-optimized.py \
   --resolution 8 \
   --city-meta /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv \
   --source-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_hex_summary \
@@ -241,7 +241,7 @@ python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5
 6. Aggregate optimized pairwise outputs with B5c. This works after B5b has removed temp shards because B5c can fall back to merged `optimized/similarity_city=<City>_res=8_optimized.parquet` files.
 
 ```bash
-python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5c_pairwise_agg_optimized.py \
+python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5c_pairwise_agg_optimized.py \
   --resolution 8 \
   --city-meta /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv \
   --pairwise-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_similarity_by_pair \
@@ -258,7 +258,7 @@ python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5
 7. Build the city-pair model table:
 
 ```bash
-python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B5h_summarize_dinov3_citypair_similarity.py \
+python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5h_summarize_dinov3_citypair_similarity.py \
   --input-folder /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_similarity_$(date +%Y%m%d) \
   --output /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_similarity_summary_res=8.parquet \
   --city-meta /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv
@@ -278,7 +278,7 @@ Validation checklist:
 
 5. summarize inter-city similarity by landuse bucket from optimized pairwise shards.
 ```bash
-python /Users/yuan/Documents/GitHub/uvi-time-machine/_script/A-city-never-was/B7_similarity_by_landuse.py \
+python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B7_similarity_by_landuse.py \
   --resolution 8 \
   --landuse-source stage3 \
   --pairwise-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_classifiier_prob_similarity_by_pair \
