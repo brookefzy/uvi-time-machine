@@ -150,7 +150,7 @@ Download-on-miss smoke test, only for a connected node:
 MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint"
 
 python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py \
-  --city "Hong Kong" \
+  --city "Saidpur" \
   --valfolder /lustre1/g/geog_pyloo/05_timemachine/_transformed/t_classifier_img_yolo8_inf_dir \
   --output-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_embed_smoke \
   --model-name "${MODEL_NAME}" \
@@ -167,7 +167,7 @@ python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-neve
 MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint"
 
 python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py \
-  --city "Hong Kong" \
+  --city "Saidpur" \
   --valfolder /lustre1/g/geog_pyloo/05_timemachine/_transformed/t_classifier_img_yolo8_inf_dir \
   --output-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_embed \
   --model-name "${MODEL_NAME}" \
