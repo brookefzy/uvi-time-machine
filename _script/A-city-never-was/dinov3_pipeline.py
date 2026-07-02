@@ -59,6 +59,7 @@ class DINOv3PipelineConfig:
     smoke_limit: int = 2
     device: str = "cuda"
     local_files_only: bool = True
+    ignore_mismatched_sizes: bool = False
     res_exclude: int = 11
     resolution: int = 8
     threshold: float = -1.0
@@ -134,6 +135,8 @@ def build_smoke_command(config: DINOv3PipelineConfig, city: str) -> str:
     ]
     if config.local_files_only:
         parts.append("--local-files-only")
+    if config.ignore_mismatched_sizes:
+        parts.append("--ignore-mismatched-sizes")
     parts.extend(["--limit", config.smoke_limit])
     return command(parts)
 
@@ -159,6 +162,8 @@ def build_embed_command(config: DINOv3PipelineConfig, city: str) -> str:
     ]
     if config.local_files_only:
         parts.append("--local-files-only")
+    if config.ignore_mismatched_sizes:
+        parts.append("--ignore-mismatched-sizes")
     return command(parts)
 
 
@@ -355,6 +360,7 @@ def config_from_args(args: argparse.Namespace) -> DINOv3PipelineConfig:
         smoke_limit=args.smoke_limit,
         device=args.device,
         local_files_only=args.local_files_only,
+        ignore_mismatched_sizes=args.ignore_mismatched_sizes,
         res_exclude=args.res_exclude,
         resolution=args.resolution,
         threshold=args.threshold,
@@ -407,6 +413,14 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--smoke-limit", type=int, default=2)
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--local-files-only", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument(
+        "--ignore-mismatched-sizes",
+        action="store_true",
+        help=(
+            "Pass ignore_mismatched_sizes=True to transformers for staged local "
+            "checkpoints with expected tensor-size mismatches"
+        ),
+    )
     parser.add_argument("--res-exclude", type=int, default=11)
     parser.add_argument("--resolution", type=int, default=8)
     parser.add_argument("--threshold", type=float, default=-1.0)

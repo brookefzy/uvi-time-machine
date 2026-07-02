@@ -84,6 +84,7 @@ python dinov3_pipeline.py \
   --city "Saidpur" \
   --city-meta "${CITY_META}" \
   --model-name "${MODEL_NAME}" \
+  --ignore-mismatched-sizes \
   --execute
 ```
 
@@ -97,6 +98,7 @@ cd /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-wa
 export MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint"
 export CITY_META=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv
 export REPO_DIR=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was
+export DINO_IGNORE_MISMATCHED_SIZES=1
 
 bash slurm/submit_dinov3_pipeline.sh
 ```
@@ -124,7 +126,7 @@ huggingface-cli download "${MODEL_NAME}" \
   --include config.json preprocessor_config.json model.safetensors
 ```
 
-1. Verify the model/checkpoint on the server with a two-image smoke test before any all-city run. If the checkpoint is already staged on disk, set `MODEL_NAME` to that local path and pass `--local-files-only`. If it is not found on disk and the node has internet access, set `MODEL_NAME` to the verified Hugging Face or timm model ID and omit `--local-files-only` so the backend downloads it into the model cache. After that first download, rerun with `--local-files-only` for production jobs.
+1. Verify the model/checkpoint on the server with a two-image smoke test before any all-city run. If the checkpoint is already staged on disk, set `MODEL_NAME` to that local path and pass `--local-files-only`. If Transformers reports expected tensor-size mismatches for that staged checkpoint, inspect the mismatch report and add `--ignore-mismatched-sizes`; do not use that flag for unknown backbone, patch, or position-embedding mismatches. If it is not found on disk and the node has internet access, set `MODEL_NAME` to the verified Hugging Face or timm model ID and omit `--local-files-only` so the backend downloads it into the model cache. After that first download, rerun with `--local-files-only` for production jobs.
 
 ```bash
 MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint"
@@ -138,6 +140,7 @@ python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-neve
   --batch-size 2 \
   --device cuda \
   --local-files-only \
+  --ignore-mismatched-sizes \
   --limit 2
 ```
 
@@ -154,6 +157,7 @@ python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-neve
   --backend transformers \
   --batch-size 2 \
   --device cuda \
+  --ignore-mismatched-sizes \
   --limit 2
 ```
 
@@ -171,6 +175,7 @@ python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-neve
   --batch-size 32 \
   --device cuda \
   --local-files-only \
+  --ignore-mismatched-sizes \
   --limit 256
 ```
 
@@ -195,7 +200,8 @@ PY
     --backend transformers \
     --batch-size 64 \
     --device cuda \
-    --local-files-only
+    --local-files-only \
+    --ignore-mismatched-sizes
 done
 ```
 

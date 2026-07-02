@@ -47,6 +47,19 @@ def test_build_embed_and_aggregate_commands_for_selected_city(tmp_path):
     assert "--res-exclude 11" in aggregate[0]
 
 
+def test_build_embed_command_can_pass_transformers_mismatch_tolerance():
+    config = DINOv3PipelineConfig(
+        repo_dir=Path("/repo"),
+        city_meta=Path("/data/city_meta.csv"),
+        model_name="/models/checkpoint",
+        ignore_mismatched_sizes=True,
+    )
+
+    embed = build_stage_commands("embed", config, ["Saidpur"])
+
+    assert "--ignore-mismatched-sizes" in embed[0]
+
+
 def test_build_all_commands_orders_city_stages_before_global_stages(tmp_path):
     config = DINOv3PipelineConfig(repo_dir=Path("/repo"), city_meta=Path("/meta.csv"))
 

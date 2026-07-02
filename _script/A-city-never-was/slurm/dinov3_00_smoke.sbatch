@@ -15,6 +15,10 @@ CITY_META="${CITY_META:-/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_s
 MODEL_NAME="${MODEL_NAME:-facebook/dinov3-vitb16-pretrain-lvd1689m}"
 PYTHON="${PYTHON:-python}"
 SMOKE_CITY="${SMOKE_CITY:-Hong Kong}"
+MISMATCH_ARGS=()
+if [[ "${DINO_IGNORE_MISMATCHED_SIZES:-0}" == "1" || "${DINO_IGNORE_MISMATCHED_SIZES:-0}" == "true" ]]; then
+  MISMATCH_ARGS+=(--ignore-mismatched-sizes)
+fi
 
 cd "${REPO_DIR}"
 mkdir -p logs/slurm
@@ -29,4 +33,5 @@ mkdir -p logs/slurm
   --device "${DINO_DEVICE:-cuda}" \
   --smoke-batch-size "${SMOKE_BATCH_SIZE:-2}" \
   --smoke-limit "${SMOKE_LIMIT:-2}" \
+  "${MISMATCH_ARGS[@]}" \
   --execute

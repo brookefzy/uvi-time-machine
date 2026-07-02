@@ -15,6 +15,10 @@ REPO_DIR="${REPO_DIR:-/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_scr
 CITY_META="${CITY_META:-/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv}"
 MODEL_NAME="${MODEL_NAME:-facebook/dinov3-vitb16-pretrain-lvd1689m}"
 PYTHON="${PYTHON:-python}"
+MISMATCH_ARGS=()
+if [[ "${DINO_IGNORE_MISMATCHED_SIZES:-0}" == "1" || "${DINO_IGNORE_MISMATCHED_SIZES:-0}" == "true" ]]; then
+  MISMATCH_ARGS+=(--ignore-mismatched-sizes)
+fi
 
 cd "${REPO_DIR}"
 mkdir -p logs/slurm
@@ -28,4 +32,5 @@ mkdir -p logs/slurm
   --backend "${DINO_BACKEND:-transformers}" \
   --device "${DINO_DEVICE:-cuda}" \
   --batch-size "${DINO_BATCH_SIZE:-64}" \
+  "${MISMATCH_ARGS[@]}" \
   --execute

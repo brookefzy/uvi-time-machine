@@ -1,4 +1,6 @@
 from pathlib import Path
+import sys
+import types
 
 import numpy as np
 import pandas as pd
@@ -10,6 +12,7 @@ from dinov3_utils import (
     discover_embedding_columns,
     embed_image_batch,
     l2_normalize_rows,
+    load_embedding_backend,
     resolve_city_file_stem,
     verify_embedding_backend,
 )
@@ -115,6 +118,57 @@ def test_embed_image_batch_uses_injected_model_and_returns_numpy(tmp_path):
     )
 
     np.testing.assert_allclose(embeddings, [[3.0, 4.0, 0.0], [0.0, 5.0, 12.0]])
+
+
+def test_load_embedding_backend_passes_explicit_mismatch_tolerance_to_transformers(
+    monkeypatch,
+):
+    calls = {}
+
+    class FakeAutoImageProcessor:
+        @staticmethod
+        def from_pretrained(model_name, **kwargs):
+            calls["processor"] = (model_name, kwargs)
+            return object()
+
+    class FakeLoadedModel:
+        def to(self, device):
+            calls["device"] = device
+            return self
+
+        def eval(self):
+            calls["eval"] = True
+
+    class FakeAutoModel:
+        @staticmethod
+        def from_pretrained(model_name, **kwargs):
+            calls["model"] = (model_name, kwargs)
+            return FakeLoadedModel()
+
+    fake_transformers = types.SimpleNamespace(
+        AutoImageProcessor=FakeAutoImageProcessor,
+        AutoModel=FakeAutoModel,
+    )
+    monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
+
+    load_embedding_backend(
+        "local-checkpoint",
+        device="cuda",
+        backend="transformers",
+        local_files_only=True,
+        ignore_mismatched_sizes=True,
+    )
+
+    assert calls["processor"] == (
+        "local-checkpoint",
+        {"local_files_only": True},
+    )
+    assert calls["model"] == (
+        "local-checkpoint",
+        {"local_files_only": True, "ignore_mismatched_sizes": True},
+    )
+    assert calls["device"] == "cuda"
+    assert calls["eval"] is True
 
 
 def test_verify_embedding_backend_reports_finite_unit_norm_embeddings(tmp_path):

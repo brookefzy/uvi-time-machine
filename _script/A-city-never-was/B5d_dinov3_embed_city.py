@@ -182,6 +182,7 @@ def embed_city(
     batch_size: int,
     device: str,
     local_files_only: bool,
+    ignore_mismatched_sizes: bool = False,
     limit: int | None = None,
     backend_loader: Callable[..., tuple] = load_embedding_backend,
     embedder: Callable[..., np.ndarray] | None = None,
@@ -209,6 +210,7 @@ def embed_city(
         device=device,
         backend=backend_name,
         local_files_only=local_files_only,
+        ignore_mismatched_sizes=ignore_mismatched_sizes,
     )
     embedder = embedder or __import__("dinov3_utils").embed_image_batch
 
@@ -240,6 +242,14 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Use only local/cache model files; omit once on a connected node to download a verified model ID",
     )
+    parser.add_argument(
+        "--ignore-mismatched-sizes",
+        action="store_true",
+        help=(
+            "Pass ignore_mismatched_sizes=True to transformers for staged checkpoints "
+            "with expected size mismatches; inspect the mismatch report before using"
+        ),
+    )
     parser.add_argument("--limit", type=int, default=None)
     return parser
 
@@ -256,6 +266,7 @@ def main() -> None:
         batch_size=args.batch_size,
         device=args.device,
         local_files_only=args.local_files_only,
+        ignore_mismatched_sizes=args.ignore_mismatched_sizes,
         limit=args.limit,
     )
     print(f"Wrote {len(written)} shard(s)")

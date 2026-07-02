@@ -129,6 +129,7 @@ def load_embedding_backend(
     device: str = "cpu",
     backend: str = "transformers",
     local_files_only: bool = False,
+    ignore_mismatched_sizes: bool = False,
 ):
     """Load a model and processor for an embedding backend."""
     if backend == "transformers":
@@ -138,10 +139,22 @@ def load_embedding_backend(
             model_name,
             local_files_only=local_files_only,
         )
-        model = AutoModel.from_pretrained(
-            model_name,
-            local_files_only=local_files_only,
-        )
+        try:
+            model = AutoModel.from_pretrained(
+                model_name,
+                local_files_only=local_files_only,
+                ignore_mismatched_sizes=ignore_mismatched_sizes,
+            )
+        except RuntimeError as exc:
+            if "ignore_mismatched_sizes" in str(exc):
+                raise RuntimeError(
+                    "Transformers reported tensor-size mismatches while loading "
+                    f"{model_name!r}. If this is an expected mismatch in a staged "
+                    "local checkpoint, rerun with --ignore-mismatched-sizes. Use "
+                    "that option only after checking the mismatch report; backbone "
+                    "tensor mismatches can leave randomly initialized embeddings."
+                ) from exc
+            raise
         if hasattr(model, "to"):
             model = model.to(device)
         if hasattr(model, "eval"):
@@ -149,6 +162,8 @@ def load_embedding_backend(
         return model, processor
 
     if backend == "timm":
+        if ignore_mismatched_sizes:
+            raise ValueError("--ignore-mismatched-sizes is only supported by transformers")
         import timm
 
         model = timm.create_model(model_name, pretrained=not local_files_only, num_classes=0)
@@ -187,6 +202,7 @@ def verify_embedding_backend(
     device: str,
     local_files_only: bool,
     sample_paths: Iterable[str | Path],
+    ignore_mismatched_sizes: bool = False,
     backend_loader: Callable[..., tuple] = load_embedding_backend,
     embedder: Callable[..., np.ndarray] = embed_image_batch,
 ) -> dict:
@@ -197,6 +213,7 @@ def verify_embedding_backend(
         device=device,
         backend=backend,
         local_files_only=local_files_only,
+        ignore_mismatched_sizes=ignore_mismatched_sizes,
     )
     embeddings = np.asarray(embedder(paths, model, processor, device), dtype=float)
     norms = np.linalg.norm(embeddings, axis=1) if embeddings.size else np.array([])
