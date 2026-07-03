@@ -66,7 +66,7 @@ class DINOv3PipelineConfig:
     row_block_size: int = 1000
     b5b_memory_limit: str = "16GB"
     b5c_memory_limit: str = "32GB"
-    b5c_threads: int = 8
+    b5c_threads: int = 1
     b5c_parquet_file_size: str = "512MB"
     duckdb_temp_dir: Path = Path(DEFAULT_TMP_ROOT)
     python: str = "python"
@@ -429,7 +429,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--row-block-size", type=int, default=1000)
     parser.add_argument("--b5b-memory-limit", default="16GB")
     parser.add_argument("--b5c-memory-limit", default="32GB")
-    parser.add_argument("--b5c-threads", type=int, default=8)
+    parser.add_argument("--b5c-threads", type=int, default=1)
     parser.add_argument("--b5c-parquet-file-size", default="512MB")
     parser.add_argument("--duckdb-temp-dir", type=Path, default=Path(DEFAULT_TMP_ROOT))
     parser.add_argument("--python", default="python")

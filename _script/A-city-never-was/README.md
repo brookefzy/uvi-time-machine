@@ -98,38 +98,57 @@ export MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script
 export CITY_META=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv
 export REPO_DIR=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was
 
-# Submit a conservative first city batch. This submits city indices 1-8,
-# with at most 2 active GPU embedding tasks at once.
+# Submit a conservative first city batch. Each task requests one CPU.
+# This verifies the one-city smoke output, then submits city indices 1-8.
 CITY_ARRAY_RANGE=1-8%2 bash slurm/submit_dinov3_pipeline.sh
 ```
 
 The HKU SLURM command files use city-level arrays for the two per-city stages and follow the `.cmd` convention from the HKU examples. The submission helper defaults to small city batches because HKU account/QoS policies may reject large arrays with `MaxSubmitJobsPerAccount`.
 
+- Smoke is one-city-only. `RUN_SMOKE=1` submits `slurm/dinov3_00_smoke.cmd` for `SMOKE_CITY`, and `RUN_SMOKE=0` reuses an existing smoke output.
+- `slurm/dinov3_00_verify_smoke.cmd` runs `verify_dinov3_smoke.py`, prints row/file/model/vector-norm distributions, and fails before embedding if the smoke output is invalid.
+- All `.cmd` jobs request `#SBATCH --cpus-per-task=1` to reduce queue wait time on HKU.
 - `slurm/dinov3_01_embed_array.cmd`: `#SBATCH --partition=gpu`, `#SBATCH --qos=gpu`, default `#SBATCH --array=1-8%2`, one GPU job per city, capped at 2 concurrent cities.
-- `slurm/dinov3_02_h3_array.cmd`: `#SBATCH --partition=amd`, `#SBATCH --qos=normal`, default `#SBATCH --array=1-8%4`, one CPU job per city, capped at 4 concurrent cities.
+- `slurm/dinov3_02_h3_array.cmd`: `#SBATCH --partition=amd`, `#SBATCH --qos=normal`, default `#SBATCH --array=1-8%4`, one single-CPU job per city, capped at 4 concurrent cities.
 - `slurm/dinov3_03_pairwise.cmd`, `slurm/dinov3_04_b5c_aggregate.cmd`, and `slurm/dinov3_05_summary.cmd` should be submitted only after all city batches complete.
 
-Tune `--partition`, `--qos`, `--gres`, `--mem`, `--time`, and the `%` array concurrency caps in the `.cmd` files for the actual cluster limits. The embedding stage is resumable because each city writes chunked parquet shards and skips already written image names.
+Tune `--partition`, `--qos`, `--gres`, `--mem`, `--time`, and the `%` array concurrency caps in the `.cmd` files for the actual cluster limits. Keep `--cpus-per-task=1` unless HKU shows that a larger CPU request will not delay scheduling. The embedding stage is resumable because each city writes chunked parquet shards and skips already written image names.
 
-Submit all 127 cities in small batches to stay below account job submission limits:
+If you have not run a smoke test yet, run it once for one city and let the verification job gate the first batch:
 
 ```bash
-RUN_SMOKE=1  CITY_ARRAY_RANGE=1-8%2     bash slurm/submit_dinov3_pipeline.sh
-RUN_SMOKE=0  CITY_ARRAY_RANGE=9-16%2    bash slurm/submit_dinov3_pipeline.sh
-RUN_SMOKE=0  CITY_ARRAY_RANGE=17-24%2   bash slurm/submit_dinov3_pipeline.sh
-RUN_SMOKE=0  CITY_ARRAY_RANGE=25-32%2   bash slurm/submit_dinov3_pipeline.sh
-RUN_SMOKE=0  CITY_ARRAY_RANGE=33-40%2   bash slurm/submit_dinov3_pipeline.sh
-RUN_SMOKE=0  CITY_ARRAY_RANGE=41-48%2   bash slurm/submit_dinov3_pipeline.sh
-RUN_SMOKE=0  CITY_ARRAY_RANGE=49-56%2   bash slurm/submit_dinov3_pipeline.sh
-RUN_SMOKE=0  CITY_ARRAY_RANGE=57-64%2   bash slurm/submit_dinov3_pipeline.sh
-RUN_SMOKE=0  CITY_ARRAY_RANGE=65-72%2   bash slurm/submit_dinov3_pipeline.sh
-RUN_SMOKE=0  CITY_ARRAY_RANGE=73-80%2   bash slurm/submit_dinov3_pipeline.sh
-RUN_SMOKE=0  CITY_ARRAY_RANGE=81-88%2   bash slurm/submit_dinov3_pipeline.sh
-RUN_SMOKE=0  CITY_ARRAY_RANGE=89-96%2   bash slurm/submit_dinov3_pipeline.sh
-RUN_SMOKE=0  CITY_ARRAY_RANGE=97-104%2  bash slurm/submit_dinov3_pipeline.sh
-RUN_SMOKE=0  CITY_ARRAY_RANGE=105-112%2 bash slurm/submit_dinov3_pipeline.sh
-RUN_SMOKE=0  CITY_ARRAY_RANGE=113-120%2 bash slurm/submit_dinov3_pipeline.sh
-RUN_SMOKE=0  CITY_ARRAY_RANGE=121-127%2 bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=1 VERIFY_SMOKE=1 SMOKE_CITY="Hong Kong" CITY_ARRAY_RANGE=1-8%2 bash slurm/submit_dinov3_pipeline.sh
+```
+
+If you already ran a one-city smoke test, keep `RUN_SMOKE=0` and verify the saved smoke output before each batch:
+
+```bash
+RUN_SMOKE=0 VERIFY_SMOKE=1 CITY_ARRAY_RANGE=1-8%2     bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0 VERIFY_SMOKE=1 CITY_ARRAY_RANGE=9-16%2    bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0 VERIFY_SMOKE=1 CITY_ARRAY_RANGE=17-24%2   bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0 VERIFY_SMOKE=1 CITY_ARRAY_RANGE=25-32%2   bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0 VERIFY_SMOKE=1 CITY_ARRAY_RANGE=33-40%2   bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0 VERIFY_SMOKE=1 CITY_ARRAY_RANGE=41-48%2   bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0 VERIFY_SMOKE=1 CITY_ARRAY_RANGE=49-56%2   bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0 VERIFY_SMOKE=1 CITY_ARRAY_RANGE=57-64%2   bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0 VERIFY_SMOKE=1 CITY_ARRAY_RANGE=65-72%2   bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0 VERIFY_SMOKE=1 CITY_ARRAY_RANGE=73-80%2   bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0 VERIFY_SMOKE=1 CITY_ARRAY_RANGE=81-88%2   bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0 VERIFY_SMOKE=1 CITY_ARRAY_RANGE=89-96%2   bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0 VERIFY_SMOKE=1 CITY_ARRAY_RANGE=97-104%2  bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0 VERIFY_SMOKE=1 CITY_ARRAY_RANGE=105-112%2 bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0 VERIFY_SMOKE=1 CITY_ARRAY_RANGE=113-120%2 bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0 VERIFY_SMOKE=1 CITY_ARRAY_RANGE=121-127%2 bash slurm/submit_dinov3_pipeline.sh
+```
+
+To inspect the smoke output without submitting jobs:
+
+```bash
+python verify_dinov3_smoke.py \
+  --city "Hong Kong" \
+  --smoke-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_embed_smoke \
+  --expected-model-name "${MODEL_NAME}" \
+  --min-rows 1
 ```
 
 After `sq` shows all embed/H3 city batches have completed successfully, submit the global stages:
@@ -296,7 +315,7 @@ python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-neve
   --agg-progress-file /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_similarity_agg_progress_res=8.json \
   --duckdb-memory-limit 32GB \
   --duckdb-temp-dir /lustre1/g/geog_pyloo/05_timemachine/_tmp/duckdb_dinov3_similarity \
-  --duckdb-threads 8 \
+  --duckdb-threads 1 \
   --parquet-file-size 512MB
 ```
 

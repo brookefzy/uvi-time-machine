@@ -7,7 +7,8 @@ MODEL_NAME="${MODEL_NAME:-facebook/dinov3-vitb16-pretrain-lvd1689m}"
 MODE="${MODE:-city-batch}"
 CITY_ARRAY_RANGE="${CITY_ARRAY_RANGE:-1-8%2}"
 H3_ARRAY_RANGE="${H3_ARRAY_RANGE:-${CITY_ARRAY_RANGE}}"
-RUN_SMOKE="${RUN_SMOKE:-1}"
+RUN_SMOKE="${RUN_SMOKE:-0}"
+VERIFY_SMOKE="${VERIFY_SMOKE:-1}"
 
 export REPO_DIR CITY_META MODEL_NAME
 
@@ -15,12 +16,22 @@ cd "${REPO_DIR}"
 mkdir -p logs/slurm
 
 if [[ "${MODE}" == "city-batch" ]]; then
+  smoke_job="skipped"
+  verify_job="skipped"
+  embed_dependency=()
+
   if [[ "${RUN_SMOKE}" == "1" || "${RUN_SMOKE}" == "true" ]]; then
     smoke_job="$(sbatch --parsable slurm/dinov3_00_smoke.cmd)"
-    embed_dependency=(--dependency=afterok:${smoke_job})
+    verify_dependency=(--dependency=afterok:${smoke_job})
   else
-    smoke_job="skipped"
-    embed_dependency=()
+    verify_dependency=()
+  fi
+
+  if [[ "${VERIFY_SMOKE}" == "1" || "${VERIFY_SMOKE}" == "true" ]]; then
+    verify_job="$(sbatch --parsable "${verify_dependency[@]}" slurm/dinov3_00_verify_smoke.cmd)"
+    embed_dependency=(--dependency=afterok:${verify_job})
+  elif [[ "${RUN_SMOKE}" == "1" || "${RUN_SMOKE}" == "true" ]]; then
+    embed_dependency=(--dependency=afterok:${smoke_job})
   fi
 
   embed_job="$(sbatch --parsable --array="${CITY_ARRAY_RANGE}" "${embed_dependency[@]}" slurm/dinov3_01_embed_array.cmd)"
@@ -30,6 +41,7 @@ if [[ "${MODE}" == "city-batch" ]]; then
   printf '  city array range: %s\n' "${CITY_ARRAY_RANGE}"
   printf '  h3 array range:   %s\n' "${H3_ARRAY_RANGE}"
   printf '  smoke:            %s\n' "${smoke_job}"
+  printf '  verify smoke:     %s\n' "${verify_job}"
   printf '  embed:            %s\n' "${embed_job}"
   printf '  h3:               %s\n' "${h3_job}"
   printf '\nAfter all city batches finish successfully, run:\n'

@@ -1,1 +1,4 @@
 model/checkpoint/
+__pycache__
+_archived/
+.pytest_cache/
