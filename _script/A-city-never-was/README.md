@@ -76,7 +76,7 @@ Pipeline orchestrator:
 ```bash
 cd /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was
 
-MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint"
+MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint/dinov3-vitb16-pretrain-lvd1689m"
 CITY_META=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv
 
 python dinov3_pipeline.py \
@@ -84,7 +84,6 @@ python dinov3_pipeline.py \
   --city "Saidpur" \
   --city-meta "${CITY_META}" \
   --model-name "${MODEL_NAME}" \
-  --ignore-mismatched-sizes \
   --execute
 ```
 
@@ -95,10 +94,9 @@ SLURM production run for 127 cities and 30M+ images:
 ```bash
 cd /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was
 
-export MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint"
+export MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint/dinov3-vitb16-pretrain-lvd1689m"
 export CITY_META=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv
 export REPO_DIR=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was
-export DINO_IGNORE_MISMATCHED_SIZES=1
 
 bash slurm/submit_dinov3_pipeline.sh
 ```
@@ -120,16 +118,18 @@ Recommended server order:
    The card is manually gated. Accept the model license on Hugging Face first, then authenticate on the server with `huggingface-cli login` or set `HF_TOKEN`. To prefill the cache on a connected node:
 
 ```bash
-MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint"
+HF_MODEL_ID="facebook/dinov3-vitb16-pretrain-lvd1689m"
+MODEL_DIR="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint/dinov3-vitb16-pretrain-lvd1689m"
 
-huggingface-cli download "${MODEL_NAME}" \
+huggingface-cli download "${HF_MODEL_ID}" \
+  --local-dir "${MODEL_DIR}" \
   --include config.json preprocessor_config.json model.safetensors
 ```
 
-1. Verify the model/checkpoint on the server with a two-image smoke test before any all-city run. If the checkpoint is already staged on disk, set `MODEL_NAME` to that local path and pass `--local-files-only`. If Transformers reports expected tensor-size mismatches for that staged checkpoint, inspect the mismatch report and add `--ignore-mismatched-sizes`; do not use that flag for unknown backbone, patch, or position-embedding mismatches. If it is not found on disk and the node has internet access, set `MODEL_NAME` to the verified Hugging Face or timm model ID and omit `--local-files-only` so the backend downloads it into the model cache. After that first download, rerun with `--local-files-only` for production jobs.
+1. Verify the model/checkpoint on the server with a two-image smoke test before any all-city run. If the checkpoint is already staged on disk, set `MODEL_NAME` to that local path and pass `--local-files-only`. If Transformers reports mismatches such as `ckpt: torch.Size([768]) vs model: torch.Size([384])` for `embeddings.*` or `norm.*`, stop and fix the checkpoint/config pair; those are different DINOv3 architectures, not safe mismatches. If it is not found on disk and the node has internet access, set `MODEL_NAME` to the verified Hugging Face or timm model ID and omit `--local-files-only` so the backend downloads it into the model cache. After that first download, rerun with `--local-files-only` for production jobs.
 
 ```bash
-MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint"
+MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint/dinov3-vitb16-pretrain-lvd1689m"
 
 python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py \
   --city "Saidpur" \
@@ -140,14 +140,13 @@ python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-neve
   --batch-size 2 \
   --device cuda \
   --local-files-only \
-  --ignore-mismatched-sizes \
   --limit 2
 ```
 
 Download-on-miss smoke test, only for a connected node:
 
 ```bash
-MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint"
+MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint/dinov3-vitb16-pretrain-lvd1689m"
 
 python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py \
   --city "Saidpur" \
@@ -157,14 +156,13 @@ python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-neve
   --backend transformers \
   --batch-size 2 \
   --device cuda \
-  --ignore-mismatched-sizes \
   --limit 2
 ```
 
 2. Run one-city image embedding smoke test, for example Hong Kong with `--limit 256`, and validate row count, one `embedding_dim`, finite `e_*` columns, near-unit vector norms, and no duplicate `name`.
 
 ```bash
-MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint"
+MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint/dinov3-vitb16-pretrain-lvd1689m"
 
 python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py \
   --city "Saidpur" \
@@ -175,14 +173,13 @@ python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-neve
   --batch-size 32 \
   --device cuda \
   --local-files-only \
-  --ignore-mismatched-sizes \
   --limit 256
 ```
 
 3. Run all-city image embeddings with `B5d_dinov3_embed_city.py`.
 
 ```bash
-MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint"
+MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint/dinov3-vitb16-pretrain-lvd1689m"
 CITY_META=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv
 
 CITY_META="${CITY_META}" python - <<'PY' | while IFS= read -r CITY; do
@@ -200,8 +197,7 @@ PY
     --backend transformers \
     --batch-size 64 \
     --device cuda \
-    --local-files-only \
-    --ignore-mismatched-sizes
+    --local-files-only
 done
 ```
 
