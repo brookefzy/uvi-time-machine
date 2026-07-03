@@ -2,13 +2,17 @@
 #SBATCH --job-name=dinov3_h3
 #SBATCH --output=logs/slurm/%x_%A_%a.out
 #SBATCH --error=logs/slurm/%x_%A_%a.err
-#SBATCH --partition=cpu
+#SBATCH --partition=amd
+#SBATCH --qos=normal
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32G
 #SBATCH --time=08:00:00
 #SBATCH --array=1-127%24
 
 set -euo pipefail
+export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
 
 REPO_DIR="${REPO_DIR:-/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was}"
 CITY_META="${CITY_META:-/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv}"

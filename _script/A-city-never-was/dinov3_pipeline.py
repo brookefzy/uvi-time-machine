@@ -301,6 +301,7 @@ def render_slurm_array_script(
     array_concurrency: int,
     time_limit: str,
     partition: str,
+    qos: str | None,
     gres: str | None,
     cpus_per_task: int,
     mem: str,
@@ -309,12 +310,13 @@ def render_slurm_array_script(
     if stage not in CITY_STAGES:
         raise ValueError(f"SLURM array stages must be one of {sorted(CITY_STAGES)}")
     gres_line = f"#SBATCH --gres={gres}\n" if gres else ""
+    qos_line = f"#SBATCH --qos={qos}\n" if qos else ""
     return f"""#!/usr/bin/env bash
 #SBATCH --job-name={job_name}
 #SBATCH --output=logs/slurm/%x_%A_%a.out
 #SBATCH --error=logs/slurm/%x_%A_%a.err
 #SBATCH --partition={partition}
-{gres_line}#SBATCH --cpus-per-task={cpus_per_task}
+{qos_line}{gres_line}#SBATCH --cpus-per-task={cpus_per_task}
 #SBATCH --mem={mem}
 #SBATCH --time={time_limit}
 #SBATCH --array=1-{city_count}%{array_concurrency}

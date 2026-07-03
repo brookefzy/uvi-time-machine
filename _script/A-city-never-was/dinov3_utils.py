@@ -124,6 +124,42 @@ def _extract_model_output(output) -> np.ndarray:
     return _tensor_to_numpy(output)
 
 
+_CRITICAL_TRANSFORMER_MISMATCH_PREFIXES = (
+    "embeddings.",
+    "encoder.",
+    "layernorm",
+    "norm.",
+)
+
+
+def _mismatched_key_name(entry) -> str:
+    if isinstance(entry, (tuple, list)) and entry:
+        return str(entry[0])
+    return str(entry)
+
+
+def _reject_critical_transformer_mismatches(loading_info: dict | None) -> None:
+    mismatched = list((loading_info or {}).get("mismatched_keys") or [])
+    critical = [
+        entry
+        for entry in mismatched
+        if _mismatched_key_name(entry).lower().startswith(
+            _CRITICAL_TRANSFORMER_MISMATCH_PREFIXES
+        )
+    ]
+    if not critical:
+        return
+
+    preview = ", ".join(_mismatched_key_name(entry) for entry in critical[:5])
+    raise RuntimeError(
+        "Refusing to continue after size mismatches in core DINOv3 tensors: "
+        f"{preview}. This usually means the checkpoint and config/model ID are "
+        "different architectures, for example ViT-B/768 weights loaded into a "
+        "ViT-S/384 model. Use the matching config/checkpoint instead of "
+        "--ignore-mismatched-sizes."
+    )
+
+
 def load_embedding_backend(
     model_name: str,
     device: str = "cpu",
@@ -140,11 +176,13 @@ def load_embedding_backend(
             local_files_only=local_files_only,
         )
         try:
-            model = AutoModel.from_pretrained(
-                model_name,
-                local_files_only=local_files_only,
-                ignore_mismatched_sizes=ignore_mismatched_sizes,
-            )
+            model_kwargs = {
+                "local_files_only": local_files_only,
+                "ignore_mismatched_sizes": ignore_mismatched_sizes,
+            }
+            if ignore_mismatched_sizes:
+                model_kwargs["output_loading_info"] = True
+            model_result = AutoModel.from_pretrained(model_name, **model_kwargs)
         except RuntimeError as exc:
             if "ignore_mismatched_sizes" in str(exc):
                 raise RuntimeError(
@@ -155,6 +193,11 @@ def load_embedding_backend(
                     "tensor mismatches can leave randomly initialized embeddings."
                 ) from exc
             raise
+        if ignore_mismatched_sizes:
+            model, loading_info = model_result
+            _reject_critical_transformer_mismatches(loading_info)
+        else:
+            model = model_result
         if hasattr(model, "to"):
             model = model.to(device)
         if hasattr(model, "eval"):

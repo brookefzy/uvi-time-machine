@@ -90,11 +90,14 @@ def test_render_slurm_array_script_uses_city_count_and_task_id():
         array_concurrency=12,
         time_limit="24:00:00",
         partition="gpu",
+        qos="gpu",
         gres="gpu:1",
         cpus_per_task=8,
         mem="64G",
     )
 
+    assert "#SBATCH --partition=gpu" in script
+    assert "#SBATCH --qos=gpu" in script
     assert "#SBATCH --array=1-127%12" in script
     assert "#SBATCH --gres=gpu:1" in script
     assert "--stage embed" in script

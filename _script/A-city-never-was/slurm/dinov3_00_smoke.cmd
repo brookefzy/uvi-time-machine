@@ -3,12 +3,16 @@
 #SBATCH --output=logs/slurm/%x_%j.out
 #SBATCH --error=logs/slurm/%x_%j.err
 #SBATCH --partition=gpu
+#SBATCH --qos=gpu
 #SBATCH --gres=gpu:1
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32G
 #SBATCH --time=01:00:00
 
 set -euo pipefail
+export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
 
 REPO_DIR="${REPO_DIR:-/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was}"
 CITY_META="${CITY_META:-/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv}"

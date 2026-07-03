@@ -101,13 +101,25 @@ export REPO_DIR=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-
 bash slurm/submit_dinov3_pipeline.sh
 ```
 
-The SLURM scripts use city-level arrays for the two per-city stages:
+The HKU SLURM command files use city-level arrays for the two per-city stages and follow the `.cmd` convention from the HKU examples:
 
-- `slurm/dinov3_01_embed_array.sbatch`: `#SBATCH --array=1-127%8`, one GPU job per city, capped at 8 concurrent cities.
-- `slurm/dinov3_02_h3_array.sbatch`: `#SBATCH --array=1-127%24`, one CPU job per city, capped at 24 concurrent cities.
-- `slurm/dinov3_03_pairwise.sbatch`, `slurm/dinov3_04_b5c_aggregate.sbatch`, and `slurm/dinov3_05_summary.sbatch` run after the city arrays complete.
+- `slurm/dinov3_01_embed_array.cmd`: `#SBATCH --partition=gpu`, `#SBATCH --qos=gpu`, `#SBATCH --array=1-127%8`, one GPU job per city, capped at 8 concurrent cities.
+- `slurm/dinov3_02_h3_array.cmd`: `#SBATCH --partition=amd`, `#SBATCH --qos=normal`, `#SBATCH --array=1-127%24`, one CPU job per city, capped at 24 concurrent cities.
+- `slurm/dinov3_03_pairwise.cmd`, `slurm/dinov3_04_b5c_aggregate.cmd`, and `slurm/dinov3_05_summary.cmd` run after the city arrays complete.
 
-Tune `--partition`, `--gres`, `--mem`, `--time`, and the `%` array concurrency caps in the `.sbatch` files for the actual cluster limits. The embedding stage is resumable because each city writes chunked parquet shards and skips already written image names.
+Tune `--partition`, `--qos`, `--gres`, `--mem`, `--time`, and the `%` array concurrency caps in the `.cmd` files for the actual cluster limits. The embedding stage is resumable because each city writes chunked parquet shards and skips already written image names.
+
+Useful HKU management commands:
+
+```bash
+sq
+sq -j <JobID>
+sq -t PD
+sq -t R
+scancel <JobID>
+scancel <JobID>_<ArrayTaskID>
+scontrol update ArrayTaskThrottle=12 JobId=<ArrayJobID>
+```
 
 Recommended server order:
 0. Use the verified Hugging Face model card for the default DINOv3 backbone:

@@ -143,6 +143,8 @@ def test_load_embedding_backend_passes_explicit_mismatch_tolerance_to_transforme
         @staticmethod
         def from_pretrained(model_name, **kwargs):
             calls["model"] = (model_name, kwargs)
+            if kwargs.get("output_loading_info"):
+                return FakeLoadedModel(), {"mismatched_keys": []}
             return FakeLoadedModel()
 
     fake_transformers = types.SimpleNamespace(
@@ -165,10 +167,46 @@ def test_load_embedding_backend_passes_explicit_mismatch_tolerance_to_transforme
     )
     assert calls["model"] == (
         "local-checkpoint",
-        {"local_files_only": True, "ignore_mismatched_sizes": True},
+        {
+            "local_files_only": True,
+            "ignore_mismatched_sizes": True,
+            "output_loading_info": True,
+        },
     )
     assert calls["device"] == "cuda"
     assert calls["eval"] is True
+
+
+def test_load_embedding_backend_rejects_core_transformer_mismatches(monkeypatch):
+    class FakeAutoImageProcessor:
+        @staticmethod
+        def from_pretrained(_model_name, **_kwargs):
+            return object()
+
+    class FakeAutoModel:
+        @staticmethod
+        def from_pretrained(_model_name, **_kwargs):
+            return object(), {
+                "mismatched_keys": [
+                    ("embeddings.patch_embeddings.bias", (768,), (384,)),
+                    ("norm.bias", (768,), (384,)),
+                ]
+            }
+
+    fake_transformers = types.SimpleNamespace(
+        AutoImageProcessor=FakeAutoImageProcessor,
+        AutoModel=FakeAutoModel,
+    )
+    monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
+
+    with pytest.raises(RuntimeError, match="core DINOv3 tensors"):
+        load_embedding_backend(
+            "local-checkpoint",
+            device="cuda",
+            backend="transformers",
+            local_files_only=True,
+            ignore_mismatched_sizes=True,
+        )
 
 
 def test_verify_embedding_backend_reports_finite_unit_norm_embeddings(tmp_path):
