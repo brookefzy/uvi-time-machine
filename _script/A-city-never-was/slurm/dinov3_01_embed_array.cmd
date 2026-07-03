@@ -10,7 +10,7 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
 #SBATCH --time=48:00:00
-#SBATCH --array=1-127%8
+#SBATCH --array=1-8%2
 
 set -euo pipefail
 export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"

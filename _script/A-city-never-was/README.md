@@ -98,16 +98,47 @@ export MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script
 export CITY_META=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv
 export REPO_DIR=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was
 
-bash slurm/submit_dinov3_pipeline.sh
+# Submit a conservative first city batch. This submits city indices 1-8,
+# with at most 2 active GPU embedding tasks at once.
+CITY_ARRAY_RANGE=1-8%2 bash slurm/submit_dinov3_pipeline.sh
 ```
 
-The HKU SLURM command files use city-level arrays for the two per-city stages and follow the `.cmd` convention from the HKU examples:
+The HKU SLURM command files use city-level arrays for the two per-city stages and follow the `.cmd` convention from the HKU examples. The submission helper defaults to small city batches because HKU account/QoS policies may reject large arrays with `MaxSubmitJobsPerAccount`.
 
-- `slurm/dinov3_01_embed_array.cmd`: `#SBATCH --partition=gpu`, `#SBATCH --qos=gpu`, `#SBATCH --array=1-127%8`, one GPU job per city, capped at 8 concurrent cities.
-- `slurm/dinov3_02_h3_array.cmd`: `#SBATCH --partition=amd`, `#SBATCH --qos=normal`, `#SBATCH --array=1-127%24`, one CPU job per city, capped at 24 concurrent cities.
-- `slurm/dinov3_03_pairwise.cmd`, `slurm/dinov3_04_b5c_aggregate.cmd`, and `slurm/dinov3_05_summary.cmd` run after the city arrays complete.
+- `slurm/dinov3_01_embed_array.cmd`: `#SBATCH --partition=gpu`, `#SBATCH --qos=gpu`, default `#SBATCH --array=1-8%2`, one GPU job per city, capped at 2 concurrent cities.
+- `slurm/dinov3_02_h3_array.cmd`: `#SBATCH --partition=amd`, `#SBATCH --qos=normal`, default `#SBATCH --array=1-8%4`, one CPU job per city, capped at 4 concurrent cities.
+- `slurm/dinov3_03_pairwise.cmd`, `slurm/dinov3_04_b5c_aggregate.cmd`, and `slurm/dinov3_05_summary.cmd` should be submitted only after all city batches complete.
 
 Tune `--partition`, `--qos`, `--gres`, `--mem`, `--time`, and the `%` array concurrency caps in the `.cmd` files for the actual cluster limits. The embedding stage is resumable because each city writes chunked parquet shards and skips already written image names.
+
+Submit all 127 cities in small batches to stay below account job submission limits:
+
+```bash
+RUN_SMOKE=1  CITY_ARRAY_RANGE=1-8%2     bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0  CITY_ARRAY_RANGE=9-16%2    bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0  CITY_ARRAY_RANGE=17-24%2   bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0  CITY_ARRAY_RANGE=25-32%2   bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0  CITY_ARRAY_RANGE=33-40%2   bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0  CITY_ARRAY_RANGE=41-48%2   bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0  CITY_ARRAY_RANGE=49-56%2   bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0  CITY_ARRAY_RANGE=57-64%2   bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0  CITY_ARRAY_RANGE=65-72%2   bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0  CITY_ARRAY_RANGE=73-80%2   bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0  CITY_ARRAY_RANGE=81-88%2   bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0  CITY_ARRAY_RANGE=89-96%2   bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0  CITY_ARRAY_RANGE=97-104%2  bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0  CITY_ARRAY_RANGE=105-112%2 bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0  CITY_ARRAY_RANGE=113-120%2 bash slurm/submit_dinov3_pipeline.sh
+RUN_SMOKE=0  CITY_ARRAY_RANGE=121-127%2 bash slurm/submit_dinov3_pipeline.sh
+```
+
+After `sq` shows all embed/H3 city batches have completed successfully, submit the global stages:
+
+```bash
+MODE=global bash slurm/submit_dinov3_pipeline.sh
+```
+
+If HKU still reports `MaxSubmitJobsPerAccount`, wait for existing array tasks to finish or reduce the batch size further, for example `CITY_ARRAY_RANGE=1-4%1`.
 
 Useful HKU management commands:
 
