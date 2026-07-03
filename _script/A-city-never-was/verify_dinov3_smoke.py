@@ -45,6 +45,7 @@ def verify_smoke_output(
     city_file_stem: str | None = None,
     min_rows: int = 1,
     norm_atol: float = 1e-5,
+    duplicate_atol: float = 1e-8,
 ) -> dict[str, object]:
     files = find_smoke_files(smoke_root, city, city_file_stem=city_file_stem)
     rows_by_file = {str(path): int(len(pd.read_parquet(path))) for path in files}
@@ -92,6 +93,22 @@ def verify_smoke_output(
     if not np.allclose(norms[nonzero], 1.0, atol=norm_atol):
         raise ValueError("Smoke output vectors are not unit-normalized")
 
+    rounded_values = np.round(values, decimals=max(0, int(-np.log10(duplicate_atol))))
+    unique_vector_count = int(np.unique(rounded_values, axis=0).shape[0])
+    if len(values) > 1:
+        normalized_values = values / np.maximum(norms[:, None], 1e-12)
+        cosine = normalized_values @ normalized_values.T
+        off_diagonal = cosine[~np.eye(len(cosine), dtype=bool)]
+        max_pairwise_cosine = float(np.max(off_diagonal))
+    else:
+        max_pairwise_cosine = None
+
+    if len(values) > 1 and unique_vector_count < len(values):
+        raise ValueError(
+            "Smoke output contains collapsed or duplicate embeddings: "
+            f"unique_vector_count={unique_vector_count}, row_count={len(values)}"
+        )
+
     norm_distribution = {
         "min": float(np.min(norms)),
         "p50": float(np.quantile(norms, 0.50)),
@@ -120,6 +137,9 @@ def verify_smoke_output(
     print("norm_distribution:")
     for key in ["min", "p50", "p95", "max", "mean"]:
         print(f"  {key}: {_format_float(norm_distribution[key])}")
+    print("embedding_diversity:")
+    print(f"  unique_vector_count: {unique_vector_count}")
+    print(f"  max_pairwise_cosine: {max_pairwise_cosine}")
 
     return {
         "city": city,
@@ -130,6 +150,8 @@ def verify_smoke_output(
         "rows_by_file": rows_by_file,
         "model_name_counts": model_counts,
         "norm_distribution": norm_distribution,
+        "unique_vector_count": unique_vector_count,
+        "max_pairwise_cosine": max_pairwise_cosine,
     }
 
 
@@ -141,6 +163,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--expected-model-name")
     parser.add_argument("--min-rows", type=int, default=1)
     parser.add_argument("--norm-atol", type=float, default=1e-5)
+    parser.add_argument("--duplicate-atol", type=float, default=1e-8)
     return parser.parse_args(argv)
 
 
@@ -153,6 +176,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         city_file_stem=args.city_file_stem,
         min_rows=args.min_rows,
         norm_atol=args.norm_atol,
+        duplicate_atol=args.duplicate_atol,
     )
     return 0
 

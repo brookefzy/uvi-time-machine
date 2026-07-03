@@ -60,6 +60,21 @@ def test_verify_smoke_output_rejects_non_unit_vectors(tmp_path):
         )
 
 
+def test_verify_smoke_output_rejects_collapsed_unit_vectors(tmp_path):
+    path = write_smoke_shard(tmp_path)
+    df = pd.read_parquet(path)
+    df.loc[:, ["e_0000", "e_0001"]] = [[1.0, 0.0], [1.0, 0.0]]
+    df.to_parquet(path, index=False)
+
+    with pytest.raises(ValueError, match="collapsed or duplicate embeddings"):
+        verify_smoke_output(
+            city="Hong Kong",
+            smoke_root=tmp_path,
+            expected_model_name="fake-dinov3",
+            min_rows=2,
+        )
+
+
 def test_verify_smoke_output_rejects_missing_rows(tmp_path):
     with pytest.raises(FileNotFoundError, match="No smoke parquet files"):
         verify_smoke_output(city="Hong Kong", smoke_root=tmp_path, min_rows=1)
