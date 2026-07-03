@@ -2,7 +2,7 @@
 #SBATCH --job-name=dinov3_embed
 #SBATCH --output=logs/slurm/%x_%A_%a.out
 #SBATCH --error=logs/slurm/%x_%A_%a.err
-#SBATCH --partition=gpu
+#SBATCH --partition=l40s
 #SBATCH --qos=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1

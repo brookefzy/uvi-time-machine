@@ -108,7 +108,7 @@ The HKU SLURM command files use city-level arrays for the two per-city stages an
 - Smoke is one-city-only. `RUN_SMOKE=1` submits `slurm/dinov3_00_smoke.cmd` for `SMOKE_CITY`, and `RUN_SMOKE=0` reuses an existing smoke output.
 - `slurm/dinov3_00_verify_smoke.cmd` runs `verify_dinov3_smoke.py`, prints row/file/model/vector-norm distributions, and fails before embedding if the smoke output is invalid.
 - All `.cmd` jobs request `#SBATCH --cpus-per-task=1` to reduce queue wait time on HKU.
-- `slurm/dinov3_01_embed_array.cmd`: `#SBATCH --partition=gpu`, `#SBATCH --qos=gpu`, default `#SBATCH --array=1-8%2`, one GPU job per city, capped at 2 concurrent cities.
+- `slurm/dinov3_01_embed_array.cmd`: `#SBATCH --partition=l40s`, `#SBATCH --qos=gpu`, default `#SBATCH --array=1-8%2`, one L40S GPU job per city, capped at 2 concurrent cities. The L40S partition avoids the V100/PyTorch compute-capability mismatch seen with the `gpu` partition.
 - `slurm/dinov3_02_h3_array.cmd`: `#SBATCH --partition=amd`, `#SBATCH --qos=normal`, default `#SBATCH --array=1-8%4`, one single-CPU job per city, capped at 4 concurrent cities.
 - `slurm/dinov3_03_pairwise.cmd`, `slurm/dinov3_04_b5c_aggregate.cmd`, and `slurm/dinov3_05_summary.cmd` should be submitted only after all city batches complete.
 
