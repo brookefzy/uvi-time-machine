@@ -1,0 +1,66 @@
+Loading weights:   0%|          | 0/211 [00:00<?, ?it/s]Loading weights: 100%|██████████| 211/211 [00:00<00:00, 46490.76it/s]
+/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/lib/python3.12/site-packages/torch/cuda/__init__.py:384: UserWarning: Found GPU0 Tesla V100-SXM2-32GB which is of compute capability (CC) 7.0.
+The following list shows the CCs this version of PyTorch was built for and the hardware CCs it supports:
+- 7.5 which supports hardware CC >=7.5,<8.0
+- 8.0 which supports hardware CC >=8.0,<9.0 except {8.7}
+- 8.6 which supports hardware CC >=8.6,<9.0 except {8.7}
+- 9.0 which supports hardware CC >=9.0,<10.0
+- 10.0 which supports hardware CC >=10.0,<11.0 except {10.1}
+- 12.0 which supports hardware CC >=12.0,<13.0
+Please follow the instructions at https://pytorch.org/get-started/locally/ to install a PyTorch release that supports one of these CUDA versions: 12.6
+  _warn_unsupported_code(d, device_cc, code_ccs)
+Traceback (most recent call last):
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py", line 276, in <module>
+    main()
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py", line 259, in main
+    written = embed_city(
+              ^^^^^^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py", line 219, in embed_city
+    embeddings = embedder(batch["path"].tolist(), model, processor, device)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/dinov3_utils.py", line 237, in embed_image_batch
+    output = model(**inputs)
+             ^^^^^^^^^^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/lib/python3.12/site-packages/transformers/utils/generic.py", line 907, in wrapper
+    output = func(self, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/lib/python3.12/site-packages/transformers/models/dinov3_vit/modeling_dinov3_vit.py", line 538, in forward
+    hidden_states = self.embeddings(pixel_values, bool_masked_pos=bool_masked_pos)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/lib/python3.12/site-packages/transformers/models/dinov3_vit/modeling_dinov3_vit.py", line 80, in forward
+    patch_embeddings = self.patch_embeddings(pixel_values.to(dtype=target_dtype))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/lib/python3.12/site-packages/torch/nn/modules/conv.py", line 565, in forward
+    return self._conv_forward(input, self.weight, self.bias)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/lib/python3.12/site-packages/torch/nn/modules/conv.py", line 560, in _conv_forward
+    return F.conv2d(
+           ^^^^^^^^^
+RuntimeError: GET was unable to find an engine to execute this computation
+Traceback (most recent call last):
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/dinov3_pipeline.py", line 457, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/dinov3_pipeline.py", line 451, in main
+    subprocess.run(built_command, shell=True, check=True)
+  File "/home/loograd1/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command 'python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py --city Brussels --valfolder /lustre1/g/geog_pyloo/05_timemachine/_transformed/t_classifier_img_yolo8_inf_dir --output-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_embed --model-name /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint/dinov3-vitb16-pretrain-lvd1689m --backend transformers --batch-size 64 --device cuda --local-files-only' returned non-zero exit status 1.

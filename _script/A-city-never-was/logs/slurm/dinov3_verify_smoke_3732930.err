@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/verify_dinov3_smoke.py", line 185, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/verify_dinov3_smoke.py", line 172, in main
+    verify_smoke_output(
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/verify_dinov3_smoke.py", line 50, in verify_smoke_output
+    files = find_smoke_files(smoke_root, city, city_file_stem=city_file_stem)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/verify_dinov3_smoke.py", line 30, in find_smoke_files
+    raise FileNotFoundError(
+FileNotFoundError: No smoke parquet files found for city='Hong Kong' under /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_embed_smoke

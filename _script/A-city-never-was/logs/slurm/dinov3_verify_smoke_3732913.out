@@ -1,0 +1,20 @@
+SMOKE CHECK PASSED
+city: Saidpur
+smoke_root: /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_embed_smoke
+file_count: 1
+row_count: 2
+embedding_dim: 768
+duplicate_name_count: 0
+rows_by_file:
+  /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_embed_smoke/saidpur/saidpur_2026-07-03_10-14-23_663326_0000.parquet: 2
+model_name_counts:
+  /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint/dinov3-vitb16-pretrain-lvd1689m: 2
+norm_distribution:
+  min: 1.000000
+  p50: 1.000000
+  p95: 1.000000
+  max: 1.000000
+  mean: 1.000000
+embedding_diversity:
+  unique_vector_count: 2
+  max_pairwise_cosine: 0.24877582145379887

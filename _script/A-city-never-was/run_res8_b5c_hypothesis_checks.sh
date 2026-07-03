@@ -3,7 +3,7 @@ set -euo pipefail
 
 PAIRWISE_ROOT="${PAIRWISE_ROOT:-/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_classifiier_prob_similarity_by_pair}"
 RESOLUTION="${RESOLUTION:-8}"
-OUTPUT_DIR="${OUTPUT_DIR:-/tmp/res8_b5c_hypothesis_checks}"
+OUTPUT_DIR="${OUTPUT_DIR:-/lustre1/g/geog_pyloo/05_timemachine/_tmp/res8_b5c_hypothesis_checks}"
 CITY1="${CITY1:-}"
 CITY2="${CITY2:-}"
 LIMIT="${LIMIT:-}"

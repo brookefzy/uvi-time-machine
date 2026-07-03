@@ -202,7 +202,7 @@ python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-neve
   --batch-size 2 \
   --device cuda \
   --local-files-only \
-  --limit 2
+  --limit 256
 ```
 
 Download-on-miss smoke test, only for a connected node:

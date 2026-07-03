@@ -13,16 +13,16 @@ for the two cities implied by each shard directory. It checks:
 
 Sample remote run for Hong Kong:
 
-    python3 A-city-never-was/inspect_b5b_shard_membership.py \
+    python inspect_b5b_shard_membership.py \
       --resolution 8 \
-      --city1 hongkong \
+      --city1 accra \
       --limit 25 \
       --example-limit 50 \
-      --output-prefix '/lustre1/g/geog_pyloo/05_timemachine/_tmp/res8_b5b_shard_membership/hongkong_res8'
+      --output-prefix '/lustre1/g/geog_pyloo/05_timemachine/_tmp/res8_b5b_shard_membership/accra_res8'
 
 Smaller quick-check variant:
 
-    python3 A-city-never-was/inspect_b5b_shard_membership.py \
+    python inspect_b5b_shard_membership.py \
       --resolution 8 \
       --city1 hongkong \
       --limit 5 \

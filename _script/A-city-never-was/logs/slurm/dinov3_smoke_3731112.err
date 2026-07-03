@@ -1,0 +1,39 @@
+Traceback (most recent call last):
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/lib/python3.12/site-packages/transformers/models/auto/image_processing_auto.py", line 573, in from_pretrained
+    config_dict, _ = ImageProcessingMixin.get_image_processor_dict(
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/lib/python3.12/site-packages/transformers/image_processing_base.py", line 334, in get_image_processor_dict
+    raise OSError(
+OSError: Can't load image processor for 'facebook/dinov3-vitb16-pretrain-lvd1689m'. If you were trying to load it from 'https://huggingface.co/models', make sure you don't have a local directory with the same name. Otherwise, make sure 'facebook/dinov3-vitb16-pretrain-lvd1689m' is the correct path to a directory containing a config.json file
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py", line 276, in <module>
+    main()
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py", line 259, in main
+    written = embed_city(
+              ^^^^^^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py", line 208, in embed_city
+    model, processor = backend_loader(
+                       ^^^^^^^^^^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/dinov3_utils.py", line 174, in load_embedding_backend
+    processor = AutoImageProcessor.from_pretrained(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/lib/python3.12/site-packages/transformers/models/auto/image_processing_auto.py", line 577, in from_pretrained
+    raise initial_exception
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/lib/python3.12/site-packages/transformers/models/auto/image_processing_auto.py", line 567, in from_pretrained
+    config_dict, _ = ImageProcessingMixin.get_image_processor_dict(
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/lib/python3.12/site-packages/transformers/image_processing_base.py", line 334, in get_image_processor_dict
+    raise OSError(
+OSError: Can't load image processor for 'facebook/dinov3-vitb16-pretrain-lvd1689m'. If you were trying to load it from 'https://huggingface.co/models', make sure you don't have a local directory with the same name. Otherwise, make sure 'facebook/dinov3-vitb16-pretrain-lvd1689m' is the correct path to a directory containing a preprocessor_config.json file
+Traceback (most recent call last):
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/dinov3_pipeline.py", line 457, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/dinov3_pipeline.py", line 451, in main
+    subprocess.run(built_command, shell=True, check=True)
+  File "/home/loograd1/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command 'python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py --city 'Hong Kong' --valfolder /lustre1/g/geog_pyloo/05_timemachine/_transformed/t_classifier_img_yolo8_inf_dir --output-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_embed_smoke --model-name facebook/dinov3-vitb16-pretrain-lvd1689m --backend transformers --batch-size 2 --device cuda --local-files-only --limit 2' returned non-zero exit status 1.

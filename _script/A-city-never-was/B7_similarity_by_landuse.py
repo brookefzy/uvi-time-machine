@@ -7,7 +7,7 @@ Default CLI:
       --zero-fill-avg \
       --use-two-phase \
       --landuse-source stage3 \
-      --tier-method pct \
+      --tier-method z \
       --res 8
 
 When --pairwise-root is omitted, the script defaults to:
