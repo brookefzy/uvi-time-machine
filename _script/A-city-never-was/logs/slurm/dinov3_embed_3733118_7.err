@@ -1,0 +1,44 @@
+Loading weights:   0%|          | 0/211 [00:00<?, ?it/s]Loading weights: 100%|██████████| 211/211 [00:00<00:00, 53848.38it/s]
+Traceback (most recent call last):
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py", line 276, in <module>
+    main()
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py", line 259, in main
+    written = embed_city(
+              ^^^^^^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py", line 208, in embed_city
+    model, processor = backend_loader(
+                       ^^^^^^^^^^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/dinov3_utils.py", line 202, in load_embedding_backend
+    model = model.to(device)
+            ^^^^^^^^^^^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/lib/python3.12/site-packages/transformers/modeling_utils.py", line 3729, in to
+    return super().to(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1383, in to
+    return self._apply(convert)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 933, in _apply
+    module._apply(fn)
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 933, in _apply
+    module._apply(fn)
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 964, in _apply
+    param_applied = fn(param)
+                    ^^^^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1369, in convert
+    return t.to(
+           ^^^^^
+torch.AcceleratorError: CUDA error: uncorrectable ECC error encountered
+Search for `cudaErrorECCUncorrectable' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+Traceback (most recent call last):
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/dinov3_pipeline.py", line 457, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/dinov3_pipeline.py", line 451, in main
+    subprocess.run(built_command, shell=True, check=True)
+  File "/home/loograd1/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command 'python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5d_dinov3_embed_city.py --city Antwerp --valfolder /lustre1/g/geog_pyloo/05_timemachine/_transformed/t_classifier_img_yolo8_inf_dir --output-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_embed --model-name /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint/dinov3-vitb16-pretrain-lvd1689m --backend transformers --batch-size 64 --device cuda --local-files-only' returned non-zero exit status 1.
