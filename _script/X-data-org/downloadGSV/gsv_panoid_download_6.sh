@@ -1,15 +1,16 @@
 
-python ./Request_GSV_panoid_pl.py --city=cochabamba
+
+python /home/yuanzf/uvi-time-machine/_script/X-data-org/downloadGSV/Request_GSV_panoid_pl.py --city=antwerp
 
 
-python ./Request_GSV_panoid_pl.py --city=belohorizonte
+python /home/yuanzf/uvi-time-machine/_script/X-data-org/downloadGSV/Request_GSV_panoid_pl.py --city=brussels
 
 
-python ./Request_GSV_panoid_pl.py --city=curitiba
+python /home/yuanzf/uvi-time-machine/_script/X-data-org/downloadGSV/Request_GSV_panoid_pl.py --city=cochabamba
 
 
-python ./Request_GSV_panoid_pl.py --city=florianopolis
+python /home/yuanzf/uvi-time-machine/_script/X-data-org/downloadGSV/Request_GSV_panoid_pl.py --city=gaborone
 
 
-python ./Request_GSV_panoid_pl.py --city=ilheus
+python /home/yuanzf/uvi-time-machine/_script/X-data-org/downloadGSV/Request_GSV_panoid_pl.py --city=ilheus
 

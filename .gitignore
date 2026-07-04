@@ -17,5 +17,6 @@ _archive/
 google_drive*
 demo_img/
 .DS_Store
-.pyc
-.sh
+*.pyc
+*.sh
+__pycache__/

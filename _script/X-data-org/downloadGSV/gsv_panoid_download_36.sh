@@ -1,12 +1,15 @@
 
-python ./Request_GSV_panoid_pl.py --city=sitapur
+python /home/yuanzf/uvi-time-machine/_script/X-data-org/downloadGSV/Request_GSV_panoid_pl.py --city=guatemalacity
 
 
-python ./Request_GSV_panoid_pl.py --city=vijayawada
+python /home/yuanzf/uvi-time-machine/_script/X-data-org/downloadGSV/Request_GSV_panoid_pl.py --city=budapest
 
 
-python ./Request_GSV_panoid_pl.py --city=cirebon
+python /home/yuanzf/uvi-time-machine/_script/X-data-org/downloadGSV/Request_GSV_panoid_pl.py --city=hindupur
 
 
-python ./Request_GSV_panoid_pl.py --city=medan
+python /home/yuanzf/uvi-time-machine/_script/X-data-org/downloadGSV/Request_GSV_panoid_pl.py --city=vijayawada
+
+
+python /home/yuanzf/uvi-time-machine/_script/X-data-org/downloadGSV/Request_GSV_panoid_pl.py --city=delhi
 

@@ -1,15 +1,15 @@
 
-python ./Request_GSV_panoid_pl.py --city=astrakhan
+python /home/yuanzf/uvi-time-machine/_script/X-data-org/downloadGSV/Request_GSV_panoid_pl.py --city=reynosa
 
 
-python ./Request_GSV_panoid_pl.py --city=berezniki
+python /home/yuanzf/uvi-time-machine/_script/X-data-org/downloadGSV/Request_GSV_panoid_pl.py --city=culiacan
 
 
-python ./Request_GSV_panoid_pl.py --city=dzerzhinsk
+python /home/yuanzf/uvi-time-machine/_script/X-data-org/downloadGSV/Request_GSV_panoid_pl.py --city=mexicocity
 
 
-python ./Request_GSV_panoid_pl.py --city=saintpetersburg
+python /home/yuanzf/uvi-time-machine/_script/X-data-org/downloadGSV/Request_GSV_panoid_pl.py --city=zwolle
 
 
-python ./Request_GSV_panoid_pl.py --city=tyumen
+python /home/yuanzf/uvi-time-machine/_script/X-data-org/downloadGSV/Request_GSV_panoid_pl.py --city=amsterdam
 
