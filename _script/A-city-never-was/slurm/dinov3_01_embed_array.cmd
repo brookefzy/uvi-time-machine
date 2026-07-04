@@ -29,6 +29,11 @@ fi
 
 cd "${REPO_DIR}"
 mkdir -p logs/slurm
+printf 'host: %s\n' "$(hostname)"
+printf 'SLURM_ARRAY_TASK_ID: %s\n' "${SLURM_ARRAY_TASK_ID:-unset}"
+printf 'CUDA_VISIBLE_DEVICES: %s\n' "${CUDA_VISIBLE_DEVICES:-unset}"
+nvidia-smi -L || true
+nvidia-smi --query-gpu=index,name,uuid,ecc.errors.uncorrected.volatile.total,ecc.errors.uncorrected.aggregate.total --format=csv,noheader || true
 
 "${PYTHON}" dinov3_pipeline.py \
   --stage embed \

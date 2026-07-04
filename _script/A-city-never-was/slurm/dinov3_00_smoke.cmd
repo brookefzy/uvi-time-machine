@@ -29,6 +29,10 @@ fi
 
 cd "${REPO_DIR}"
 mkdir -p logs/slurm
+printf 'host: %s\n' "$(hostname)"
+printf 'CUDA_VISIBLE_DEVICES: %s\n' "${CUDA_VISIBLE_DEVICES:-unset}"
+nvidia-smi -L || true
+nvidia-smi --query-gpu=index,name,uuid,ecc.errors.uncorrected.volatile.total,ecc.errors.uncorrected.aggregate.total --format=csv,noheader || true
 
 "${PYTHON}" dinov3_pipeline.py \
   --stage smoke \
