@@ -71,6 +71,8 @@ python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-neve
 
 The DINOv3 pipeline runs beside the classifier-probability B5 pipeline and writes to separate `c_city_dinov3_*` folders. Do not overwrite classifier outputs when testing DINOv3.
 
+`B5d_dinov3_embed_city.py` filters image embeddings to pano metadata years 2016-2020 by default. It reads `GSV/gsv_rgb/{cityabbr}/gsvmeta/gsv_pano.csv` under `--year-metadata-root`, matching the pano-year source used by `B-timemachine/04_seg_post.py`. Keep the default filter for production runs unless you are intentionally building an all-year diagnostic output.
+
 Pipeline orchestrator:
 
 ```bash
@@ -202,6 +204,7 @@ python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-neve
   --batch-size 2 \
   --device cuda \
   --local-files-only \
+  --year-metadata-root /lustre1/g/geog_pyloo/05_timemachine \
   --limit 256
 ```
 
@@ -218,6 +221,7 @@ python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-neve
   --backend transformers \
   --batch-size 2 \
   --device cuda \
+  --year-metadata-root /lustre1/g/geog_pyloo/05_timemachine \
   --limit 2
 ```
 
@@ -235,6 +239,7 @@ python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-neve
   --batch-size 32 \
   --device cuda \
   --local-files-only \
+  --year-metadata-root /lustre1/g/geog_pyloo/05_timemachine \
   --limit 256
 ```
 
@@ -259,34 +264,57 @@ PY
     --backend transformers \
     --batch-size 64 \
     --device cuda \
-    --local-files-only
+    --local-files-only \
+    --year-metadata-root /lustre1/g/geog_pyloo/05_timemachine
 done
 ```
 
-4. Aggregate embeddings to H3 with `B5e_dinov3_vector_summary.py`; confirm every city has nonzero `res=8` rows and approximately unit-norm H3 vectors.
+4. Check whether the image embedding stage is complete before launching all-city H3 aggregation. The completeness script rebuilds the expected image list from the same 2016-2020 pano-year metadata used by `B5d_dinov3_embed_city.py`, validates existing shards, and reports missing images per city. It exits nonzero if any city is incomplete unless `--allow-incomplete` is passed for report-only inspection.
 
 ```bash
+cd /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was
+
+MODEL_NAME="/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/model/checkpoint/dinov3-vitb16-pretrain-lvd1689m"
 CITY_META=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv
 
-CITY_META="${CITY_META}" python - <<'PY' | while IFS= read -r CITY; do
-import os
-import pandas as pd
-city_meta = pd.read_csv(os.environ["CITY_META"])
-for city in city_meta["City"].dropna().drop_duplicates():
-    print(city)
-PY
-  python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5e_dinov3_vector_summary.py \
-    --city "${CITY}" \
-    --rootfolder /lustre1/g/geog_pyloo/05_timemachine \
-    --input-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_embed \
-    --output-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_hex_summary \
-    --train-test-folder /lustre1/g/geog_pyloo/05_timemachine/_transformed/t_classifier_img_yolo8 \
-    --res-exclude 11 \
-    --log-level INFO
-done
+python verify_dinov3_embedding_completeness.py \
+  --city-meta "${CITY_META}" \
+  --valfolder /lustre1/g/geog_pyloo/05_timemachine/_transformed/t_classifier_img_yolo8_inf_dir \
+  --output-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_embed \
+  --year-metadata-root /lustre1/g/geog_pyloo/05_timemachine \
+  --expected-model-name "${MODEL_NAME}" \
+  --output-csv logs/dinov3_embedding_completeness.csv \
+  --output-json logs/dinov3_embedding_completeness.json
 ```
 
-5. Run pairwise cosine with the optimized B5b script against DINOv3 H3 vectors. For the first production DINOv3 run, use `--threshold -1.0` so the city-pair averages are not biased by dropping low, zero, or negative cosine similarities.
+5. Aggregate embeddings to H3 with `B5e_dinov3_vector_summary.py`; confirm every city has nonzero `res=8` rows and approximately unit-norm H3 vectors. This step writes `res=6`, `res=7`, and `res=8` rows by default and includes `img_count` for the number of images included in each H3 cell. It also filters pano metadata to years 2016-2020 by default, so cities embedded before the image-level year filter was added do not reintroduce out-of-window images.
+
+For the all-city server run, submit the H3 array after the embedding completeness check passes:
+
+```bash
+cd /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was
+
+export REPO_DIR=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was
+export CITY_META=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv
+export RES_EXCLUDE=11
+export LOG_LEVEL=INFO
+
+sbatch --array=1-127%4 slurm/dinov3_02_h3_array.cmd
+```
+
+After the H3 array finishes, summarize how many valid H3 grids were produced per city and resolution:
+
+```bash
+python summarize_dinov3_h3_coverage.py \
+  --city-meta "${CITY_META}" \
+  --h3-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_hex_summary \
+  --res-exclude 11 \
+  --resolutions 6,7,8 \
+  --output-csv logs/dinov3_h3_coverage.csv \
+  --output-json logs/dinov3_h3_coverage.json
+```
+
+6. Run pairwise cosine with the optimized B5b script against DINOv3 H3 vectors. For the first production DINOv3 run, use `--threshold -1.0` so the city-pair averages are not biased by dropping low, zero, or negative cosine similarities.
 
 ```bash
 python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5b_compute_similarity_pairwise-optimized.py \
@@ -302,7 +330,7 @@ python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-neve
   --log-dir logs/dinov3_similarity
 ```
 
-6. Aggregate optimized pairwise outputs with B5c. This works after B5b has removed temp shards because B5c can fall back to merged `optimized/similarity_city=<City>_res=8_optimized.parquet` files.
+7. Aggregate optimized pairwise outputs with B5c. This works after B5b has removed temp shards because B5c can fall back to merged `optimized/similarity_city=<City>_res=8_optimized.parquet` files.
 
 ```bash
 python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5c_pairwise_agg_optimized.py \
@@ -319,7 +347,7 @@ python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-neve
   --parquet-file-size 512MB
 ```
 
-7. Build the city-pair model table:
+8. Build the city-pair model table:
 
 ```bash
 python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5h_summarize_dinov3_citypair_similarity.py \

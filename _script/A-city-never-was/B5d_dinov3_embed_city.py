@@ -27,6 +27,10 @@ DEFAULT_VALFOLDER = (
 DEFAULT_OUTPUT_ROOT = (
     "/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_embed"
 )
+DEFAULT_ROOT = "/lustre1/g/geog_pyloo/05_timemachine"
+DEFAULT_PANO_PATH_TEMPLATE = "{ROOTFOLDER}/GSV/gsv_rgb/{cityabbr}/gsvmeta/gsv_pano.csv"
+DEFAULT_MIN_YEAR = 2016
+DEFAULT_MAX_YEAR = 2020
 
 
 def load_city_image_index(valfolder: str | Path, city_file_stem: str) -> pd.DataFrame:
@@ -41,6 +45,54 @@ def load_city_image_index(valfolder: str | Path, city_file_stem: str) -> pd.Data
     if "name" not in df.columns:
         df["name"] = df["path"].apply(lambda value: Path(str(value)).name)
     return df
+
+
+def load_city_year_metadata(
+    year_metadata_root: str | Path,
+    city_file_stem: str,
+    pano_path_template: str = DEFAULT_PANO_PATH_TEMPLATE,
+) -> pd.DataFrame:
+    """Load panoid/year metadata for one city from the GSV pano metadata file."""
+    path = Path(
+        pano_path_template.format(
+            ROOTFOLDER=year_metadata_root,
+            cityabbr=city_file_stem,
+        )
+    )
+    if not path.exists():
+        raise FileNotFoundError(f"city pano metadata not found: {path}")
+
+    df = pd.read_csv(path)
+    required = {"panoid", "year"}
+    missing = sorted(required.difference(df.columns))
+    if missing:
+        raise ValueError(f"{path} must contain columns: {missing}")
+
+    result = df.loc[:, ["panoid", "year"]].copy()
+    result["panoid"] = result["panoid"].astype(str)
+    result["year"] = pd.to_numeric(result["year"], errors="coerce")
+    result = result.dropna(subset=["panoid", "year"]).drop_duplicates(subset=["panoid"])
+    result["year"] = result["year"].astype(int)
+    return result
+
+
+def filter_image_index_by_year(
+    df: pd.DataFrame,
+    year_metadata: pd.DataFrame,
+    min_year: int,
+    max_year: int,
+) -> pd.DataFrame:
+    """Keep only image rows whose panoid metadata year is in the inclusive range."""
+    if min_year > max_year:
+        raise ValueError("min_year must be less than or equal to max_year")
+
+    working = df.copy()
+    working["panoid"] = working["name"].astype(str).str[:22]
+    merged = working.merge(year_metadata, on="panoid", how="inner")
+    filtered = merged[
+        (merged["year"] >= min_year) & (merged["year"] <= max_year)
+    ].copy()
+    return filtered.drop(columns=["year"]).reset_index(drop=True)
 
 
 def collect_finished_names(
@@ -184,6 +236,11 @@ def embed_city(
     local_files_only: bool,
     ignore_mismatched_sizes: bool = False,
     limit: int | None = None,
+    year_metadata_root: str | Path = DEFAULT_ROOT,
+    pano_path_template: str = DEFAULT_PANO_PATH_TEMPLATE,
+    min_year: int = DEFAULT_MIN_YEAR,
+    max_year: int = DEFAULT_MAX_YEAR,
+    year_filter_enabled: bool = True,
     backend_loader: Callable[..., tuple] = load_embedding_backend,
     embedder: Callable[..., np.ndarray] | None = None,
 ) -> list[Path]:
@@ -196,6 +253,14 @@ def embed_city(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     df = load_city_image_index(valfolder, city_stem)
+    if year_filter_enabled:
+        year_metadata = load_city_year_metadata(
+            year_metadata_root,
+            city_stem,
+            pano_path_template=pano_path_template,
+        )
+        df = filter_image_index_by_year(df, year_metadata, min_year, max_year)
+
     finished_names = collect_finished_names(output_dir, expected_model_name=model_name)
     pending = df[~df["name"].isin(finished_names)].reset_index(drop=True)
     if limit is not None:
@@ -233,6 +298,23 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--city-file-stem", default=None, help="Override city parquet stem")
     parser.add_argument("--valfolder", default=DEFAULT_VALFOLDER)
     parser.add_argument("--output-root", default=DEFAULT_OUTPUT_ROOT)
+    parser.add_argument(
+        "--year-metadata-root",
+        default=DEFAULT_ROOT,
+        help="Root containing GSV/gsv_rgb/{cityabbr}/gsvmeta/gsv_pano.csv",
+    )
+    parser.add_argument(
+        "--pano-path-template",
+        default=DEFAULT_PANO_PATH_TEMPLATE,
+        help="Format string used to locate pano metadata with ROOTFOLDER and cityabbr",
+    )
+    parser.add_argument("--min-year", type=int, default=DEFAULT_MIN_YEAR)
+    parser.add_argument("--max-year", type=int, default=DEFAULT_MAX_YEAR)
+    parser.add_argument(
+        "--disable-year-filter",
+        action="store_true",
+        help="Embed all images instead of filtering to the configured metadata year range",
+    )
     parser.add_argument("--model-name", required=True)
     parser.add_argument("--backend", default="transformers", choices=["transformers", "timm"])
     parser.add_argument("--batch-size", type=int, default=64)
@@ -268,6 +350,11 @@ def main() -> None:
         local_files_only=args.local_files_only,
         ignore_mismatched_sizes=args.ignore_mismatched_sizes,
         limit=args.limit,
+        year_metadata_root=args.year_metadata_root,
+        pano_path_template=args.pano_path_template,
+        min_year=args.min_year,
+        max_year=args.max_year,
+        year_filter_enabled=not args.disable_year_filter,
     )
     print(f"Wrote {len(written)} shard(s)")
 

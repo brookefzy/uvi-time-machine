@@ -28,8 +28,9 @@ def _write_city_metadata(root, train_test_root, city, rows, train_panoids):
     meta_dir = root / "GSV" / "gsv_rgb" / city_abbr / "gsvmeta"
     meta_dir.mkdir(parents=True)
 
-    pd.DataFrame(rows).to_csv(meta_dir / "gsv_pano.csv", index=False)
-    pd.DataFrame({"panoid": [row["panoid"] for row in rows]}).to_csv(
+    pano_rows = [{**row, "year": row.get("year", 2018)} for row in rows]
+    pd.DataFrame(pano_rows).to_csv(meta_dir / "gsv_pano.csv", index=False)
+    pd.DataFrame({"panoid": [row["panoid"] for row in pano_rows]}).to_csv(
         meta_dir / "gsv_path.csv", index=False
     )
 
@@ -129,6 +130,7 @@ def test_aggregates_dinov3_embeddings_with_h3_exclusion_and_unit_vectors(tmp_pat
     result = pd.read_parquet(output_file)
     assert set(result["res"].unique()) == {6, 7, 8}
     assert "img_count" in result.columns
+    assert "image_count" not in result.columns
     assert {"max_class", "max_prob", "second_class"}.isdisjoint(result.columns)
 
     res8 = result[result["res"] == 8]
@@ -152,6 +154,90 @@ def test_aggregates_dinov3_embeddings_with_h3_exclusion_and_unit_vectors(tmp_pat
     assert stats["excluded_image_count"] == 1
     assert stats["res8_h3_count"] == 1
     assert stats["res8_mean_image_count"] == 2.0
+
+
+def test_h3_aggregation_filters_existing_embedding_shards_to_2016_2020_years(tmp_path):
+    city = "Year City"
+    input_root = tmp_path / "embed"
+    output_root = tmp_path / "hex"
+    root = tmp_path / "root"
+    train_test_root = tmp_path / "train_test"
+
+    panoids = {
+        "old": _panoid("old"),
+        "start": _panoid("start"),
+        "middle": _panoid("middle"),
+        "end": _panoid("end"),
+        "future": _panoid("future"),
+    }
+    lat, lon = 42.0, -71.0
+
+    _write_city_metadata(
+        root,
+        train_test_root,
+        city,
+        [
+            {"id": 1, "panoid": panoids["old"], "lat": lat, "lon": lon, "year": 2015},
+            {"id": 2, "panoid": panoids["start"], "lat": lat, "lon": lon, "year": 2016},
+            {
+                "id": 3,
+                "panoid": panoids["middle"],
+                "lat": lat,
+                "lon": lon,
+                "year": 2018,
+            },
+            {"id": 4, "panoid": panoids["end"], "lat": lat, "lon": lon, "year": 2020},
+            {
+                "id": 5,
+                "panoid": panoids["future"],
+                "lat": lat,
+                "lon": lon,
+                "year": 2021,
+            },
+        ],
+        [],
+    )
+
+    city_abbr = city.lower().replace(" ", "")
+    embed_dir = input_root / city_abbr
+    embed_dir.mkdir(parents=True)
+    pd.DataFrame(
+        [
+            {
+                "name": f"{panoid}_image.jpg",
+                "panoid": panoid,
+                "model_name": "fake-dinov3",
+                "embedding_dim": 2,
+                "e_0000": 1.0,
+                "e_0001": 0.0,
+            }
+            for panoid in panoids.values()
+        ]
+    ).to_parquet(embed_dir / "yearcity_000.parquet", index=False)
+
+    config = build_default_config()
+    config.update(
+        {
+            "ROOTFOLDER": str(root),
+            "CURATED_FOLDER": str(input_root),
+            "CURATE_FOLDER_EXPORT": str(output_root),
+            "TRAIN_TEST_FOLDER": str(train_test_root),
+        }
+    )
+
+    aggregator = DINOv3H3HexagonAggregator(config, log_level="ERROR")
+
+    assert aggregator.process_city(city, res_exclude=11, allow_empty=False)
+
+    output_file = output_root / "dinov3_city=Year City_res_exclude=11.parquet"
+    result = pd.read_parquet(output_file)
+    res8 = result[result["res"] == 8]
+    assert len(res8) == 1
+    assert int(res8.iloc[0]["img_count"]) == 3
+
+    stats = json.loads(output_file.with_suffix(".json").read_text())
+    assert stats["image_count_before_exclusion"] == 3
+    assert stats["image_count_after_exclusion"] == 3
 
 
 def test_empty_after_exclusion_writes_sidecar_and_cli_exits_nonzero(tmp_path):

@@ -29,6 +29,8 @@ DEFAULT_ROOT = "/lustre1/g/geog_pyloo/05_timemachine"
 DEFAULT_INPUT_ROOT = f"{DEFAULT_ROOT}/_curated/c_city_dinov3_embed"
 DEFAULT_OUTPUT_ROOT = f"{DEFAULT_ROOT}/_curated/c_city_dinov3_hex_summary"
 DEFAULT_TRAIN_TEST_FOLDER = f"{DEFAULT_ROOT}/_transformed/t_classifier_img_yolo8"
+DEFAULT_MIN_YEAR = 2016
+DEFAULT_MAX_YEAR = 2020
 
 
 def build_default_config() -> Dict[str, object]:
@@ -41,6 +43,9 @@ def build_default_config() -> Dict[str, object]:
         "PATH_PATH": "{ROOTFOLDER}/GSV/gsv_rgb/{cityabbr}/gsvmeta/gsv_path.csv",
         "summary_resolutions": [6, 7, 8],
         "exclude_resolutions": [11, 12, 13],
+        "year_filter_enabled": True,
+        "min_year": DEFAULT_MIN_YEAR,
+        "max_year": DEFAULT_MAX_YEAR,
     }
 
 
@@ -101,10 +106,26 @@ class DINOv3H3HexagonAggregator:
             return pd.DataFrame()
 
         df_pano = pd.read_csv(pano_path)
+        if "year" not in df_pano.columns:
+            raise ValueError(f"{pano_path} must contain a year column")
+        df_pano["year"] = pd.to_numeric(df_pano["year"], errors="coerce")
+
         df_path = pd.read_csv(path_path, usecols=["panoid"]).drop_duplicates()
         df_pano = df_pano.merge(df_path, on="panoid", how="inner")
         if df_pano.empty:
             return df_pano
+
+        if bool(self.config.get("year_filter_enabled", True)):
+            min_year = int(self.config.get("min_year", DEFAULT_MIN_YEAR))
+            max_year = int(self.config.get("max_year", DEFAULT_MAX_YEAR))
+            if min_year > max_year:
+                raise ValueError("min_year must be less than or equal to max_year")
+            df_pano = df_pano[
+                (df_pano["year"] >= min_year) & (df_pano["year"] <= max_year)
+            ].copy()
+            if df_pano.empty:
+                return df_pano
+
         return self._add_h3_indices(df_pano)
 
     def _add_h3_indices(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -355,6 +376,13 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         action="store_true",
         help="Return success when the join or post-exclusion set is empty",
     )
+    parser.add_argument("--min-year", type=int, default=DEFAULT_MIN_YEAR)
+    parser.add_argument("--max-year", type=int, default=DEFAULT_MAX_YEAR)
+    parser.add_argument(
+        "--disable-year-filter",
+        action="store_true",
+        help="Aggregate all embedding years instead of filtering pano metadata to the configured year range",
+    )
     parser.add_argument(
         "--log-level",
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
@@ -373,6 +401,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "CURATED_FOLDER": args.input_root,
             "CURATE_FOLDER_EXPORT": args.output_root,
             "TRAIN_TEST_FOLDER": args.train_test_folder,
+            "year_filter_enabled": not args.disable_year_filter,
+            "min_year": args.min_year,
+            "max_year": args.max_year,
         }
     )
     aggregator = DINOv3H3HexagonAggregator(config, log_level=args.log_level)

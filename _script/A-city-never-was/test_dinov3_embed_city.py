@@ -24,7 +24,8 @@ def make_input(tmp_path, city_stem="hongkong", count=5):
     image_root.mkdir()
     rows = []
     for i in range(count):
-        name = f"panoid_{i:02d}_abcdefghijkl_{i}.jpg"
+        panoid = f"panoid_{i:02d}_abcdefghijkl"
+        name = f"{panoid}_{i}.jpg"
         path = image_root / name
         path.write_bytes(b"fake")
         rows.append({"path": str(path)})
@@ -32,6 +33,18 @@ def make_input(tmp_path, city_stem="hongkong", count=5):
     valfolder.mkdir()
     pd.DataFrame(rows).to_parquet(valfolder / f"{city_stem}.parquet", index=False)
     return valfolder, rows
+
+
+def write_year_metadata(tmp_path, city_stem="hongkong", years=None):
+    years = years or {}
+    meta_dir = tmp_path / "root" / "GSV" / "gsv_rgb" / city_stem / "gsvmeta"
+    meta_dir.mkdir(parents=True)
+    rows = [
+        {"panoid": panoid, "year": year}
+        for panoid, year in years.items()
+    ]
+    pd.DataFrame(rows).to_csv(meta_dir / "gsv_pano.csv", index=False)
+    return tmp_path / "root"
 
 
 def test_embed_city_writes_l2_normalized_chunks_with_expected_columns(tmp_path):
@@ -50,6 +63,7 @@ def test_embed_city_writes_l2_normalized_chunks_with_expected_columns(tmp_path):
         device="cpu",
         local_files_only=True,
         limit=None,
+        year_filter_enabled=False,
         backend_loader=lambda **_kwargs: (backend.model, backend.processor),
         embedder=backend.embed,
     )
@@ -104,6 +118,7 @@ def test_embed_city_resumes_by_skipping_names_in_existing_chunks(tmp_path):
         device="cpu",
         local_files_only=True,
         limit=None,
+        year_filter_enabled=False,
         backend_loader=lambda **_kwargs: (backend.model, backend.processor),
         embedder=backend.embed,
     )
@@ -169,6 +184,7 @@ def test_embed_city_limit_applies_after_resume_filter(tmp_path):
         device="cpu",
         local_files_only=True,
         limit=2,
+        year_filter_enabled=False,
         backend_loader=lambda **_kwargs: (backend.model, backend.processor),
         embedder=backend.embed,
     )
@@ -176,3 +192,43 @@ def test_embed_city_limit_applies_after_resume_filter(tmp_path):
     result = pd.concat(pd.read_parquet(path) for path in written)
 
     assert len(result) == 2
+
+
+def test_embed_city_filters_images_to_2016_2020_metadata_years(tmp_path):
+    valfolder, rows = make_input(tmp_path, count=5)
+    output_root = tmp_path / "out"
+    backend = FakeBackend()
+    year_root = write_year_metadata(
+        tmp_path,
+        years={
+            Path(rows[0]["path"]).name[:22]: 2015,
+            Path(rows[1]["path"]).name[:22]: 2016,
+            Path(rows[2]["path"]).name[:22]: 2019,
+            Path(rows[3]["path"]).name[:22]: 2020,
+            Path(rows[4]["path"]).name[:22]: 2021,
+        },
+    )
+
+    written = embed_city(
+        city="Hong Kong",
+        city_file_stem=None,
+        valfolder=valfolder,
+        output_root=output_root,
+        model_name="fake-dinov3",
+        backend_name="fake",
+        batch_size=10,
+        device="cpu",
+        local_files_only=True,
+        limit=None,
+        year_metadata_root=year_root,
+        backend_loader=lambda **_kwargs: (backend.model, backend.processor),
+        embedder=backend.embed,
+    )
+
+    result = pd.concat(pd.read_parquet(path) for path in written).sort_values("name")
+
+    assert result["name"].tolist() == [
+        Path(rows[1]["path"]).name,
+        Path(rows[2]["path"]).name,
+        Path(rows[3]["path"]).name,
+    ]
