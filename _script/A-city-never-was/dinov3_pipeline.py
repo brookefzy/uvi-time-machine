@@ -32,6 +32,15 @@ GLOBAL_STAGES = {"pairwise", "b5c", "summary"}
 ALL_STAGES = ("embed", "aggregate", "pairwise", "b5c", "summary")
 
 
+def parse_optional_res_exclude(value: str | int | None) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if text.lower() in {"", "none", "null", "no", "false"}:
+        return None
+    return str(int(text))
+
+
 @dataclass(frozen=True)
 class DINOv3PipelineConfig:
     repo_dir: Path = Path(DEFAULT_REPO_DIR)
@@ -60,7 +69,7 @@ class DINOv3PipelineConfig:
     device: str = "cuda"
     local_files_only: bool = True
     ignore_mismatched_sizes: bool = False
-    res_exclude: int = 11
+    res_exclude: str | None = None
     resolution: int = 8
     threshold: float = -1.0
     row_block_size: int = 1000
@@ -168,26 +177,24 @@ def build_embed_command(config: DINOv3PipelineConfig, city: str) -> str:
 
 
 def build_aggregate_command(config: DINOv3PipelineConfig, city: str) -> str:
-    return command(
-        [
-            config.python,
-            script_path(config, "B5e_dinov3_vector_summary.py"),
-            "--city",
-            city,
-            "--rootfolder",
-            config.rootfolder,
-            "--input-root",
-            config.embed_root,
-            "--output-root",
-            config.hex_root,
-            "--train-test-folder",
-            config.train_test_folder,
-            "--res-exclude",
-            config.res_exclude,
-            "--log-level",
-            config.log_level,
-        ]
-    )
+    parts: list[object] = [
+        config.python,
+        script_path(config, "B5e_dinov3_vector_summary.py"),
+        "--city",
+        city,
+        "--rootfolder",
+        config.rootfolder,
+        "--input-root",
+        config.embed_root,
+        "--output-root",
+        config.hex_root,
+        "--train-test-folder",
+        config.train_test_folder,
+    ]
+    if config.res_exclude is not None:
+        parts.extend(["--res-exclude", config.res_exclude])
+    parts.extend(["--log-level", config.log_level])
+    return command(parts)
 
 
 def build_pairwise_command(config: DINOv3PipelineConfig) -> str:
@@ -204,7 +211,7 @@ def build_pairwise_command(config: DINOv3PipelineConfig) -> str:
             "--output-root",
             config.pairwise_root,
             "--input-template",
-            "dinov3_city={city}_res_exclude={res_exclude}.parquet",
+            f"dinov3_city={{city}}_res_exclude={str(config.res_exclude)}.parquet",
             "--feature-prefix",
             "e_",
             "--threshold",
@@ -214,7 +221,7 @@ def build_pairwise_command(config: DINOv3PipelineConfig) -> str:
             "--memory-limit",
             config.b5b_memory_limit,
             "--res-exclude",
-            config.res_exclude,
+            str(config.res_exclude),
             "--log-dir",
             config.log_dir,
         ]
@@ -336,7 +343,6 @@ mkdir -p logs/slurm
   --backend {quote(config.backend)} \\
   --device {quote(config.device)} \\
   --batch-size {config.batch_size} \\
-  --res-exclude {config.res_exclude} \\
   --resolution {config.resolution} \\
   --execute
 """
@@ -363,7 +369,7 @@ def config_from_args(args: argparse.Namespace) -> DINOv3PipelineConfig:
         device=args.device,
         local_files_only=args.local_files_only,
         ignore_mismatched_sizes=args.ignore_mismatched_sizes,
-        res_exclude=args.res_exclude,
+        res_exclude=parse_optional_res_exclude(args.res_exclude),
         resolution=args.resolution,
         threshold=args.threshold,
         row_block_size=args.row_block_size,
@@ -423,7 +429,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
             "checkpoints with expected tensor-size mismatches"
         ),
     )
-    parser.add_argument("--res-exclude", type=int, default=11)
+    parser.add_argument("--res-exclude", default=None)
     parser.add_argument("--resolution", type=int, default=8)
     parser.add_argument("--threshold", type=float, default=-1.0)
     parser.add_argument("--row-block-size", type=int, default=1000)

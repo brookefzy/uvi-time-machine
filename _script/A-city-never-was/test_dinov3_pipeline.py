@@ -44,7 +44,7 @@ def test_build_embed_and_aggregate_commands_for_selected_city(tmp_path):
     assert len(aggregate) == 1
     assert "B5e_dinov3_vector_summary.py" in aggregate[0]
     assert "--city 'Hong Kong'" in aggregate[0]
-    assert "--res-exclude 11" in aggregate[0]
+    assert "--res-exclude" not in aggregate[0]
 
 
 def test_build_embed_command_can_pass_transformers_mismatch_tolerance():
@@ -74,6 +74,8 @@ def test_build_all_commands_orders_city_stages_before_global_stages(tmp_path):
     assert "B5c_pairwise_agg_optimized.py" in commands[5]
     assert "B5h_summarize_dinov3_citypair_similarity.py" in commands[6]
     assert "--threshold -1.0" in commands[4]
+    assert "dinov3_city={city}_res_exclude=None.parquet" in commands[4]
+    assert "--res-exclude None" in commands[4]
 
 
 def test_render_slurm_array_script_uses_city_count_and_task_id():

@@ -29,6 +29,5 @@ mkdir -p logs/slurm
   --city-meta "${CITY_META}" \
   --city-index "${SLURM_ARRAY_TASK_ID}" \
   --repo-dir "${REPO_DIR}" \
-  --res-exclude "${RES_EXCLUDE:-11}" \
   --log-level "${LOG_LEVEL:-INFO}" \
   --execute

@@ -33,6 +33,15 @@ DEFAULT_MIN_YEAR = 2016
 DEFAULT_MAX_YEAR = 2020
 
 
+def parse_optional_res_exclude(value: str | int | None) -> Optional[int]:
+    if value is None:
+        return None
+    text = str(value).strip().lower()
+    if text in {"", "none", "null", "no", "false"}:
+        return None
+    return int(text)
+
+
 def build_default_config() -> Dict[str, object]:
     return {
         "ROOTFOLDER": DEFAULT_ROOT,
@@ -304,7 +313,7 @@ class DINOv3H3HexagonAggregator:
     def process_city(
         self,
         city: str,
-        res_exclude: Optional[int] = 11,
+        res_exclude: Optional[int] = None,
         allow_empty: bool = False,
     ) -> bool:
         output_file = self.output_path(city, res_exclude)
@@ -366,10 +375,9 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--res-exclude",
-        type=int,
-        default=11,
-        choices=[11, 12, 13],
-        help="H3 resolution used to exclude train/test leakage",
+        type=parse_optional_res_exclude,
+        default=None,
+        help="Optional H3 resolution used to exclude train/test leakage; default is no exclusion",
     )
     parser.add_argument(
         "--allow-empty",

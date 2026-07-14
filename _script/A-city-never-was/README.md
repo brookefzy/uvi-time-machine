@@ -287,7 +287,7 @@ python verify_dinov3_embedding_completeness.py \
   --output-json logs/dinov3_embedding_completeness.json
 ```
 
-5. Aggregate embeddings to H3 with `B5e_dinov3_vector_summary.py`; confirm every city has nonzero `res=8` rows and approximately unit-norm H3 vectors. This step writes `res=6`, `res=7`, and `res=8` rows by default and includes `img_count` for the number of images included in each H3 cell. It also filters pano metadata to years 2016-2020 by default, so cities embedded before the image-level year filter was added do not reintroduce out-of-window images.
+5. Aggregate embeddings to H3 with `B5e_dinov3_vector_summary.py`; confirm every city has nonzero `res=8` rows and approximately unit-norm H3 vectors. This step writes `res=6`, `res=7`, and `res=8` rows by default and includes `img_count` for the number of images included in each H3 cell. It does not exclude train/test-overlap hexagons by default because DINOv3 embeddings did not train on this city classifier split. It still filters pano metadata to years 2016-2020 by default, so cities embedded before the image-level year filter was added do not reintroduce out-of-window images.
 
 For the all-city server run, submit the H3 array after the embedding completeness check passes:
 
@@ -296,7 +296,6 @@ cd /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-wa
 
 export REPO_DIR=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was
 export CITY_META=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv
-export RES_EXCLUDE=11
 export LOG_LEVEL=INFO
 
 sbatch --array=1-127%4 slurm/dinov3_02_h3_array.cmd
@@ -308,7 +307,6 @@ After the H3 array finishes, summarize how many valid H3 grids were produced per
 python summarize_dinov3_h3_coverage.py \
   --city-meta "${CITY_META}" \
   --h3-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_hex_summary \
-  --res-exclude 11 \
   --resolutions 6,7,8 \
   --output-csv logs/dinov3_h3_coverage.csv \
   --output-json logs/dinov3_h3_coverage.json
@@ -322,11 +320,12 @@ python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-neve
   --city-meta /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv \
   --source-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_hex_summary \
   --output-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_similarity_by_pair \
-  --input-template 'dinov3_city={city}_res_exclude={res_exclude}.parquet' \
+  --input-template 'dinov3_city={city}_res_exclude=None.parquet' \
   --feature-prefix e_ \
   --threshold -1.0 \
   --row-block-size 1000 \
   --memory-limit 16GB \
+  --res-exclude None \
   --log-dir logs/dinov3_similarity
 ```
 

@@ -16,6 +16,15 @@ from dinov3_pipeline import DEFAULT_CITY_META, CITY_COLUMNS
 from dinov3_utils import discover_embedding_columns
 
 
+def parse_optional_res_exclude(value: str | int | None) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if text.lower() in {"", "none", "null", "no", "false"}:
+        return None
+    return str(int(text))
+
+
 def load_city_names(city_meta: str | Path) -> list[str]:
     meta = pd.read_csv(city_meta)
     city_column = next((column for column in CITY_COLUMNS if column in meta.columns), None)
@@ -40,7 +49,7 @@ def _count_column(df: pd.DataFrame) -> str:
 def summarize_city_h3(
     city: str,
     h3_root: str | Path,
-    res_exclude: int | None = 11,
+    res_exclude: str | int | None = None,
     resolutions: Sequence[int] = (6, 7, 8),
 ) -> list[dict[str, object]]:
     path = h3_output_path(h3_root, city, res_exclude)
@@ -147,7 +156,7 @@ def summarize_rows(rows: list[dict[str, object]]) -> dict[str, object]:
 def summarize_all_cities(
     city_meta: str | Path = DEFAULT_CITY_META,
     h3_root: str | Path = DEFAULT_OUTPUT_ROOT,
-    res_exclude: int | None = 11,
+    res_exclude: str | int | None = None,
     resolutions: Sequence[int] = (6, 7, 8),
 ) -> dict[str, object]:
     rows: list[dict[str, object]] = []
@@ -189,7 +198,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--city-meta", default=DEFAULT_CITY_META)
     parser.add_argument("--h3-root", default=DEFAULT_OUTPUT_ROOT)
-    parser.add_argument("--res-exclude", type=int, default=11)
+    parser.add_argument("--res-exclude", default=None)
     parser.add_argument("--resolutions", default="6,7,8")
     parser.add_argument("--output-csv")
     parser.add_argument("--output-json")
@@ -206,7 +215,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     result = summarize_all_cities(
         city_meta=args.city_meta,
         h3_root=args.h3_root,
-        res_exclude=args.res_exclude,
+        res_exclude=parse_optional_res_exclude(args.res_exclude),
         resolutions=_parse_resolutions(args.resolutions),
     )
     write_outputs(result, args.output_csv, args.output_json)

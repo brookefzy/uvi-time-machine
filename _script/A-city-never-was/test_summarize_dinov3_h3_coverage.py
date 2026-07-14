@@ -46,7 +46,7 @@ def _write_h3_output(output_root: Path, city: str):
                 "e_0001": 1.0,
             },
         ]
-    ).to_parquet(output_root / f"dinov3_city={city}_res_exclude=11.parquet", index=False)
+    ).to_parquet(output_root / f"dinov3_city={city}_res_exclude=None.parquet", index=False)
 
 
 def test_summarize_all_cities_counts_valid_h3_grids_by_resolution(tmp_path):
@@ -58,7 +58,6 @@ def test_summarize_all_cities_counts_valid_h3_grids_by_resolution(tmp_path):
     result = summarize_all_cities(
         city_meta=city_meta,
         h3_root=output_root,
-        res_exclude=11,
         resolutions=[6, 7, 8],
     )
 

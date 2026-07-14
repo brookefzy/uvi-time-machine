@@ -40,7 +40,7 @@ def _write_city_metadata(root, train_test_root, city, rows, train_panoids):
         (train_dir / f"{panoid}_000.jpg").write_text("fake image")
 
 
-def test_aggregates_dinov3_embeddings_with_h3_exclusion_and_unit_vectors(tmp_path):
+def test_aggregates_dinov3_embeddings_without_default_h3_exclusion_and_unit_vectors(tmp_path):
     city = "Test City"
     input_root = tmp_path / "embed"
     output_root = tmp_path / "hex"
@@ -120,9 +120,9 @@ def test_aggregates_dinov3_embeddings_with_h3_exclusion_and_unit_vectors(tmp_pat
 
     aggregator = DINOv3H3HexagonAggregator(config, log_level="ERROR")
 
-    assert aggregator.process_city(city, res_exclude=11, allow_empty=False)
+    assert aggregator.process_city(city, allow_empty=False)
 
-    output_file = output_root / "dinov3_city=Test City_res_exclude=11.parquet"
+    output_file = output_root / "dinov3_city=Test City_res_exclude=None.parquet"
     stats_file = output_file.with_suffix(".json")
     assert output_file.exists()
     assert stats_file.exists()
@@ -134,9 +134,10 @@ def test_aggregates_dinov3_embeddings_with_h3_exclusion_and_unit_vectors(tmp_pat
     assert {"max_class", "max_prob", "second_class"}.isdisjoint(result.columns)
 
     res8 = result[result["res"] == 8]
-    assert len(res8) == 1
-    row = res8.iloc[0]
-    assert row["hex_id"] == _h3_cell(keep_lat, keep_lon, 8)
+    assert len(res8) == 2
+    by_hex = {row["hex_id"]: row for _, row in res8.iterrows()}
+    assert by_hex[_h3_cell(overlap_lat, overlap_lon, 8)]["img_count"] == 1
+    row = by_hex[_h3_cell(keep_lat, keep_lon, 8)]
     assert row["img_count"] == 2
     expected = np.array([1.5, 4.0])
     expected = expected / np.linalg.norm(expected)
@@ -150,10 +151,10 @@ def test_aggregates_dinov3_embeddings_with_h3_exclusion_and_unit_vectors(tmp_pat
     assert stats["model_name"] == "fake-dinov3"
     assert stats["embedding_dim"] == 2
     assert stats["image_count_before_exclusion"] == 3
-    assert stats["image_count_after_exclusion"] == 2
-    assert stats["excluded_image_count"] == 1
-    assert stats["res8_h3_count"] == 1
-    assert stats["res8_mean_image_count"] == 2.0
+    assert stats["image_count_after_exclusion"] == 3
+    assert stats["excluded_image_count"] == 0
+    assert stats["res8_h3_count"] == 2
+    assert stats["res8_mean_image_count"] == 1.5
 
 
 def test_h3_aggregation_filters_existing_embedding_shards_to_2016_2020_years(tmp_path):

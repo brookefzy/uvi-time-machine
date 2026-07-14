@@ -1183,8 +1183,7 @@ def main():
     )
     parser.add_argument(
         "--res-exclude",
-        type=int,
-        default=11,
+        default="11",
         help="Exclusion resolution used in input filenames",
     )
     parser.add_argument(

@@ -28,7 +28,7 @@ mkdir -p logs/slurm
   --city-meta "${CITY_META}" \
   --repo-dir "${REPO_DIR}" \
   --resolution "${RESOLUTION:-8}" \
-  --res-exclude "${RES_EXCLUDE:-11}" \
+  --res-exclude "${RES_EXCLUDE:-None}" \
   --threshold "${DINO_THRESHOLD:--1.0}" \
   --row-block-size "${ROW_BLOCK_SIZE:-1000}" \
   --b5b-memory-limit "${B5B_MEMORY_LIMIT:-96GB}" \
