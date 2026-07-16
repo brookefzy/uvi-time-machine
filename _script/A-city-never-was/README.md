@@ -71,7 +71,7 @@ python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-neve
 
 The DINOv3 pipeline runs beside the classifier-probability B5 pipeline and writes to separate `c_city_dinov3_*` folders. Do not overwrite classifier outputs when testing DINOv3.
 
-`B5d_dinov3_embed_city.py` filters image embeddings to pano metadata years 2016-2020 by default. It reads `GSV/gsv_rgb/{cityabbr}/gsvmeta/gsv_pano.csv` under `--year-metadata-root`, matching the pano-year source used by `B-timemachine/04_seg_post.py`. Keep the default filter for production runs unless you are intentionally building an all-year diagnostic output.
+`B5d_dinov3_embed_city.py` embeds all available city images by default. The 2016-2020 pano-year window is enforced downstream in `B5e_dinov3_vector_summary.py`, which reads `GSV/gsv_rgb/{cityabbr}/gsvmeta/gsv_pano.csv` under `--year-metadata-root`, matching the pano-year source used by `B-timemachine/04_seg_post.py`.
 
 Pipeline orchestrator:
 
@@ -204,7 +204,6 @@ python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-neve
   --batch-size 2 \
   --device cuda \
   --local-files-only \
-  --year-metadata-root /lustre1/g/geog_pyloo/05_timemachine \
   --limit 256
 ```
 
@@ -221,7 +220,6 @@ python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-neve
   --backend transformers \
   --batch-size 2 \
   --device cuda \
-  --year-metadata-root /lustre1/g/geog_pyloo/05_timemachine \
   --limit 2
 ```
 
@@ -239,7 +237,6 @@ python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-neve
   --batch-size 32 \
   --device cuda \
   --local-files-only \
-  --year-metadata-root /lustre1/g/geog_pyloo/05_timemachine \
   --limit 256
 ```
 
@@ -264,12 +261,11 @@ PY
     --backend transformers \
     --batch-size 64 \
     --device cuda \
-    --local-files-only \
-    --year-metadata-root /lustre1/g/geog_pyloo/05_timemachine
+    --local-files-only
 done
 ```
 
-4. Check whether the image embedding stage is complete before launching all-city H3 aggregation. The completeness script rebuilds the expected image list from the same 2016-2020 pano-year metadata used by `B5d_dinov3_embed_city.py`, validates existing shards, and reports missing images per city. It exits nonzero if any city is incomplete unless `--allow-incomplete` is passed for report-only inspection.
+4. Check whether the image embedding stage is complete before launching all-city H3 aggregation. The completeness script rebuilds the expected all-image list, validates existing shards, and reports missing images per city. It exits nonzero if any city is incomplete unless `--allow-incomplete` is passed for report-only inspection.
 
 ```bash
 cd /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was
@@ -281,13 +277,12 @@ python verify_dinov3_embedding_completeness.py \
   --city-meta "${CITY_META}" \
   --valfolder /lustre1/g/geog_pyloo/05_timemachine/_transformed/t_classifier_img_yolo8_inf_dir \
   --output-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_embed \
-  --year-metadata-root /lustre1/g/geog_pyloo/05_timemachine \
   --expected-model-name "${MODEL_NAME}" \
   --output-csv logs/dinov3_embedding_completeness.csv \
   --output-json logs/dinov3_embedding_completeness.json
 ```
 
-5. Aggregate embeddings to H3 with `B5e_dinov3_vector_summary.py`; confirm every city has nonzero `res=8` rows and approximately unit-norm H3 vectors. This step writes `res=6`, `res=7`, and `res=8` rows by default and includes `img_count` for the number of images included in each H3 cell. It does not exclude train/test-overlap hexagons by default because DINOv3 embeddings did not train on this city classifier split. It still filters pano metadata to years 2016-2020 by default, so cities embedded before the image-level year filter was added do not reintroduce out-of-window images.
+5. Aggregate embeddings to H3 with `B5e_dinov3_vector_summary.py`; confirm every city has nonzero `res=8` rows and approximately unit-norm H3 vectors. This step writes `res=6`, `res=7`, and `res=8` rows by default and includes `img_count` for the number of images included in each H3 cell. It does not exclude train/test-overlap hexagons by default because DINOv3 embeddings did not train on this city classifier split. It filters pano metadata to years 2016-2020 by default, so H3 outputs remain restricted to the analysis window even when embedding shards contain all available years.
 
 For the all-city server run, submit the H3 array after the embedding completeness check passes:
 

@@ -95,6 +95,15 @@ def filter_image_index_by_year(
     return filtered.drop(columns=["year"]).reset_index(drop=True)
 
 
+def filter_existing_image_paths(df: pd.DataFrame) -> pd.DataFrame:
+    """Drop stale image-index rows whose files are no longer on disk."""
+    existing = df["path"].apply(lambda value: Path(str(value)).exists())
+    missing_count = int((~existing).sum())
+    if missing_count:
+        print(f"Skipping {missing_count} image(s) whose path does not exist", flush=True)
+    return df.loc[existing].reset_index(drop=True)
+
+
 def collect_finished_names(
     curated_city_folder: str | Path,
     expected_model_name: str | None = None,
@@ -240,7 +249,7 @@ def embed_city(
     pano_path_template: str = DEFAULT_PANO_PATH_TEMPLATE,
     min_year: int = DEFAULT_MIN_YEAR,
     max_year: int = DEFAULT_MAX_YEAR,
-    year_filter_enabled: bool = True,
+    year_filter_enabled: bool = False,
     backend_loader: Callable[..., tuple] = load_embedding_backend,
     embedder: Callable[..., np.ndarray] | None = None,
 ) -> list[Path]:
@@ -260,6 +269,7 @@ def embed_city(
             pano_path_template=pano_path_template,
         )
         df = filter_image_index_by_year(df, year_metadata, min_year, max_year)
+    df = filter_existing_image_paths(df)
 
     finished_names = collect_finished_names(output_dir, expected_model_name=model_name)
     pending = df[~df["name"].isin(finished_names)].reset_index(drop=True)
@@ -311,10 +321,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--min-year", type=int, default=DEFAULT_MIN_YEAR)
     parser.add_argument("--max-year", type=int, default=DEFAULT_MAX_YEAR)
     parser.add_argument(
-        "--disable-year-filter",
+        "--enable-year-filter",
         action="store_true",
-        help="Embed all images instead of filtering to the configured metadata year range",
+        dest="year_filter_enabled",
+        help="Restrict embedding to the configured metadata year range; default embeds all images",
     )
+    parser.add_argument(
+        "--disable-year-filter",
+        action="store_false",
+        dest="year_filter_enabled",
+        help=argparse.SUPPRESS,
+    )
+    parser.set_defaults(year_filter_enabled=False)
     parser.add_argument("--model-name", required=True)
     parser.add_argument("--backend", default="transformers", choices=["transformers", "timm"])
     parser.add_argument("--batch-size", type=int, default=64)
@@ -354,7 +372,7 @@ def main() -> None:
         pano_path_template=args.pano_path_template,
         min_year=args.min_year,
         max_year=args.max_year,
-        year_filter_enabled=not args.disable_year_filter,
+        year_filter_enabled=args.year_filter_enabled,
     )
     print(f"Wrote {len(written)} shard(s)")
 

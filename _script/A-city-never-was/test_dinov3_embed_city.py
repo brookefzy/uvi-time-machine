@@ -194,6 +194,65 @@ def test_embed_city_limit_applies_after_resume_filter(tmp_path):
     assert len(result) == 2
 
 
+def test_embed_city_default_embeds_all_images_without_year_metadata(tmp_path):
+    valfolder, rows = make_input(tmp_path, count=5)
+    output_root = tmp_path / "out"
+    backend = FakeBackend()
+
+    written = embed_city(
+        city="Hong Kong",
+        city_file_stem=None,
+        valfolder=valfolder,
+        output_root=output_root,
+        model_name="fake-dinov3",
+        backend_name="fake",
+        batch_size=10,
+        device="cpu",
+        local_files_only=True,
+        limit=None,
+        backend_loader=lambda **_kwargs: (backend.model, backend.processor),
+        embedder=backend.embed,
+    )
+
+    result = pd.concat(pd.read_parquet(path) for path in written).sort_values("name")
+
+    assert result["name"].tolist() == [Path(row["path"]).name for row in rows]
+
+
+def test_embed_city_skips_rows_whose_image_path_does_not_exist(tmp_path):
+    valfolder, rows = make_input(tmp_path, count=4)
+    missing_name = Path(rows[2]["path"]).name
+    Path(rows[2]["path"]).unlink()
+    output_root = tmp_path / "out"
+    backend = FakeBackend()
+
+    def embed_existing_only(paths, model, processor, device):
+        assert all(Path(path).exists() for path in paths)
+        return backend.embed(paths, model, processor, device)
+
+    written = embed_city(
+        city="Hong Kong",
+        city_file_stem=None,
+        valfolder=valfolder,
+        output_root=output_root,
+        model_name="fake-dinov3",
+        backend_name="fake",
+        batch_size=10,
+        device="cpu",
+        local_files_only=True,
+        limit=None,
+        backend_loader=lambda **_kwargs: (backend.model, backend.processor),
+        embedder=embed_existing_only,
+    )
+
+    result = pd.concat(pd.read_parquet(path) for path in written).sort_values("name")
+
+    assert missing_name not in result["name"].tolist()
+    assert result["name"].tolist() == [
+        Path(row["path"]).name for index, row in enumerate(rows) if index != 2
+    ]
+
+
 def test_embed_city_filters_images_to_2016_2020_metadata_years(tmp_path):
     valfolder, rows = make_input(tmp_path, count=5)
     output_root = tmp_path / "out"
@@ -221,6 +280,7 @@ def test_embed_city_filters_images_to_2016_2020_metadata_years(tmp_path):
         local_files_only=True,
         limit=None,
         year_metadata_root=year_root,
+        year_filter_enabled=True,
         backend_loader=lambda **_kwargs: (backend.model, backend.processor),
         embedder=backend.embed,
     )

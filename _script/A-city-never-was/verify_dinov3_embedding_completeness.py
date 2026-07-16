@@ -18,6 +18,7 @@ from B5d_dinov3_embed_city import (
     DEFAULT_ROOT,
     DEFAULT_VALFOLDER,
     collect_finished_names,
+    filter_existing_image_paths,
     filter_image_index_by_year,
     load_city_image_index,
     load_city_year_metadata,
@@ -44,7 +45,7 @@ def expected_image_names(
     pano_path_template: str = DEFAULT_PANO_PATH_TEMPLATE,
     min_year: int = DEFAULT_MIN_YEAR,
     max_year: int = DEFAULT_MAX_YEAR,
-    year_filter_enabled: bool = True,
+    year_filter_enabled: bool = False,
 ) -> set[str]:
     city_stem = resolve_city_file_stem(city)
     df = load_city_image_index(valfolder, city_stem)
@@ -55,6 +56,7 @@ def expected_image_names(
             pano_path_template=pano_path_template,
         )
         df = filter_image_index_by_year(df, year_metadata, min_year, max_year)
+    df = filter_existing_image_paths(df)
     return set(df["name"].dropna().astype(str).tolist())
 
 
@@ -67,7 +69,7 @@ def check_city_embedding(
     pano_path_template: str = DEFAULT_PANO_PATH_TEMPLATE,
     min_year: int = DEFAULT_MIN_YEAR,
     max_year: int = DEFAULT_MAX_YEAR,
-    year_filter_enabled: bool = True,
+    year_filter_enabled: bool = False,
     max_examples: int = 5,
 ) -> dict[str, object]:
     city_stem = resolve_city_file_stem(city)
@@ -150,7 +152,7 @@ def check_all_embeddings(
     pano_path_template: str = DEFAULT_PANO_PATH_TEMPLATE,
     min_year: int = DEFAULT_MIN_YEAR,
     max_year: int = DEFAULT_MAX_YEAR,
-    year_filter_enabled: bool = True,
+    year_filter_enabled: bool = False,
 ) -> dict[str, object]:
     rows = [
         check_city_embedding(
@@ -213,7 +215,19 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--pano-path-template", default=DEFAULT_PANO_PATH_TEMPLATE)
     parser.add_argument("--min-year", type=int, default=DEFAULT_MIN_YEAR)
     parser.add_argument("--max-year", type=int, default=DEFAULT_MAX_YEAR)
-    parser.add_argument("--disable-year-filter", action="store_true")
+    parser.add_argument(
+        "--enable-year-filter",
+        action="store_true",
+        dest="year_filter_enabled",
+        help="Check completeness against the configured metadata year range; default checks all images",
+    )
+    parser.add_argument(
+        "--disable-year-filter",
+        action="store_false",
+        dest="year_filter_enabled",
+        help=argparse.SUPPRESS,
+    )
+    parser.set_defaults(year_filter_enabled=False)
     parser.add_argument("--expected-model-name")
     parser.add_argument("--output-csv")
     parser.add_argument("--output-json")
@@ -236,7 +250,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         pano_path_template=args.pano_path_template,
         min_year=args.min_year,
         max_year=args.max_year,
-        year_filter_enabled=not args.disable_year_filter,
+        year_filter_enabled=args.year_filter_enabled,
     )
     write_outputs(result, args.output_csv, args.output_json)
     print_summary(result)

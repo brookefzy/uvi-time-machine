@@ -83,11 +83,73 @@ def test_check_all_embeddings_reports_complete_and_incomplete_cities(tmp_path):
     assert result["summary"]["incomplete_city_count"] == 1
 
     assert rows["Alpha City"]["status"] == "incomplete"
-    assert rows["Alpha City"]["expected_image_count"] == 3
+    assert rows["Alpha City"]["expected_image_count"] == 5
     assert rows["Alpha City"]["finished_image_count"] == 2
-    assert rows["Alpha City"]["missing_image_count"] == 1
+    assert rows["Alpha City"]["missing_image_count"] == 3
     assert rows["Alpha City"]["missing_examples"]
 
     assert rows["Beta City"]["status"] == "complete"
     assert rows["Beta City"]["expected_image_count"] == 1
     assert rows["Beta City"]["missing_image_count"] == 0
+
+
+def test_check_all_embeddings_can_still_report_year_filtered_subset(tmp_path):
+    city_meta = tmp_path / "city_meta.csv"
+    pd.DataFrame({"City": ["Alpha City"]}).to_csv(city_meta, index=False)
+    valfolder = tmp_path / "val"
+    output_root = tmp_path / "embed"
+
+    alpha_rows = _write_city_inputs(
+        tmp_path, valfolder, "Alpha City", [2015, 2016, 2018, 2020, 2021]
+    )
+    _write_embedding_shard(
+        output_root,
+        "Alpha City",
+        [
+            Path(alpha_rows[1]["path"]).name,
+            Path(alpha_rows[2]["path"]).name,
+            Path(alpha_rows[3]["path"]).name,
+        ],
+    )
+
+    result = check_all_embeddings(
+        city_meta=city_meta,
+        valfolder=valfolder,
+        output_root=output_root,
+        year_metadata_root=tmp_path,
+        expected_model_name="fake-dinov3",
+        year_filter_enabled=True,
+    )
+
+    row = result["rows"][0]
+    assert row["status"] == "complete"
+    assert row["expected_image_count"] == 3
+    assert row["missing_image_count"] == 0
+
+
+def test_check_all_embeddings_ignores_index_rows_with_missing_image_files(tmp_path):
+    city_meta = tmp_path / "city_meta.csv"
+    pd.DataFrame({"City": ["Alpha City"]}).to_csv(city_meta, index=False)
+    valfolder = tmp_path / "val"
+    output_root = tmp_path / "embed"
+
+    alpha_rows = _write_city_inputs(tmp_path, valfolder, "Alpha City", [2016, 2017])
+    Path(alpha_rows[1]["path"]).unlink()
+    _write_embedding_shard(
+        output_root,
+        "Alpha City",
+        [Path(alpha_rows[0]["path"]).name],
+    )
+
+    result = check_all_embeddings(
+        city_meta=city_meta,
+        valfolder=valfolder,
+        output_root=output_root,
+        year_metadata_root=tmp_path,
+        expected_model_name="fake-dinov3",
+    )
+
+    row = result["rows"][0]
+    assert row["status"] == "complete"
+    assert row["expected_image_count"] == 1
+    assert row["missing_image_count"] == 0
