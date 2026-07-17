@@ -18,7 +18,11 @@ export MKL_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
 export NUMEXPR_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
 
 REPO_DIR="${REPO_DIR:-/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was}"
-CITY_META="${CITY_META:-/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv}"
+DEFAULT_CITY_META="${REPO_DIR%/*}/city_meta.csv"
+CITY_META="${CITY_META:-${DEFAULT_CITY_META}}"
+if [[ "${CITY_META}" == "${REPO_DIR}/city_meta.csv" ]]; then
+  CITY_META="${DEFAULT_CITY_META}"
+fi
 PYTHON="${PYTHON:-python}"
 
 cd "${REPO_DIR}"
