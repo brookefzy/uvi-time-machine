@@ -1,6 +1,5 @@
 data/
 .pyc
-*.csv
 .env
 .ipynb_checkpoints/
 */**/.ipynb_checkpoints
