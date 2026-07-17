@@ -10,6 +10,13 @@ import numpy as np
 import pandas as pd
 
 
+CITY_FILE_STEM_EXCEPTIONS = {
+    "bogotá": "bogotá",
+    "gainesville, fl": "gainesville,fl",
+    "portland, or": "portland,or",
+}
+
+
 def build_embedding_columns(dim: int) -> list[str]:
     """Return zero-padded embedding column names for a vector dimension."""
     if dim < 0:
@@ -86,6 +93,9 @@ def resolve_city_file_stem(city: str, override: str | None = None) -> str:
     """Resolve display city names to server file stems."""
     if override:
         return override
+    exception = CITY_FILE_STEM_EXCEPTIONS.get(city.strip().lower())
+    if exception:
+        return exception
     normalized = unicodedata.normalize("NFKD", city)
     ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
     return "".join(ch for ch in ascii_text.lower() if ch.isalnum())

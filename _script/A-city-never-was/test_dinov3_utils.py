@@ -69,6 +69,12 @@ def test_resolve_city_file_stem_normalizes_city_or_uses_override():
     assert resolve_city_file_stem("Hong Kong", override="hk_server") == "hk_server"
 
 
+def test_resolve_city_file_stem_preserves_known_server_stem_exceptions():
+    assert resolve_city_file_stem("Bogotá") == "bogotá"
+    assert resolve_city_file_stem("Gainesville, FL") == "gainesville,fl"
+    assert resolve_city_file_stem("Portland, OR") == "portland,or"
+
+
 class FakeTensor:
     def __init__(self, values):
         self.values = np.asarray(values, dtype=float)
