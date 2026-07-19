@@ -36,8 +36,11 @@ def load_city_names(city_meta: str | Path) -> list[str]:
     return list(dict.fromkeys(value for value in values if value))
 
 
-def h3_output_path(h3_root: str | Path, city: str, res_exclude: int | None) -> Path:
-    return Path(h3_root) / f"dinov3_city={city}_res_exclude={str(res_exclude)}.parquet"
+def h3_output_path(
+    h3_root: str | Path, city: str, res_exclude: int | None, equal_sampling: bool = False
+) -> Path:
+    suffix = "_sampling=equal" if equal_sampling else ""
+    return Path(h3_root) / f"dinov3_city={city}_res_exclude={str(res_exclude)}{suffix}.parquet"
 
 
 def _count_column(df: pd.DataFrame) -> str:
@@ -46,13 +49,9 @@ def _count_column(df: pd.DataFrame) -> str:
     raise ValueError("H3 output must contain img_count")
 
 
-def summarize_city_h3(
-    city: str,
-    h3_root: str | Path,
-    res_exclude: str | int | None = None,
-    resolutions: Sequence[int] = (6, 7, 8),
+def summarize_output(
+    city: str, path: Path, resolutions: Sequence[int]
 ) -> list[dict[str, object]]:
-    path = h3_output_path(h3_root, city, res_exclude)
     if not path.exists():
         return [
             {
@@ -69,6 +68,7 @@ def summarize_city_h3(
                 "embedding_dim": 0,
                 "path": str(path),
                 "error": "",
+                "included_years": [],
             }
             for res in resolutions
         ]
@@ -101,10 +101,18 @@ def summarize_city_h3(
                 "embedding_dim": 0,
                 "path": str(path),
                 "error": str(exc),
+                "included_years": [],
             }
             for res in resolutions
         ]
 
+    sidecar = path.with_suffix(".json")
+    included_years: list[int] = []
+    if sidecar.exists():
+        try:
+            included_years = [int(year) for year in json.loads(sidecar.read_text()).get("included_years", [])]
+        except (ValueError, json.JSONDecodeError):
+            pass
     rows = []
     for res in resolutions:
         res_mask = df["res"].astype(int) == int(res)
@@ -127,9 +135,31 @@ def summarize_city_h3(
                 "embedding_dim": int(len(embedding_cols)),
                 "path": str(path),
                 "error": "",
+                "included_years": included_years,
             }
         )
     return rows
+
+
+def summarize_city_h3(
+    city: str,
+    h3_root: str | Path,
+    res_exclude: str | int | None = None,
+    resolutions: Sequence[int] = (6, 7, 8),
+) -> list[dict[str, object]]:
+    all_rows = summarize_output(city, h3_output_path(h3_root, city, res_exclude), resolutions)
+    equal_rows = summarize_output(
+        city, h3_output_path(h3_root, city, res_exclude, equal_sampling=True), resolutions
+    )
+    for all_row, equal_row in zip(all_rows, equal_rows):
+        all_row["equal_sampling_status"] = equal_row["status"]
+        all_row["equal_sampling_path"] = equal_row["path"]
+        all_row["equal_total_image_count"] = equal_row["total_image_count"]
+        all_row["equal_valid_h3_grid_count"] = equal_row["valid_h3_grid_count"]
+        all_row["equal_image_count_difference"] = (
+            int(equal_row["total_image_count"]) - int(all_row["total_image_count"])
+        )
+    return all_rows
 
 
 def summarize_rows(rows: list[dict[str, object]]) -> dict[str, object]:

@@ -42,6 +42,33 @@ def parse_optional_res_exclude(value: str | int | None) -> Optional[int]:
     return int(text)
 
 
+def spatially_stratified_sample(
+    df: pd.DataFrame, target_per_h3: int = 20, sampling_resolution: int = 8
+) -> Tuple[pd.DataFrame, Dict[str, int]]:
+    """Select up to a fixed number of images per fine H3 cell deterministically."""
+    if target_per_h3 < 1:
+        raise ValueError("target_per_h3 must be at least 1")
+    column = f"hex_{sampling_resolution}"
+    if column not in df.columns:
+        raise ValueError(f"Missing spatial sampling column: {column}")
+    tie_breaker = "name" if "name" in df.columns else "panoid"
+    if tie_breaker not in df.columns:
+        raise ValueError("Spatial sampling requires a name or panoid column")
+    ordered = df.sort_values([column, tie_breaker], kind="stable")
+    counts = ordered.groupby(column, dropna=True).size()
+    sampled = (
+        ordered.groupby(column, dropna=True, group_keys=False)
+        .head(target_per_h3)
+        .reset_index(drop=True)
+    )
+    return sampled, {
+        "sampling_h3_resolution": sampling_resolution,
+        "equal_sampling_target_per_h3": target_per_h3,
+        "equal_sampling_undersupplied_h3_count": int((counts < target_per_h3).sum()),
+        "equal_sampling_selected_image_count": int(len(sampled)),
+    }
+
+
 def build_default_config() -> Dict[str, object]:
     return {
         "ROOTFOLDER": DEFAULT_ROOT,
@@ -91,10 +118,13 @@ class DINOv3H3HexagonAggregator:
         else:
             raise ImportError("Incompatible H3 version: missing lat/lon to cell API")
 
-    def output_path(self, city: str, res_exclude: Optional[int]) -> Path:
+    def output_path(
+        self, city: str, res_exclude: Optional[int], equal_sampling: bool = False
+    ) -> Path:
+        sampling_suffix = "_sampling=equal" if equal_sampling else ""
         return (
             Path(str(self.config["CURATE_FOLDER_EXPORT"]))
-            / f"dinov3_city={city}_res_exclude={str(res_exclude)}.parquet"
+            / f"dinov3_city={city}_res_exclude={str(res_exclude)}{sampling_suffix}.parquet"
         )
 
     def load_pano_metadata(self, city: str) -> pd.DataFrame:
@@ -261,6 +291,7 @@ class DINOv3H3HexagonAggregator:
 
         return pd.concat(results, ignore_index=True)
 
+
     def build_stats(
         self,
         city: str,
@@ -304,6 +335,14 @@ class DINOv3H3HexagonAggregator:
             "res8_mean_image_count": float(res8["img_count"].mean())
             if not res8.empty
             else 0.0,
+            "included_years": sorted(
+                int(year)
+                for year in pd.to_numeric(df_embeddings["year"], errors="coerce")
+                .dropna()
+                .unique()
+            )
+            if "year" in df_embeddings.columns
+            else [],
         }
 
     def write_sidecar(self, output_file: Path, stats: Dict[str, object]) -> None:
@@ -315,8 +354,11 @@ class DINOv3H3HexagonAggregator:
         city: str,
         res_exclude: Optional[int] = None,
         allow_empty: bool = False,
+        equal_sampling: bool = False,
+        equal_sampling_target_per_h3: int = 20,
+        equal_sampling_min_images: int = 20,
     ) -> bool:
-        output_file = self.output_path(city, res_exclude)
+        output_file = self.output_path(city, res_exclude, equal_sampling)
 
         df_pano = self.load_pano_metadata(city)
         df_embeddings = self.load_embedding_data(city)
@@ -335,6 +377,17 @@ class DINOv3H3HexagonAggregator:
             df_embeddings, df_pano, train_panoids, res_exclude
         )
 
+        if equal_sampling and not df_filtered.empty:
+            df_filtered, sampling_audit = spatially_stratified_sample(
+                df_filtered, target_per_h3=equal_sampling_target_per_h3
+            )
+            counts.update(sampling_audit)
+            if len(df_filtered) < equal_sampling_min_images:
+                raise ValueError(
+                    f"Equal sampling selected {len(df_filtered)} images for {city}; "
+                    f"at least {equal_sampling_min_images} are required"
+                )
+
         if df_filtered.empty:
             stats = self.build_stats(city, df_embeddings, pd.DataFrame(), counts, "empty")
             self.write_sidecar(output_file, stats)
@@ -343,7 +396,8 @@ class DINOv3H3HexagonAggregator:
             return allow_empty
 
         df_aggregated = self.aggregate_to_hexagons(df_filtered)
-        stats = self.build_stats(city, df_embeddings, df_aggregated, counts, "ok")
+        stats = self.build_stats(city, df_filtered, df_aggregated, counts, "ok")
+        stats["sampling_mode"] = "equal" if equal_sampling else "all"
         atomic_write_parquet(df_aggregated, output_file)
         self.write_sidecar(output_file, stats)
         gc.collect()
@@ -358,6 +412,13 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         default=DEFAULT_ROOT,
         help="Root folder containing GSV metadata",
     )
+    parser.add_argument(
+        "--equal-sampling",
+        action="store_true",
+        help="Cap each occupied H3 resolution-8 cell to a spatially stratified sample",
+    )
+    parser.add_argument("--equal-sampling-target-per-h3", type=int, default=20)
+    parser.add_argument("--equal-sampling-min-images", type=int, default=20)
     parser.add_argument(
         "--input-root",
         default=DEFAULT_INPUT_ROOT,
@@ -416,7 +477,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     )
     aggregator = DINOv3H3HexagonAggregator(config, log_level=args.log_level)
     ok = aggregator.process_city(
-        args.city, res_exclude=args.res_exclude, allow_empty=args.allow_empty
+        args.city,
+        res_exclude=args.res_exclude,
+        allow_empty=args.allow_empty,
+        equal_sampling=args.equal_sampling,
+        equal_sampling_target_per_h3=args.equal_sampling_target_per_h3,
+        equal_sampling_min_images=args.equal_sampling_min_images,
     )
     return 0 if ok else 1
 

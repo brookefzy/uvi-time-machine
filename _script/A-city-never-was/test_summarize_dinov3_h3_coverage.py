@@ -79,3 +79,53 @@ def test_summarize_all_cities_counts_valid_h3_grids_by_resolution(tmp_path):
     assert rows[("Missing City", 6)]["status"] == "missing"
     assert rows[("Missing City", 7)]["status"] == "missing"
     assert rows[("Missing City", 8)]["status"] == "missing"
+
+
+def test_summary_compares_all_and_equal_sampling_counts_within_h3_units(tmp_path):
+    city_meta = tmp_path / "city_meta.csv"
+    pd.DataFrame({"City": ["Alpha City"]}).to_csv(city_meta, index=False)
+    output_root = tmp_path / "hex"
+    _write_h3_output(output_root, "Alpha City")
+    pd.DataFrame(
+        [
+            {
+                "hex_id": "hex6a",
+                "res": 6,
+                "img_count": 1,
+                "model_name": "fake-dinov3",
+                "embedding_dim": 2,
+                "e_0000": 1.0,
+                "e_0001": 0.0,
+            },
+            {
+                "hex_id": "hex7a",
+                "res": 7,
+                "img_count": 2,
+                "model_name": "fake-dinov3",
+                "embedding_dim": 2,
+                "e_0000": 0.0,
+                "e_0001": 1.0,
+            },
+            {
+                "hex_id": "hex7b",
+                "res": 7,
+                "img_count": 1,
+                "model_name": "fake-dinov3",
+                "embedding_dim": 2,
+                "e_0000": 0.6,
+                "e_0001": 0.8,
+            },
+        ]
+    ).to_parquet(
+        output_root / "dinov3_city=Alpha City_res_exclude=None_sampling=equal.parquet",
+        index=False,
+    )
+
+    result = summarize_all_cities(city_meta=city_meta, h3_root=output_root, resolutions=[6, 7])
+    rows = {(row["city"], row["res"]): row for row in result["rows"]}
+
+    assert rows[("Alpha City", 6)]["equal_sampling_status"] == "ok"
+    assert rows[("Alpha City", 6)]["equal_total_image_count"] == 1
+    assert rows[("Alpha City", 6)]["equal_image_count_difference"] == -1
+    assert rows[("Alpha City", 7)]["equal_total_image_count"] == 3
+    assert rows[("Alpha City", 7)]["equal_image_count_difference"] == -1

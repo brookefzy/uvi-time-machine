@@ -10,6 +10,7 @@ from B5e_dinov3_vector_summary import (
     DINOv3H3HexagonAggregator,
     build_default_config,
     main,
+    spatially_stratified_sample,
 )
 
 
@@ -239,6 +240,42 @@ def test_h3_aggregation_filters_existing_embedding_shards_to_2016_2020_years(tmp
     stats = json.loads(output_file.with_suffix(".json").read_text())
     assert stats["image_count_before_exclusion"] == 3
     assert stats["image_count_after_exclusion"] == 3
+    assert stats["included_years"] == [2016, 2018, 2020]
+
+
+def test_spatially_stratified_sample_caps_each_res8_cell_at_twenty_images():
+    dense_cell = _h3_cell(40.0, -73.0, 8)
+    sparse_cell = _h3_cell(41.0, -72.0, 8)
+    rows = pd.DataFrame(
+        [
+            {"name": f"dense_{index:02d}.jpg", "hex_8": dense_cell}
+            for index in range(25)
+        ]
+        + [
+            {"name": f"sparse_{index:02d}.jpg", "hex_8": sparse_cell}
+            for index in range(3)
+        ]
+    )
+
+    sampled, audit = spatially_stratified_sample(rows, target_per_h3=20)
+
+    assert sampled.groupby("hex_8").size().to_dict() == {dense_cell: 20, sparse_cell: 3}
+    assert audit == {
+        "sampling_h3_resolution": 8,
+        "equal_sampling_target_per_h3": 20,
+        "equal_sampling_undersupplied_h3_count": 1,
+        "equal_sampling_selected_image_count": 23,
+    }
+
+
+def test_spatially_stratified_sample_uses_panoid_when_name_is_unavailable():
+    cell = _h3_cell(40.0, -73.0, 8)
+    sampled, _ = spatially_stratified_sample(
+        pd.DataFrame([{"panoid": "b", "hex_8": cell}, {"panoid": "a", "hex_8": cell}]),
+        target_per_h3=1,
+    )
+
+    assert sampled["panoid"].tolist() == ["a"]
 
 
 def test_empty_after_exclusion_writes_sidecar_and_cli_exits_nonzero(tmp_path):

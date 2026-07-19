@@ -47,6 +47,21 @@ def test_build_embed_and_aggregate_commands_for_selected_city(tmp_path):
     assert "--res-exclude" not in aggregate[0]
 
 
+def test_build_aggregate_command_passes_opt_in_equal_sampling():
+    config = DINOv3PipelineConfig(
+        repo_dir=Path("/repo"),
+        city_meta=Path("/data/city_meta.csv"),
+        equal_sampling=True,
+        equal_sampling_target_per_h3=20,
+    )
+
+    command = build_stage_commands("aggregate", config, ["Hong Kong"])[0]
+
+    assert "--equal-sampling" in command
+    assert "--equal-sampling-target-per-h3 20" in command
+    assert "--equal-sampling-min-images 20" in command
+
+
 def test_build_embed_command_can_pass_transformers_mismatch_tolerance():
     config = DINOv3PipelineConfig(
         repo_dir=Path("/repo"),
@@ -106,3 +121,19 @@ def test_render_slurm_array_script_uses_city_count_and_task_id():
     assert "--stage embed" in script
     assert "--city-index ${SLURM_ARRAY_TASK_ID}" in script
     assert "--execute" in script
+
+
+def test_h3_slurm_wrapper_can_forward_opt_in_equal_sampling():
+    script = Path("slurm/dinov3_02_h3_array.cmd").read_text()
+
+    assert "EQUAL_SAMPLING" in script
+    assert "--equal-sampling-target-per-h3" in script
+
+
+def test_h3_batch_submitter_partitions_127_cities_into_twenty_task_arrays():
+    script = Path("slurm/submit_dinov3_h3_batches.bash").read_text()
+
+    assert 'BATCH_SIZE="${BATCH_SIZE:-20}"' in script
+    assert 'for ((start=FIRST_CITY; start<=LAST_CITY; start+=BATCH_SIZE)); do' in script
+    assert 'sbatch --parsable --array="${start}-${end}%${ARRAY_CONCURRENCY}"' in script
+    assert 'while squeue -h -j "${job_id}" -o "%T" | grep -q .' in script

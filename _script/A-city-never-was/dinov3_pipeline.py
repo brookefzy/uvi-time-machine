@@ -70,6 +70,9 @@ class DINOv3PipelineConfig:
     local_files_only: bool = True
     ignore_mismatched_sizes: bool = False
     res_exclude: str | None = None
+    equal_sampling: bool = False
+    equal_sampling_target_per_h3: int = 20
+    equal_sampling_min_images: int = 20
     resolution: int = 8
     threshold: float = -1.0
     row_block_size: int = 1000
@@ -193,6 +196,16 @@ def build_aggregate_command(config: DINOv3PipelineConfig, city: str) -> str:
     ]
     if config.res_exclude is not None:
         parts.extend(["--res-exclude", config.res_exclude])
+    if config.equal_sampling:
+        parts.extend(
+            [
+                "--equal-sampling",
+                "--equal-sampling-target-per-h3",
+                config.equal_sampling_target_per_h3,
+                "--equal-sampling-min-images",
+                config.equal_sampling_min_images,
+            ]
+        )
     parts.extend(["--log-level", config.log_level])
     return command(parts)
 
@@ -370,6 +383,9 @@ def config_from_args(args: argparse.Namespace) -> DINOv3PipelineConfig:
         local_files_only=args.local_files_only,
         ignore_mismatched_sizes=args.ignore_mismatched_sizes,
         res_exclude=parse_optional_res_exclude(args.res_exclude),
+        equal_sampling=args.equal_sampling,
+        equal_sampling_target_per_h3=args.equal_sampling_target_per_h3,
+        equal_sampling_min_images=args.equal_sampling_min_images,
         resolution=args.resolution,
         threshold=args.threshold,
         row_block_size=args.row_block_size,
@@ -430,6 +446,13 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         ),
     )
     parser.add_argument("--res-exclude", default=None)
+    parser.add_argument(
+        "--equal-sampling",
+        action="store_true",
+        help="Cap each occupied H3 resolution-8 cell to a spatially stratified image sample",
+    )
+    parser.add_argument("--equal-sampling-target-per-h3", type=int, default=20)
+    parser.add_argument("--equal-sampling-min-images", type=int, default=20)
     parser.add_argument("--resolution", type=int, default=8)
     parser.add_argument("--threshold", type=float, default=-1.0)
     parser.add_argument("--row-block-size", type=int, default=1000)
