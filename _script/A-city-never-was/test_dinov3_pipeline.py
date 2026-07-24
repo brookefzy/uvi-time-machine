@@ -137,3 +137,13 @@ def test_h3_batch_submitter_partitions_127_cities_into_twenty_task_arrays():
     assert 'for ((start=FIRST_CITY; start<=LAST_CITY; start+=BATCH_SIZE)); do' in script
     assert 'sbatch --parsable --array="${start}-${end}%${ARRAY_CONCURRENCY}"' in script
     assert 'while squeue -h -j "${job_id}" -o "%T" | grep -q .' in script
+
+
+def test_missing_h3_submitter_reads_coverage_csv_and_submits_city_index_batches():
+    script = Path("slurm/submit_dinov3_h3_missing.bash").read_text()
+
+    assert 'COVERAGE_CSV="${COVERAGE_CSV:-logs/dinov3_h3_coverage.csv}"' in script
+    assert 'statuses = {"missing", "error"}' in script
+    assert 'ignored_no_images' in script
+    assert 'sbatch --parsable --array="${array_spec}%${ARRAY_CONCURRENCY}"' in script
+    assert 'while squeue -h -j "${job_id}" -o "%T" | grep -q .' in script

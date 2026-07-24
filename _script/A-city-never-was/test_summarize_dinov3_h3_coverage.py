@@ -51,20 +51,29 @@ def _write_h3_output(output_root: Path, city: str):
 
 def test_summarize_all_cities_counts_valid_h3_grids_by_resolution(tmp_path):
     city_meta = tmp_path / "city_meta.csv"
-    pd.DataFrame({"City": ["Alpha City", "Missing City"]}).to_csv(city_meta, index=False)
+    pd.DataFrame({"City": ["Alpha City", "Missing City", "Retry City"]}).to_csv(city_meta, index=False)
     output_root = tmp_path / "hex"
     _write_h3_output(output_root, "Alpha City")
+    valfolder = tmp_path / "image_index"
+    valfolder.mkdir()
+    image_path = tmp_path / "image.jpg"
+    image_path.touch()
+    pd.DataFrame({"path": [str(image_path)]}).to_parquet(valfolder / "alphacity.parquet", index=False)
+    pd.DataFrame({"path": []}).to_parquet(valfolder / "missingcity.parquet", index=False)
+    pd.DataFrame({"path": [str(image_path)]}).to_parquet(valfolder / "retrycity.parquet", index=False)
 
     result = summarize_all_cities(
         city_meta=city_meta,
         h3_root=output_root,
+        valfolder=valfolder,
         resolutions=[6, 7, 8],
     )
 
     rows = {(row["city"], row["res"]): row for row in result["rows"]}
-    assert result["summary"]["city_count"] == 2
+    assert result["summary"]["city_count"] == 3
     assert result["summary"]["complete_city_count"] == 1
     assert result["summary"]["missing_city_count"] == 1
+    assert result["summary"]["ignored_no_images_city_count"] == 1
 
     assert rows[("Alpha City", 6)]["status"] == "ok"
     assert rows[("Alpha City", 6)]["valid_h3_grid_count"] == 1
@@ -76,9 +85,10 @@ def test_summarize_all_cities_counts_valid_h3_grids_by_resolution(tmp_path):
     assert rows[("Alpha City", 8)]["valid_h3_grid_count"] == 0
     assert rows[("Alpha City", 8)]["invalid_embedding_row_count"] == 1
 
-    assert rows[("Missing City", 6)]["status"] == "missing"
-    assert rows[("Missing City", 7)]["status"] == "missing"
-    assert rows[("Missing City", 8)]["status"] == "missing"
+    assert rows[("Missing City", 6)]["status"] == "ignored_no_images"
+    assert rows[("Missing City", 7)]["status"] == "ignored_no_images"
+    assert rows[("Missing City", 8)]["status"] == "ignored_no_images"
+    assert rows[("Retry City", 6)]["status"] == "missing"
 
 
 def test_summary_compares_all_and_equal_sampling_counts_within_h3_units(tmp_path):
