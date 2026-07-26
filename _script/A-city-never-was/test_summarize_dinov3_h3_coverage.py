@@ -3,6 +3,7 @@ from pathlib import Path
 import pandas as pd
 
 from summarize_dinov3_h3_coverage import summarize_all_cities
+from dinov3_utils import resolve_city_file_stem
 
 
 def _write_h3_output(output_root: Path, city: str):
@@ -56,8 +57,16 @@ def test_summarize_all_cities_counts_valid_h3_grids_by_resolution(tmp_path):
     _write_h3_output(output_root, "Alpha City")
     valfolder = tmp_path / "image_index"
     valfolder.mkdir()
-    image_path = tmp_path / "image.jpg"
+    rootfolder = tmp_path / "root"
+    panoid = "a" * 22
+    image_path = tmp_path / f"{panoid}_image.jpg"
     image_path.touch()
+    for city in ("Alpha City", "Retry City"):
+        metadata_dir = rootfolder / "GSV" / "gsv_rgb" / resolve_city_file_stem(city) / "gsvmeta"
+        metadata_dir.mkdir(parents=True)
+        pd.DataFrame({"panoid": [panoid], "year": [2015]}).to_csv(
+            metadata_dir / "gsv_pano.csv", index=False
+        )
     pd.DataFrame({"path": [str(image_path)]}).to_parquet(valfolder / "alphacity.parquet", index=False)
     pd.DataFrame({"path": []}).to_parquet(valfolder / "missingcity.parquet", index=False)
     pd.DataFrame({"path": [str(image_path)]}).to_parquet(valfolder / "retrycity.parquet", index=False)
@@ -66,6 +75,7 @@ def test_summarize_all_cities_counts_valid_h3_grids_by_resolution(tmp_path):
         city_meta=city_meta,
         h3_root=output_root,
         valfolder=valfolder,
+        rootfolder=rootfolder,
         resolutions=[6, 7, 8],
     )
 

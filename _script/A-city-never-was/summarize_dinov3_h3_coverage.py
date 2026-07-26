@@ -11,7 +11,12 @@ from typing import Sequence
 import numpy as np
 import pandas as pd
 
-from B5e_dinov3_vector_summary import DEFAULT_OUTPUT_ROOT
+from B5e_dinov3_vector_summary import (
+    DEFAULT_MAX_YEAR,
+    DEFAULT_MIN_YEAR,
+    DEFAULT_OUTPUT_ROOT,
+    DEFAULT_ROOT,
+)
 from dinov3_pipeline import DEFAULT_CITY_META, CITY_COLUMNS
 from dinov3_utils import discover_embedding_columns, resolve_city_file_stem
 
@@ -54,13 +59,37 @@ def _count_column(df: pd.DataFrame) -> str:
     raise ValueError("H3 output must contain img_count")
 
 
-def source_image_count(city: str, valfolder: str | Path) -> int:
-    """Count live source-image paths for one city, treating a missing index as empty."""
+def source_image_count(
+    city: str,
+    valfolder: str | Path,
+    rootfolder: str | Path = DEFAULT_ROOT,
+    min_year: int = DEFAULT_MIN_YEAR,
+    max_year: int = DEFAULT_MAX_YEAR,
+) -> int:
+    """Count live source-image paths in the same panorama-year window as H3 aggregation."""
+    if min_year > max_year:
+        raise ValueError("min_year must be less than or equal to max_year")
     index_path = Path(valfolder) / f"{resolve_city_file_stem(city)}.parquet"
     if not index_path.exists():
         return 0
     image_index = pd.read_parquet(index_path, columns=["path"])
-    return int(sum(Path(str(path)).exists() for path in image_index["path"].dropna()))
+    if image_index.empty:
+        return 0
+    image_index["name"] = image_index["path"].map(lambda path: Path(str(path)).name)
+    image_index["panoid"] = image_index["name"].str[:22]
+    pano_path = (
+        Path(rootfolder)
+        / "GSV"
+        / "gsv_rgb"
+        / resolve_city_file_stem(city)
+        / "gsvmeta"
+        / "gsv_pano.csv"
+    )
+    pano = pd.read_csv(pano_path, usecols=["panoid", "year"])
+    pano["year"] = pd.to_numeric(pano["year"], errors="coerce")
+    eligible = image_index.merge(pano, on="panoid", how="inner")
+    eligible = eligible[(eligible["year"] >= min_year) & (eligible["year"] <= max_year)]
+    return int(sum(Path(str(path)).exists() for path in eligible["path"].dropna()))
 
 
 def summarize_output(
@@ -161,9 +190,12 @@ def summarize_city_h3(
     res_exclude: str | int | None = None,
     resolutions: Sequence[int] = (6, 7, 8),
     valfolder: str | Path = DEFAULT_VALFOLDER,
+    rootfolder: str | Path = DEFAULT_ROOT,
+    min_year: int = DEFAULT_MIN_YEAR,
+    max_year: int = DEFAULT_MAX_YEAR,
 ) -> list[dict[str, object]]:
     all_rows = summarize_output(city, h3_output_path(h3_root, city, res_exclude), resolutions)
-    image_count = source_image_count(city, valfolder)
+    image_count = source_image_count(city, valfolder, rootfolder, min_year, max_year)
     if image_count == 0 and all(row["status"] == "missing" for row in all_rows):
         for row in all_rows:
             row["status"] = "ignored_no_images"
@@ -215,10 +247,17 @@ def summarize_all_cities(
     res_exclude: str | int | None = None,
     resolutions: Sequence[int] = (6, 7, 8),
     valfolder: str | Path = DEFAULT_VALFOLDER,
+    rootfolder: str | Path = DEFAULT_ROOT,
+    min_year: int = DEFAULT_MIN_YEAR,
+    max_year: int = DEFAULT_MAX_YEAR,
 ) -> dict[str, object]:
     rows: list[dict[str, object]] = []
     for city in load_city_names(city_meta):
-        rows.extend(summarize_city_h3(city, h3_root, res_exclude, resolutions, valfolder))
+        rows.extend(
+            summarize_city_h3(
+                city, h3_root, res_exclude, resolutions, valfolder, rootfolder, min_year, max_year
+            )
+        )
     return {"summary": summarize_rows(rows), "rows": rows}
 
 
@@ -257,6 +296,9 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--city-meta", default=DEFAULT_CITY_META)
     parser.add_argument("--h3-root", default=DEFAULT_OUTPUT_ROOT)
     parser.add_argument("--valfolder", default=DEFAULT_VALFOLDER)
+    parser.add_argument("--rootfolder", default=DEFAULT_ROOT)
+    parser.add_argument("--min-year", type=int, default=DEFAULT_MIN_YEAR)
+    parser.add_argument("--max-year", type=int, default=DEFAULT_MAX_YEAR)
     parser.add_argument("--res-exclude", default=None)
     parser.add_argument("--resolutions", default="6,7,8")
     parser.add_argument("--output-csv")
@@ -275,6 +317,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         city_meta=args.city_meta,
         h3_root=args.h3_root,
         valfolder=args.valfolder,
+        rootfolder=args.rootfolder,
+        min_year=args.min_year,
+        max_year=args.max_year,
         res_exclude=parse_optional_res_exclude(args.res_exclude),
         resolutions=_parse_resolutions(args.resolutions),
     )

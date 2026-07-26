@@ -29,8 +29,8 @@ DEFAULT_ROOT = "/lustre1/g/geog_pyloo/05_timemachine"
 DEFAULT_INPUT_ROOT = f"{DEFAULT_ROOT}/_curated/c_city_dinov3_embed"
 DEFAULT_OUTPUT_ROOT = f"{DEFAULT_ROOT}/_curated/c_city_dinov3_hex_summary"
 DEFAULT_TRAIN_TEST_FOLDER = f"{DEFAULT_ROOT}/_transformed/t_classifier_img_yolo8"
-DEFAULT_MIN_YEAR = 2016
-DEFAULT_MAX_YEAR = 2020
+DEFAULT_MIN_YEAR = 2012
+DEFAULT_MAX_YEAR = 2022
 
 
 def parse_optional_res_exclude(value: str | int | None) -> Optional[int]:

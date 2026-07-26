@@ -158,7 +158,7 @@ def test_aggregates_dinov3_embeddings_without_default_h3_exclusion_and_unit_vect
     assert stats["res8_mean_image_count"] == 1.5
 
 
-def test_h3_aggregation_filters_existing_embedding_shards_to_2016_2020_years(tmp_path):
+def test_h3_aggregation_filters_existing_embedding_shards_to_2012_2022_years(tmp_path):
     city = "Year City"
     input_root = tmp_path / "embed"
     output_root = tmp_path / "hex"
@@ -235,12 +235,12 @@ def test_h3_aggregation_filters_existing_embedding_shards_to_2016_2020_years(tmp
     result = pd.read_parquet(output_file)
     res8 = result[result["res"] == 8]
     assert len(res8) == 1
-    assert int(res8.iloc[0]["img_count"]) == 3
+    assert int(res8.iloc[0]["img_count"]) == 5
 
     stats = json.loads(output_file.with_suffix(".json").read_text())
-    assert stats["image_count_before_exclusion"] == 3
-    assert stats["image_count_after_exclusion"] == 3
-    assert stats["included_years"] == [2016, 2018, 2020]
+    assert stats["image_count_before_exclusion"] == 5
+    assert stats["image_count_after_exclusion"] == 5
+    assert stats["included_years"] == [2015, 2016, 2018, 2020, 2021]
 
 
 def test_spatially_stratified_sample_caps_each_res8_cell_at_twenty_images():
