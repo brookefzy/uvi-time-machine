@@ -153,19 +153,19 @@ def attach_image_geography(
 def spatially_sample_images(
     frame: pd.DataFrame, max_images_per_h3: int, max_images_per_city: int
 ) -> pd.DataFrame:
-    if max_images_per_h3 < 1 or max_images_per_city < 1:
-        raise ValueError("sampling limits must be positive")
+    if max_images_per_h3 < 1 or max_images_per_city < 0:
+        raise ValueError("max_images_per_h3 must be positive and max_images_per_city cannot be negative")
     required = {"hex_id", "name"}
     missing = required - set(frame.columns)
     if missing:
         raise ValueError(f"sampling data is missing columns: {sorted(missing)}")
-    return (
+    sampled = (
         frame.sort_values(["hex_id", "name"], kind="stable")
         .groupby("hex_id", dropna=False, group_keys=False)
         .head(max_images_per_h3)
-        .head(max_images_per_city)
         .reset_index(drop=True)
     )
+    return sampled if max_images_per_city == 0 else sampled.head(max_images_per_city).reset_index(drop=True)
 
 
 def spatially_sample_city(

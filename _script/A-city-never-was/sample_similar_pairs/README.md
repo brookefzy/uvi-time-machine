@@ -38,9 +38,11 @@ and each side of every pair has its own Leaflet/OpenStreetMap location map.
 
 The defaults search these directed pairs: Paris→London, London→Hong Kong,
 Hong Kong→Singapore, London→Sydney, and New York→London. `IndexFlatIP` gives
-exact scores only within the deterministic spatial sample (`20` images per H3
-cell, up to `50,000` images per city); the H3 script searches all resolution-8
-cells.
+exact scores only within the deterministic spatial sample (up to `100` images
+per H3 cell); it exports the top `10` image pairs per requested city pair. The
+default `-1.0` threshold retains every cosine candidate before ranking, and
+diversity caps are disabled by default. The H3 script searches all
+resolution-8 cells.
 
 Override pairs with a semicolon-delimited variable, preserving spaces in city
 names. For example:

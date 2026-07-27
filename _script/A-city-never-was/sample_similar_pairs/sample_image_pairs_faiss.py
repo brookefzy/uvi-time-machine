@@ -93,8 +93,8 @@ def apply_image_diversity_caps(
 ) -> pd.DataFrame:
     if candidates.empty:
         return candidates.copy()
-    if min(max_pairs_per_source_image, max_pairs_per_hex_pair, pairs_per_city_pair) < 1:
-        raise ValueError("diversity limits must be positive")
+    if max_pairs_per_source_image < 0 or max_pairs_per_hex_pair < 0 or pairs_per_city_pair < 1:
+        raise ValueError("diversity caps cannot be negative and pairs_per_city_pair must be positive")
     working = candidates.copy()
     working["_image_key"] = working.apply(lambda row: "|".join(sorted((str(row.name_1), str(row.name_2)))), axis=1)
     working["_hex_key"] = working.apply(lambda row: "|".join(sorted((str(row.hex_id_1), str(row.hex_id_2)))), axis=1)
@@ -105,7 +105,9 @@ def apply_image_diversity_caps(
     accepted: list[int] = []
     for index, row in working.iterrows():
         source_name, image_key, hex_key = str(row.name_1), row._image_key, row._hex_key
-        if image_key in image_seen or source_counts.get(source_name, 0) >= max_pairs_per_source_image or hex_counts.get(hex_key, 0) >= max_pairs_per_hex_pair:
+        source_at_cap = max_pairs_per_source_image > 0 and source_counts.get(source_name, 0) >= max_pairs_per_source_image
+        hex_at_cap = max_pairs_per_hex_pair > 0 and hex_counts.get(hex_key, 0) >= max_pairs_per_hex_pair
+        if image_key in image_seen or source_at_cap or hex_at_cap:
             continue
         image_seen.add(image_key)
         source_counts[source_name] = source_counts.get(source_name, 0) + 1
@@ -126,14 +128,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--min-year", type=int, default=2012)
     parser.add_argument("--max-year", type=int, default=2022)
     parser.add_argument("--h3-resolution", type=int, default=8)
-    parser.add_argument("--max-images-per-h3", type=int, default=20)
-    parser.add_argument("--max-images-per-city", type=int, default=50000)
+    parser.add_argument("--max-images-per-h3", type=int, default=100)
+    parser.add_argument("--max-images-per-city", type=int, default=0, help="Optional total city cap; 0 keeps all sampled H3 cells")
     parser.add_argument("--top-k", type=int, default=30)
-    parser.add_argument("--threshold", type=float, default=0.85)
+    parser.add_argument("--threshold", type=float, default=-1.0, help="Minimum cosine; -1.0 retains all candidates before ranking")
     parser.add_argument("--query-batch-size", type=int, default=2048)
-    parser.add_argument("--max-pairs-per-source-image", type=int, default=1)
-    parser.add_argument("--max-pairs-per-hex-pair", type=int, default=1)
-    parser.add_argument("--pairs-per-city-pair", type=int, default=100)
+    parser.add_argument("--max-pairs-per-source-image", type=int, default=0, help="Optional diversity cap; 0 disables it")
+    parser.add_argument("--max-pairs-per-hex-pair", type=int, default=0, help="Optional diversity cap; 0 disables it")
+    parser.add_argument("--pairs-per-city-pair", type=int, default=10)
     parser.add_argument("--output", type=Path, required=True)
     return parser
 

@@ -43,12 +43,12 @@ mkdir -p logs/slurm sample_similar_pairs/output
   --train-test-folder "${TRAIN_TEST_FOLDER:-${ROOTFOLDER}/_transformed/t_classifier_img_yolo8}" \
   --res-exclude "${RES_EXCLUDE:-None}" \
   --h3-resolution "${H3_RESOLUTION:-8}" \
-  --max-images-per-h3 "${MAX_IMAGES_PER_H3:-20}" \
-  --max-images-per-city "${MAX_IMAGES_PER_CITY:-50000}" \
+  --max-images-per-h3 "${MAX_IMAGES_PER_H3:-100}" \
+  --max-images-per-city "${MAX_IMAGES_PER_CITY:-0}" \
   --top-k "${TOP_K:-30}" \
-  --threshold "${DINO_THRESHOLD:-0.85}" \
+  --threshold "${DINO_THRESHOLD:--1.0}" \
   --query-batch-size "${QUERY_BATCH_SIZE:-2048}" \
-  --max-pairs-per-source-image "${MAX_PAIRS_PER_SOURCE_IMAGE:-1}" \
-  --max-pairs-per-hex-pair "${MAX_PAIRS_PER_HEX_PAIR:-1}" \
-  --pairs-per-city-pair "${PAIRS_PER_CITY_PAIR:-100}" \
+  --max-pairs-per-source-image "${MAX_PAIRS_PER_SOURCE_IMAGE:-0}" \
+  --max-pairs-per-hex-pair "${MAX_PAIRS_PER_HEX_PAIR:-0}" \
+  --pairs-per-city-pair "${PAIRS_PER_CITY_PAIR:-10}" \
   --output "${OUTPUT:-sample_similar_pairs/output/dinov3_image_pairs.parquet}"
