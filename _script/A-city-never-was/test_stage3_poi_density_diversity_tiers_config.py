@@ -132,8 +132,8 @@ class TestStage3PoiTierConfig(unittest.TestCase):
             ],
         )
 
-    def test_stage3_uses_boundary_hex_cache_root(self):
-        self.assertIn("city_boundary_hex_ids", self.module.CITY_HEX_ROOT)
+    def test_stage3_uses_external_similarity_hex_cache_root(self):
+        self.assertIn("similarity_hex_ids", self.module.CITY_HEX_ROOT)
 
     def test_compute_city_hex_features_keeps_zero_poi_boundary_hexes(self):
         class FakePoint:

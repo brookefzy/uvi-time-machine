@@ -18,7 +18,12 @@ export NUMEXPR_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
 
 REPO_DIR="${REPO_DIR:-/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was}"
 ROOTFOLDER="${ROOTFOLDER:-/lustre1/g/geog_pyloo/05_timemachine}"
-PYTHON="${PYTHON:-python}"
+VENV_PYTHON="${VENV_PYTHON:-${REPO_DIR}/../../.venv/bin/python}"
+PYTHON="${PYTHON:-${VENV_PYTHON}}"
+if [[ ! -x "${PYTHON}" ]]; then
+  printf 'Python interpreter is not executable: %s\nSet VENV_PYTHON or PYTHON explicitly.\n' "${PYTHON}" >&2
+  exit 127
+fi
 CITY_PAIRS_DEFAULT=(
   "Paris|London"
   "London|Hong Kong"

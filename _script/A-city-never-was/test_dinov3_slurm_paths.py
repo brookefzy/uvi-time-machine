@@ -5,6 +5,11 @@ import subprocess
 
 REPO_ROOT = Path(__file__).resolve().parent
 H3_ARRAY_SCRIPT = REPO_ROOT / "slurm" / "dinov3_02_h3_array.cmd"
+SAMPLE_SLURM_SCRIPTS = [
+    REPO_ROOT / "slurm" / "dinov3_sample_image_pairs.cmd",
+    REPO_ROOT / "slurm" / "dinov3_sample_h3_pairs.cmd",
+    REPO_ROOT / "slurm" / "dinov3_build_sample_gallery.cmd",
+]
 
 
 def test_h3_array_rewrites_legacy_city_meta_path(tmp_path: Path) -> None:
@@ -34,3 +39,11 @@ def test_h3_array_rewrites_legacy_city_meta_path(tmp_path: Path) -> None:
     args = captured_args.read_text(encoding="utf-8").splitlines()
     city_meta_index = args.index("--city-meta") + 1
     assert args[city_meta_index] == str(repo_dir.parent / "city_meta.csv")
+
+
+def test_sample_jobs_default_to_repo_uv_environment_python() -> None:
+    for script in SAMPLE_SLURM_SCRIPTS:
+        contents = script.read_text(encoding="utf-8")
+        assert 'VENV_PYTHON="${VENV_PYTHON:-${REPO_DIR}/../../.venv/bin/python}"' in contents
+        assert 'PYTHON="${PYTHON:-${VENV_PYTHON}}"' in contents
+        assert '-x "${PYTHON}"' in contents

@@ -26,6 +26,10 @@ sbatch slurm/dinov3_sample_image_pairs.cmd
 sbatch slurm/dinov3_sample_h3_pairs.cmd
 ```
 
+The jobs default to `../../.venv/bin/python` relative to `REPO_DIR`, i.e.
+`uvi-time-machine/.venv/bin/python`, so they use the `uv` environment that
+contains `faiss-cpu`. Override it only when needed with `VENV_PYTHON=/path/to/python`.
+
 After the image-pair sample job completes, build a portable preview package:
 
 ```bash

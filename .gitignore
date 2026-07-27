@@ -19,3 +19,4 @@ demo_img/
 *.pyc
 *.sh
 __pycache__/
+**/docs/plans/
