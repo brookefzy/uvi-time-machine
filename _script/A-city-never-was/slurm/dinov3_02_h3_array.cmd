@@ -42,5 +42,5 @@ mkdir -p logs/slurm
   --city-index "${SLURM_ARRAY_TASK_ID}" \
   --repo-dir "${REPO_DIR}" \
   --log-level "${LOG_LEVEL:-INFO}" \
-  "${EQUAL_SAMPLING_ARGS[@]}" \
+  "${EQUAL_SAMPLING_ARGS[@]-}" \
   --execute
