@@ -9,6 +9,7 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=128G
 #SBATCH --time=24:00:00
+#SBATCH --export=ALL
 
 set -euo pipefail
 export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
@@ -17,13 +18,19 @@ export MKL_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
 export NUMEXPR_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
 
 REPO_DIR="${REPO_DIR:-/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was}"
+if [[ ! -d "${REPO_DIR}" ]]; then
+  printf 'Repository directory does not exist: %s\nSet REPO_DIR explicitly.\n' "${REPO_DIR}" >&2
+  exit 2
+fi
+REPO_ROOT="${REPO_ROOT:-$(cd "${REPO_DIR}/../.." && pwd)}"
 ROOTFOLDER="${ROOTFOLDER:-/lustre1/g/geog_pyloo/05_timemachine}"
-VENV_PYTHON="${VENV_PYTHON:-${REPO_DIR}/../../.venv/bin/python}"
-PYTHON="${PYTHON:-${VENV_PYTHON}}"
+VENV_PYTHON="${VENV_PYTHON:-${REPO_ROOT}/.venv/bin/python}"
+PYTHON="${VENV_PYTHON}"
 if [[ ! -x "${PYTHON}" ]]; then
-  printf 'Python interpreter is not executable: %s\nSet VENV_PYTHON or PYTHON explicitly.\n' "${PYTHON}" >&2
+  printf 'Python interpreter is not executable: %s\nSet VENV_PYTHON explicitly.\n' "${PYTHON}" >&2
   exit 127
 fi
+printf 'Using Python: %s\n' "${PYTHON}"
 CITY_PAIRS_DEFAULT=(
   "Paris|London"
   "London|Hong Kong"

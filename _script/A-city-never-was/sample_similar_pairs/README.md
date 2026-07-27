@@ -26,9 +26,18 @@ sbatch slurm/dinov3_sample_image_pairs.cmd
 sbatch slurm/dinov3_sample_h3_pairs.cmd
 ```
 
-The jobs default to `../../.venv/bin/python` relative to `REPO_DIR`, i.e.
+The jobs resolve their default interpreter to the absolute repository path
 `uvi-time-machine/.venv/bin/python`, so they use the `uv` environment that
-contains `faiss-cpu`. Override it only when needed with `VENV_PYTHON=/path/to/python`.
+contains `faiss-cpu`. To force an interpreter at submission time, pass it through
+Slurm explicitly:
+
+```bash
+sbatch --export=ALL,VENV_PYTHON=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/bin/python \
+  slurm/dinov3_sample_image_pairs.cmd
+```
+
+The job log begins with `Using Python: …`; verify that it names the expected
+absolute path before relying on the result.
 
 After the image-pair sample job completes, build a portable preview package:
 

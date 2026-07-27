@@ -9,17 +9,24 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=16G
 #SBATCH --time=04:00:00
+#SBATCH --export=ALL
 
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was}"
+if [[ ! -d "${REPO_DIR}" ]]; then
+  printf 'Repository directory does not exist: %s\nSet REPO_DIR explicitly.\n' "${REPO_DIR}" >&2
+  exit 2
+fi
+REPO_ROOT="${REPO_ROOT:-$(cd "${REPO_DIR}/../.." && pwd)}"
 ROOTFOLDER="${ROOTFOLDER:-/lustre1/g/geog_pyloo/05_timemachine}"
-VENV_PYTHON="${VENV_PYTHON:-${REPO_DIR}/../../.venv/bin/python}"
-PYTHON="${PYTHON:-${VENV_PYTHON}}"
+VENV_PYTHON="${VENV_PYTHON:-${REPO_ROOT}/.venv/bin/python}"
+PYTHON="${VENV_PYTHON}"
 if [[ ! -x "${PYTHON}" ]]; then
-  printf 'Python interpreter is not executable: %s\nSet VENV_PYTHON or PYTHON explicitly.\n' "${PYTHON}" >&2
+  printf 'Python interpreter is not executable: %s\nSet VENV_PYTHON explicitly.\n' "${PYTHON}" >&2
   exit 127
 fi
+printf 'Using Python: %s\n' "${PYTHON}"
 
 cd "${REPO_DIR}"
 mkdir -p logs/slurm sample_similar_pairs/output

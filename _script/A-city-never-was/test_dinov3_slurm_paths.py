@@ -41,9 +41,11 @@ def test_h3_array_rewrites_legacy_city_meta_path(tmp_path: Path) -> None:
     assert args[city_meta_index] == str(repo_dir.parent / "city_meta.csv")
 
 
-def test_sample_jobs_default_to_repo_uv_environment_python() -> None:
+def test_sample_jobs_prioritize_explicit_venv_over_inherited_python() -> None:
     for script in SAMPLE_SLURM_SCRIPTS:
         contents = script.read_text(encoding="utf-8")
-        assert 'VENV_PYTHON="${VENV_PYTHON:-${REPO_DIR}/../../.venv/bin/python}"' in contents
-        assert 'PYTHON="${PYTHON:-${VENV_PYTHON}}"' in contents
+        assert "#SBATCH --export=ALL" in contents
+        assert 'REPO_ROOT="${REPO_ROOT:-$(cd "${REPO_DIR}/../.." && pwd)}"' in contents
+        assert 'VENV_PYTHON="${VENV_PYTHON:-${REPO_ROOT}/.venv/bin/python}"' in contents
+        assert 'PYTHON="${VENV_PYTHON}"' in contents
         assert '-x "${PYTHON}"' in contents
