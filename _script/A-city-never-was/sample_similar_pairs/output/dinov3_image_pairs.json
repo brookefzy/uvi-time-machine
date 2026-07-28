@@ -1,0 +1,46 @@
+{
+  "city_pairs": {
+    "Hong Kong|Singapore": {
+      "accepted_pairs": 10,
+      "queried_rows": 122699,
+      "retrieved_candidates": 3680970,
+      "source_sample_rows": 122699,
+      "target_sample_rows": 67379,
+      "threshold_hits": 3680970
+    },
+    "London|Hong Kong": {
+      "accepted_pairs": 10,
+      "queried_rows": 241293,
+      "retrieved_candidates": 7238790,
+      "source_sample_rows": 241293,
+      "target_sample_rows": 122699,
+      "threshold_hits": 7238790
+    },
+    "London|Sydney": {
+      "accepted_pairs": 10,
+      "queried_rows": 241293,
+      "retrieved_candidates": 7238790,
+      "source_sample_rows": 241293,
+      "target_sample_rows": 268141,
+      "threshold_hits": 7238790
+    },
+    "New York|London": {
+      "accepted_pairs": 10,
+      "queried_rows": 112942,
+      "retrieved_candidates": 3388260,
+      "source_sample_rows": 112942,
+      "target_sample_rows": 241293,
+      "threshold_hits": 3388260
+    },
+    "Paris|London": {
+      "accepted_pairs": 10,
+      "queried_rows": 19079,
+      "retrieved_candidates": 572370,
+      "source_sample_rows": 19079,
+      "target_sample_rows": 241293,
+      "threshold_hits": 572370
+    }
+  },
+  "method": "faiss.IndexFlatIP exact cosine over deterministic spatial samples",
+  "threshold": -1.0
+}
