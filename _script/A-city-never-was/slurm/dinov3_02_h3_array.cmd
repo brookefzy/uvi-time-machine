@@ -24,9 +24,15 @@ if [[ "${CITY_META}" == "${REPO_DIR}/city_meta.csv" ]]; then
   CITY_META="${DEFAULT_CITY_META}"
 fi
 PYTHON="${PYTHON:-python}"
-EQUAL_SAMPLING_ARGS=()
+PIPELINE_ARGS=(
+  --stage aggregate
+  --city-meta "${CITY_META}"
+  --city-index "${SLURM_ARRAY_TASK_ID}"
+  --repo-dir "${REPO_DIR}"
+  --log-level "${LOG_LEVEL:-INFO}"
+)
 if [[ "${EQUAL_SAMPLING:-0}" == "1" ]]; then
-  EQUAL_SAMPLING_ARGS=(
+  PIPELINE_ARGS+=(
     --equal-sampling
     --equal-sampling-target-per-h3 "${EQUAL_SAMPLING_TARGET_PER_H3:-20}"
     --equal-sampling-min-images "${EQUAL_SAMPLING_MIN_IMAGES:-20}"
@@ -36,11 +42,4 @@ fi
 cd "${REPO_DIR}"
 mkdir -p logs/slurm
 
-"${PYTHON}" dinov3_pipeline.py \
-  --stage aggregate \
-  --city-meta "${CITY_META}" \
-  --city-index "${SLURM_ARRAY_TASK_ID}" \
-  --repo-dir "${REPO_DIR}" \
-  --log-level "${LOG_LEVEL:-INFO}" \
-  "${EQUAL_SAMPLING_ARGS[@]-}" \
-  --execute
+"${PYTHON}" dinov3_pipeline.py "${PIPELINE_ARGS[@]}" --execute

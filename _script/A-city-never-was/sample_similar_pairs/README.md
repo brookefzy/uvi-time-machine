@@ -39,6 +39,10 @@ sbatch --export=ALL,VENV_PYTHON=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-ma
 The job log begins with `Using Python: …`; verify that it names the expected
 absolute path before relying on the result.
 
+The jobs intentionally ignore a generic inherited `REPO_DIR` (which may point
+to another project). If the sample-script directory must be overridden, use
+`UVI_SAMPLE_REPO_DIR=/path/to/uvi-time-machine/_script/A-city-never-was`.
+
 After the image-pair sample job completes, build a portable preview package:
 
 ```bash

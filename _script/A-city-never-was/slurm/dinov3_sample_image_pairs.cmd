@@ -17,12 +17,12 @@ export OPENBLAS_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
 export MKL_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
 export NUMEXPR_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
 
-REPO_DIR="${REPO_DIR:-/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was}"
+REPO_DIR="${UVI_SAMPLE_REPO_DIR:-/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was}"
 if [[ ! -d "${REPO_DIR}" ]]; then
   printf 'Repository directory does not exist: %s\nSet REPO_DIR explicitly.\n' "${REPO_DIR}" >&2
   exit 2
 fi
-REPO_ROOT="${REPO_ROOT:-$(cd "${REPO_DIR}/../.." && pwd)}"
+REPO_ROOT="$(cd "${REPO_DIR}/../.." && pwd)"
 ROOTFOLDER="${ROOTFOLDER:-/lustre1/g/geog_pyloo/05_timemachine}"
 VENV_PYTHON="${VENV_PYTHON:-${REPO_ROOT}/.venv/bin/python}"
 PYTHON="${VENV_PYTHON}"
@@ -48,7 +48,7 @@ cd "${REPO_DIR}"
 mkdir -p logs/slurm sample_similar_pairs/output
 "${PYTHON}" -c 'import faiss; print("FAISS", getattr(faiss, "__version__", "available"))'
 
-"${PYTHON}" sample_similar_pairs/sample_image_pairs_faiss.py \
+"${PYTHON}" "${REPO_DIR}/sample_similar_pairs/sample_image_pairs_faiss.py" \
   --city-pairs "${CITY_PAIR_ARGS[@]}" \
   --embedding-root "${EMBEDDING_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_embed}" \
   --rootfolder "${ROOTFOLDER}" \

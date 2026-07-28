@@ -1,4 +1,6 @@
+import os
 from pathlib import Path
+import subprocess
 
 import pandas as pd
 import pytest
@@ -128,6 +130,33 @@ def test_h3_slurm_wrapper_can_forward_opt_in_equal_sampling():
 
     assert "EQUAL_SAMPLING" in script
     assert "--equal-sampling-target-per-h3" in script
+
+
+def test_h3_slurm_wrapper_omits_an_empty_optional_sampling_argument(tmp_path):
+    repo_dir = tmp_path / "repo"
+    repo_dir.mkdir()
+    captured_args = tmp_path / "args.txt"
+    fake_python = tmp_path / "fake_python"
+    fake_python.write_text(
+        "#!/usr/bin/env bash\nprintf '%s\\n' \"$@\" > \"$CAPTURED_ARGS\"\n"
+    )
+    fake_python.chmod(0o755)
+    env = {
+        **os.environ,
+        "REPO_DIR": str(repo_dir),
+        "CITY_META": str(tmp_path / "city_meta.csv"),
+        "PYTHON": str(fake_python),
+        "CAPTURED_ARGS": str(captured_args),
+        "SLURM_ARRAY_TASK_ID": "1",
+        "SLURM_CPUS_PER_TASK": "1",
+    }
+
+    result = subprocess.run(
+        ["bash", "slurm/dinov3_02_h3_array.cmd"], env=env, capture_output=True, text=True
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "" not in captured_args.read_text().splitlines()
 
 
 def test_h3_batch_submitter_partitions_127_cities_into_twenty_task_arrays():

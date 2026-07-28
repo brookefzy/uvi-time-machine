@@ -45,7 +45,17 @@ def test_sample_jobs_prioritize_explicit_venv_over_inherited_python() -> None:
     for script in SAMPLE_SLURM_SCRIPTS:
         contents = script.read_text(encoding="utf-8")
         assert "#SBATCH --export=ALL" in contents
-        assert 'REPO_ROOT="${REPO_ROOT:-$(cd "${REPO_DIR}/../.." && pwd)}"' in contents
+        assert 'REPO_ROOT="$(cd "${REPO_DIR}/../.." && pwd)"' in contents
         assert 'VENV_PYTHON="${VENV_PYTHON:-${REPO_ROOT}/.venv/bin/python}"' in contents
         assert 'PYTHON="${VENV_PYTHON}"' in contents
         assert '-x "${PYTHON}"' in contents
+
+
+def test_sample_jobs_ignore_unrelated_repo_dir_environment_variable() -> None:
+    for script in SAMPLE_SLURM_SCRIPTS:
+        contents = script.read_text(encoding="utf-8")
+        assert (
+            'REPO_DIR="${UVI_SAMPLE_REPO_DIR:-/lustre1/g/geog_pyloo/05_timemachine/'
+            'uvi-time-machine/_script/A-city-never-was}"'
+        ) in contents
+        assert 'REPO_DIR="${REPO_DIR:-' not in contents
