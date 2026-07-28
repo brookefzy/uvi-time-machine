@@ -32,9 +32,11 @@ def _load_image_paths(image_index_root: Path, cities: set[str]) -> dict[tuple[st
         index_path = image_index_root / f"{resolve_city_file_stem(city)}.parquet"
         if not index_path.exists():
             raise FileNotFoundError(f"image index is missing for {city!r}: {index_path}")
-        frame = pd.read_parquet(index_path)
-        if not {"name", "path"}.issubset(frame.columns):
-            raise ValueError(f"{index_path} must contain name and path columns")
+        frame = pd.read_parquet(index_path).copy()
+        if "path" not in frame.columns:
+            raise ValueError(f"{index_path} must contain a path column")
+        if "name" not in frame.columns:
+            frame["name"] = frame["path"].map(lambda value: Path(str(value)).name)
         for row in frame[["name", "path"]].drop_duplicates("name").itertuples(index=False):
             resolved[(city, str(row.name))] = Path(str(row.path))
     return resolved

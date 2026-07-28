@@ -205,7 +205,7 @@ def test_gallery_builder_copies_images_and_writes_side_by_side_html(tmp_path):
     source_b.write_bytes(b"london image")
     index_root = tmp_path / "image-index"
     index_root.mkdir()
-    pd.DataFrame({"name": ["paris.jpg"], "path": [str(source_a)]}).to_parquet(index_root / "paris.parquet", index=False)
+    pd.DataFrame({"path": [str(source_a)]}).to_parquet(index_root / "paris.parquet", index=False)
     pd.DataFrame({"name": ["london.jpg"], "path": [str(source_b)]}).to_parquet(index_root / "london.parquet", index=False)
     pairs = pd.DataFrame([{
         "city_1": "Paris", "name_1": "paris.jpg", "panoid_1": "paris", "lat_1": 48.8566, "lon_1": 2.3522,
