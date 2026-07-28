@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/sample_similar_pairs/build_image_pair_gallery.py", line 109, in <module>
+    main()
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/sample_similar_pairs/build_image_pair_gallery.py", line 104, in main
+    manifest = build_gallery(args.pairs, args.image_index_root, args.output_dir)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/sample_similar_pairs/build_image_pair_gallery.py", line 71, in build_gallery
+    source_paths = _load_image_paths(Path(image_index_root), cities)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/sample_similar_pairs/build_image_pair_gallery.py", line 37, in _load_image_paths
+    raise ValueError(f"{index_path} must contain name and path columns")
+ValueError: /lustre1/g/geog_pyloo/05_timemachine/_transformed/t_classifier_img_yolo8_inf_dir/hongkong.parquet must contain name and path columns
