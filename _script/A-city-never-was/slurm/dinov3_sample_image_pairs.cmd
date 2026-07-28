@@ -55,6 +55,8 @@ mkdir -p logs/slurm sample_similar_pairs/output
   --train-test-folder "${TRAIN_TEST_FOLDER:-${ROOTFOLDER}/_transformed/t_classifier_img_yolo8}" \
   --res-exclude "${RES_EXCLUDE:-None}" \
   --h3-resolution "${H3_RESOLUTION:-8}" \
+  --core-h3-pool-root "${CORE_H3_POOL_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_core_hex_ids}" \
+  --core-h3-profile "${CORE_H3_PROFILE:-pct5_sub30_z1_m05}" \
   --max-images-per-h3 "${MAX_IMAGES_PER_H3:-100}" \
   --max-images-per-city "${MAX_IMAGES_PER_CITY:-0}" \
   --top-k "${TOP_K:-30}" \

@@ -17,6 +17,7 @@ if __package__ in {None, ""}:
 from sample_similar_pairs.common import (
     CityVectors,
     attach_image_geography,
+    filter_city_to_core_h3_pool,
     load_city_embeddings,
     parse_city_pairs,
     spatially_sample_city,
@@ -24,6 +25,8 @@ from sample_similar_pairs.common import (
 )
 
 DEFAULT_ROOT = "/lustre1/g/geog_pyloo/05_timemachine"
+DEFAULT_CORE_H3_POOL_ROOT = f"{DEFAULT_ROOT}/_curated/c_city_dinov3_core_hex_ids"
+DEFAULT_CORE_H3_PROFILE = "pct5_sub30_z1_m05"
 DEFAULT_PAIRS = ["Paris|London", "London|Hong Kong", "Hong Kong|Singapore", "London|Sydney", "New York|London"]
 
 
@@ -128,6 +131,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--min-year", type=int, default=2012)
     parser.add_argument("--max-year", type=int, default=2022)
     parser.add_argument("--h3-resolution", type=int, default=8)
+    parser.add_argument("--core-h3-pool-root", type=Path, default=Path(DEFAULT_CORE_H3_POOL_ROOT), help="Core-H3 pool root; use 'none' to disable")
+    parser.add_argument("--core-h3-profile", default=DEFAULT_CORE_H3_PROFILE)
     parser.add_argument("--max-images-per-h3", type=int, default=100)
     parser.add_argument("--max-images-per-city", type=int, default=0, help="Optional total city cap; 0 keeps all sampled H3 cells")
     parser.add_argument("--top-k", type=int, default=30)
@@ -146,12 +151,17 @@ def main(argv: list[str] | None = None) -> None:
     res_exclude = None if str(args.res_exclude).lower() in {"none", "null", ""} else int(args.res_exclude)
     cities = sorted({city for pair in pairs for city in pair})
     loaded: dict[str, CityVectors] = {}
+    core_pool_stats: dict[str, dict[str, int]] = {}
     for city in cities:
         vectors = load_city_embeddings(args.embedding_root, city)
         vectors = attach_image_geography(vectors, args.rootfolder, args.train_test_folder, args.min_year, args.max_year, args.h3_resolution, res_exclude)
+        if str(args.core_h3_pool_root).lower() != "none":
+            vectors, core_pool_stats[city] = filter_city_to_core_h3_pool(
+                vectors, args.core_h3_pool_root, args.h3_resolution, args.core_h3_profile
+            )
         loaded[city] = spatially_sample_city(vectors, args.max_images_per_h3, args.max_images_per_city)
     outputs: list[pd.DataFrame] = []
-    audit: dict[str, object] = {"method": "faiss.IndexFlatIP exact cosine over deterministic spatial samples", "threshold": args.threshold, "city_pairs": {}}
+    audit: dict[str, object] = {"method": "faiss.IndexFlatIP exact cosine over deterministic spatial samples", "threshold": args.threshold, "core_h3_pool_root": str(args.core_h3_pool_root), "core_h3_profile": args.core_h3_profile, "core_h3_pool_stats": core_pool_stats, "city_pairs": {}}
     for source_city, target_city in pairs:
         candidates, stats = search_image_pair(loaded[source_city], loaded[target_city], top_k=args.top_k, threshold=args.threshold, query_batch_size=args.query_batch_size)
         accepted = apply_image_diversity_caps(candidates, max_pairs_per_source_image=args.max_pairs_per_source_image, max_pairs_per_hex_pair=args.max_pairs_per_hex_pair, pairs_per_city_pair=args.pairs_per_city_pair)

@@ -15,8 +15,8 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from dinov3_utils import discover_embedding_columns
-from sample_similar_pairs.common import CityVectors, parse_city_pairs, write_parquet_with_json_audit
-from sample_similar_pairs.sample_image_pairs_faiss import DEFAULT_PAIRS, _city_pair_key, _faiss
+from sample_similar_pairs.common import CityVectors, filter_city_to_core_h3_pool, parse_city_pairs, write_parquet_with_json_audit
+from sample_similar_pairs.sample_image_pairs_faiss import DEFAULT_CORE_H3_POOL_ROOT, DEFAULT_CORE_H3_PROFILE, DEFAULT_PAIRS, _city_pair_key, _faiss
 
 DEFAULT_ROOT = "/lustre1/g/geog_pyloo/05_timemachine"
 
@@ -99,6 +99,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--h3-root", type=Path, default=Path(f"{DEFAULT_ROOT}/_curated/c_city_dinov3_hex_summary"))
     parser.add_argument("--input-template", default="dinov3_city={city}_res_exclude=None.parquet")
     parser.add_argument("--h3-resolution", type=int, default=8)
+    parser.add_argument("--core-h3-pool-root", type=Path, default=Path(DEFAULT_CORE_H3_POOL_ROOT), help="Core-H3 pool root; use 'none' to disable")
+    parser.add_argument("--core-h3-profile", default=DEFAULT_CORE_H3_PROFILE)
     parser.add_argument("--top-k", type=int, default=30)
     parser.add_argument("--threshold", type=float, default=0.85)
     parser.add_argument("--query-batch-size", type=int, default=2048)
@@ -111,9 +113,17 @@ def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
     pairs = parse_city_pairs(args.city_pairs)
     cities = sorted({city for pair in pairs for city in pair})
-    loaded = {city: load_h3_vectors(args.h3_root, city, args.input_template, args.h3_resolution) for city in cities}
+    loaded: dict[str, CityVectors] = {}
+    core_pool_stats: dict[str, dict[str, int]] = {}
+    for city in cities:
+        vectors = load_h3_vectors(args.h3_root, city, args.input_template, args.h3_resolution)
+        if str(args.core_h3_pool_root).lower() != "none":
+            vectors, core_pool_stats[city] = filter_city_to_core_h3_pool(
+                vectors, args.core_h3_pool_root, args.h3_resolution, args.core_h3_profile
+            )
+        loaded[city] = vectors
     outputs: list[pd.DataFrame] = []
-    audit: dict[str, object] = {"method": "faiss.IndexFlatIP exact H3 cosine", "threshold": args.threshold, "h3_resolution": args.h3_resolution, "city_pairs": {}}
+    audit: dict[str, object] = {"method": "faiss.IndexFlatIP exact H3 cosine", "threshold": args.threshold, "h3_resolution": args.h3_resolution, "core_h3_pool_root": str(args.core_h3_pool_root), "core_h3_profile": args.core_h3_profile, "core_h3_pool_stats": core_pool_stats, "city_pairs": {}}
     for source_city, target_city in pairs:
         candidates, stats = search_h3_pair(loaded[source_city], loaded[target_city], top_k=args.top_k, threshold=args.threshold, query_batch_size=args.query_batch_size)
         accepted = apply_h3_caps(candidates, args.pairs_per_city_pair)

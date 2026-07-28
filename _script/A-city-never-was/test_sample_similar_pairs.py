@@ -1,6 +1,8 @@
 """Tests for exact cross-city DINOv3 similar-pair sampling."""
 
 from pathlib import Path
+import subprocess
+import sys
 
 import numpy as np
 import pandas as pd
@@ -13,6 +15,8 @@ def test_sampling_entry_points_expose_parsers():
 
     assert image_parser().prog
     assert h3_parser().prog
+    assert "--core-h3-pool-root" in image_parser()._option_string_actions
+    assert "--core-h3-pool-root" in h3_parser()._option_string_actions
 
 
 def _embedding_rows(names, vectors):
@@ -227,3 +231,70 @@ def test_gallery_builder_copies_images_and_writes_side_by_side_html(tmp_path):
     assert "images/" in html
     assert "48.8566" in html and "51.5072" in html
     assert "leaflet" in html.lower()
+
+
+def test_export_core_h3_pools_selects_only_requested_resolution_and_tier(tmp_path):
+    from sample_similar_pairs.export_core_h3_pools import export_core_h3_pools
+
+    source_root = tmp_path / "tiers"
+    source_root.mkdir()
+    pd.DataFrame(
+        [
+            {"h3_index": "core-res8", "resolution": 8, "tier_pct": "core"},
+            {"h3_index": "suburban-res8", "resolution": 8, "tier_pct": "suburban"},
+            {"h3_index": "core-res7", "resolution": 7, "tier_pct": "core"},
+        ]
+    ).to_parquet(source_root / "paris_h3_poi_tiers.parquet", index=False)
+
+    output_root = tmp_path / "pools"
+    audit = export_core_h3_pools(
+        source_root=source_root,
+        output_root=output_root,
+        cities=["Paris"],
+        resolution=8,
+        profile_id="pct5_sub30_z1_m05",
+    )
+
+    pool_path = output_root / "res=8" / "profile=pct5_sub30_z1_m05" / "paris.parquet"
+    assert pd.read_parquet(pool_path).to_dict("records") == [{"hex_id": "core-res8"}]
+    assert audit["cities"]["Paris"] == {"input_rows": 3, "core_hex_count": 1}
+    assert (pool_path.parent / "core_h3_pool_audit.json").exists()
+
+
+def test_export_core_h3_pools_cli_runs_as_a_standalone_script(tmp_path):
+    source_root = tmp_path / "tiers"
+    source_root.mkdir()
+    pd.DataFrame([{"h3_index": "core-res8", "resolution": 8, "tier_pct": "core"}]).to_parquet(
+        source_root / "paris_h3_poi_tiers.parquet", index=False
+    )
+    script = Path(__file__).parent / "sample_similar_pairs" / "export_core_h3_pools.py"
+    result = subprocess.run(
+        [
+            sys.executable, str(script), "--source-root", str(source_root),
+            "--output-root", str(tmp_path / "pools"), "--cities", "Paris",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_filter_city_to_core_h3_pool_removes_non_core_rows(tmp_path):
+    from sample_similar_pairs.common import CityVectors, filter_city_to_core_h3_pool
+
+    pool_dir = tmp_path / "pools" / "res=8" / "profile=pct5_sub30_z1_m05"
+    pool_dir.mkdir(parents=True)
+    pd.DataFrame({"hex_id": ["core"]}).to_parquet(pool_dir / "paris.parquet", index=False)
+    vectors = CityVectors(
+        "Paris",
+        pd.DataFrame({"name": ["core.jpg", "rural.jpg"], "hex_id": ["core", "rural"]}),
+        ["e_0000"],
+        np.array([[1.0], [1.0]], dtype=np.float32),
+    )
+
+    filtered, stats = filter_city_to_core_h3_pool(
+        vectors, pool_root=tmp_path / "pools", resolution=8, profile_id="pct5_sub30_z1_m05"
+    )
+
+    assert filtered.metadata["hex_id"].tolist() == ["core"]
+    assert stats == {"before_rows": 2, "core_hex_count": 1, "after_rows": 1}

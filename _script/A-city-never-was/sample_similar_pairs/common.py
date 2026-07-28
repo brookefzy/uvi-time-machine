@@ -175,6 +175,40 @@ def spatially_sample_city(
     return city_vectors.take(sampled["_row"].to_numpy(dtype=int))
 
 
+def filter_city_to_core_h3_pool(
+    city_vectors: CityVectors,
+    pool_root: Path | str,
+    resolution: int,
+    profile_id: str,
+) -> tuple[CityVectors, dict[str, int]]:
+    """Keep only rows whose H3 cell occurs in a city's exported core pool."""
+    if "hex_id" not in city_vectors.metadata.columns:
+        raise ValueError(f"H3 metadata is missing hex_id for {city_vectors.city!r}")
+    pool_path = (
+        Path(pool_root)
+        / f"res={resolution}"
+        / f"profile={profile_id}"
+        / f"{resolve_city_file_stem(city_vectors.city)}.parquet"
+    )
+    if not pool_path.exists():
+        raise FileNotFoundError(f"core-H3 pool is missing for {city_vectors.city!r}: {pool_path}")
+    pool = pd.read_parquet(pool_path)
+    if "hex_id" not in pool.columns:
+        raise ValueError(f"{pool_path} must contain a hex_id column")
+    core_hexes = set(pool["hex_id"].dropna().astype(str))
+    if not core_hexes:
+        raise ValueError(f"{pool_path} contains no core H3 IDs")
+    keep = city_vectors.metadata["hex_id"].astype(str).isin(core_hexes).to_numpy()
+    filtered = city_vectors.take(np.flatnonzero(keep))
+    if len(filtered.metadata) == 0:
+        raise ValueError(f"no rows for {city_vectors.city!r} remain after applying core-H3 pool {pool_path}")
+    return filtered, {
+        "before_rows": len(city_vectors.metadata),
+        "core_hex_count": len(core_hexes),
+        "after_rows": len(filtered.metadata),
+    }
+
+
 def write_parquet_with_json_audit(
     frame: pd.DataFrame, output: Path | str, audit: dict
 ) -> None:

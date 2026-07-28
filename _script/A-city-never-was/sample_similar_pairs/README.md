@@ -15,6 +15,37 @@ input rows.
 Both scripts will write a Parquet result and a JSON audit sidecar. Their inputs
 and output paths are configurable for the remote Slurm environment.
 
+## Urban-core filter
+
+Both sample jobs default to the resolution-8 POI urban-core pool generated from
+the `pct5_sub30_z1_m05` profile. The expected Lustre layout is:
+
+```text
+/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_core_hex_ids/
+  res=8/profile=pct5_sub30_z1_m05/
+    paris.parquet
+    london.parquet
+    hongkong.parquet
+    singapore.parquet
+    sydney.parquet
+    newyork.parquet
+    core_h3_pool_audit.json
+```
+
+Build those compact `hex_id` pools from the local Stage 3 tier profile with:
+
+```bash
+python sample_similar_pairs/export_core_h3_pools.py \
+  --source-root '/Users/yuan/Dropbox (Personal)/Personal Work/_Projects2025/urban-sim-flow/_data/_transformed/landuse_poi_res=8/profile=pct5_sub30_z1_m05' \
+  --output-root /tmp/dinov3-core-h3-pools \
+  --resolution 8 --profile-id pct5_sub30_z1_m05 \
+  --cities Paris London 'Hong Kong' Singapore Sydney 'New York'
+```
+
+The output JSON audits core-H3 counts and each sample job's JSON audit records
+how many rows survive the per-city pool. Use
+`CORE_H3_POOL_ROOT=none` only for unfiltered exploratory runs.
+
 ## Remote runs
 
 Install a compatible `faiss-cpu` package in the remote Python environment, then
