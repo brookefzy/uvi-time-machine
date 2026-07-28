@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/sample_similar_pairs/sample_h3_pairs_faiss.py", line 127, in <module>
+    main()
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/sample_similar_pairs/sample_h3_pairs_faiss.py", line 114, in main
+    loaded = {city: load_h3_vectors(args.h3_root, city, args.input_template, args.h3_resolution) for city in cities}
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/sample_similar_pairs/sample_h3_pairs_faiss.py", line 25, in load_h3_vectors
+    path = Path(h3_root) / input_template.format(city=city)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyError: 'city_res_exclude=None'
