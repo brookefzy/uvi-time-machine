@@ -309,6 +309,18 @@ python summarize_dinov3_h3_coverage.py \
 
 6. Run pairwise cosine with the optimized B5b script against DINOv3 H3 vectors. For the first production DINOv3 run, use `--threshold -1.0` so the city-pair averages are not biased by dropping low, zero, or negative cosine similarities.
 
+For all cities with a usable resolution-8 H3 input, submit independent city-pair
+tasks in bounded arrays. Each task writes only its raw B5b temp shard; after
+this helper finishes, run B5c to merge/aggregate those shards. `BATCH_SIZE`
+limits submitted tasks and `ARRAY_CONCURRENCY` limits simultaneous tasks.
+
+```bash
+cd /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was
+BATCH_SIZE=20 ARRAY_CONCURRENCY=2 bash slurm/submit_dinov3_pairwise_batches.bash
+```
+
+For a stricter account cap, use `BATCH_SIZE=10 ARRAY_CONCURRENCY=1`.
+
 ```bash
 python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5b_compute_similarity_pairwise-optimized.py \
   --resolution 8 \

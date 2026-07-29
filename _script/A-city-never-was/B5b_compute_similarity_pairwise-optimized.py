@@ -1089,6 +1089,19 @@ class OptimizedSimilarityProcessor:
             self.close()
             gc.collect()
 
+    def run_single_city_pair(self, city1: str, city2: str, resolution: int) -> None:
+        """Compute one pair shard without shared progress, merge, or cleanup."""
+        if not city1 or not city2 or city1 == city2:
+            raise ValueError("city pair must contain two distinct nonempty city names")
+        try:
+            self.validate_input_contracts([city1, city2], resolution=resolution)
+            output_dir = self.get_output_dir()
+            pair_results = self.process_city_pair(city1, city2, resolution)
+            self.save_pair_results(pair_results, output_dir, city1, city2, resolution)
+        finally:
+            self.close()
+            gc.collect()
+
     def close(self) -> None:
         """Release open resources for one-shot script execution."""
         if hasattr(self, "conn") and self.conn is not None:
@@ -1099,6 +1112,14 @@ class OptimizedSimilarityProcessor:
             for handler in list(self.logger.handlers):
                 handler.close()
                 self.logger.removeHandler(handler)
+
+
+def parse_city_pair(value: str) -> Tuple[str, str]:
+    """Parse one directed city pair for an independent array task."""
+    cities = [city.strip() for city in value.split("|")]
+    if len(cities) != 2 or not all(cities) or cities[0] == cities[1]:
+        raise ValueError("city pair must contain two distinct nonempty city names: CITY1|CITY2")
+    return cities[0], cities[1]
 
 
 def main():
@@ -1191,6 +1212,11 @@ def main():
         action="store_true",
         help="Keep optimized/temp pair shards after successful merge",
     )
+    parser.add_argument(
+        "--city-pair",
+        default="",
+        help="Process one CITY1|CITY2 pair only; safe for independent Slurm array tasks.",
+    )
 
     args = parser.parse_args()
 
@@ -1222,7 +1248,11 @@ def main():
 
     # Run processor
     processor = OptimizedSimilarityProcessor(config)
-    processor.run(args.city_meta, args.resolution, args.group_size)
+    if args.city_pair:
+        city1, city2 = parse_city_pair(args.city_pair)
+        processor.run_single_city_pair(city1, city2, args.resolution)
+    else:
+        processor.run(args.city_meta, args.resolution, args.group_size)
 
 
 if __name__ == "__main__":

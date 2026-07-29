@@ -554,6 +554,34 @@ class TestOptimizedSimilarityDefaults(unittest.TestCase):
         self.assertIn("res=6", written_paths[0])
         self.assertNotIn("Beta_optimized.parquet", written_paths[0])
 
+    def test_run_single_city_pair_writes_only_its_temp_shard(self):
+        export_dir = Path(self.temp_dir.name) / "export"
+        config = {
+            "CURATE_FOLDER_SOURCE": self.temp_dir.name,
+            "CURATE_FOLDER_EXPORT": str(export_dir),
+            "RES_EXCLUDE": 11,
+        }
+        processor = self.module.OptimizedSimilarityProcessor(config, log_level="WARNING")
+        self.addCleanup(processor.close)
+
+        validated = []
+        saved = []
+        processor.validate_input_contracts = lambda cities, resolution: validated.append((cities, resolution))
+        processor.process_city_pair = lambda city1, city2, _resolution: pd.DataFrame({"city1": [city1], "city2": [city2]})
+        processor.save_pair_results = lambda _df, output_dir, city1, city2, resolution: saved.append((output_dir, city1, city2, resolution))
+
+        processor.run_single_city_pair("Alpha", "Beta", resolution=6)
+
+        self.assertEqual(validated, [(["Alpha", "Beta"], 6)])
+        self.assertEqual(saved, [(export_dir / "optimized", "Alpha", "Beta", 6)])
+        self.assertFalse((export_dir / "optimized" / "_progress_res=6_optimized.json").exists())
+        self.assertFalse((export_dir / "optimized" / "similarity_city=Alpha_res=6_optimized.parquet").exists())
+
+    def test_parse_city_pair_requires_two_distinct_city_names(self):
+        self.assertEqual(self.module.parse_city_pair("Alpha|Beta"), ("Alpha", "Beta"))
+        with self.assertRaisesRegex(ValueError, "two distinct"):
+            self.module.parse_city_pair("Alpha|Alpha")
+
 
 if __name__ == "__main__":
     unittest.main()
