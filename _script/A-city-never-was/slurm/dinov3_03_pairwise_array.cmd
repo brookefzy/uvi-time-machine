@@ -17,6 +17,10 @@ REPO_DIR="${UVI_SAMPLE_REPO_DIR:-/lustre1/g/geog_pyloo/05_timemachine/uvi-time-m
 REPO_ROOT="$(cd "${REPO_DIR}/../.." && pwd)"
 ROOTFOLDER="${ROOTFOLDER:-/lustre1/g/geog_pyloo/05_timemachine}"
 PYTHON="${VENV_PYTHON:-${REPO_ROOT}/.venv/bin/python}"
+INPUT_TEMPLATE="${INPUT_TEMPLATE:-}"
+if [[ -z "${INPUT_TEMPLATE}" ]]; then
+  INPUT_TEMPLATE='dinov3_city={city}_res_exclude=None.parquet'
+fi
 PAIR_MANIFEST="${PAIR_MANIFEST:?Set PAIR_MANIFEST to a CITY1|CITY2 manifest.}"
 PAIR="$(sed -n "${SLURM_ARRAY_TASK_ID:?SLURM_ARRAY_TASK_ID is required}p" "${PAIR_MANIFEST}")"
 
@@ -36,7 +40,7 @@ mkdir -p logs/slurm
   --resolution "${RESOLUTION:-8}" \
   --source-root "${SOURCE_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_hex_summary}" \
   --output-root "${OUTPUT_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_similarity_by_pair}" \
-  --input-template "${INPUT_TEMPLATE:-dinov3_city={city}_res_exclude=None.parquet}" \
+  --input-template "${INPUT_TEMPLATE}" \
   --feature-prefix e_ \
   --threshold "${DINO_THRESHOLD:--1.0}" \
   --row-block-size "${ROW_BLOCK_SIZE:-1000}" \

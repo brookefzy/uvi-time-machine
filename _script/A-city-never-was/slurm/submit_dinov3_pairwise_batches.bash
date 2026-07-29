@@ -8,7 +8,10 @@ ROOTFOLDER="${ROOTFOLDER:-/lustre1/g/geog_pyloo/05_timemachine}"
 PYTHON="${VENV_PYTHON:-${REPO_ROOT}/.venv/bin/python}"
 CITY_META="${CITY_META:-${REPO_DIR%/*}/city_meta.csv}"
 SOURCE_ROOT="${SOURCE_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_hex_summary}"
-INPUT_TEMPLATE="${INPUT_TEMPLATE:-dinov3_city={city}_res_exclude=None.parquet}"
+INPUT_TEMPLATE="${INPUT_TEMPLATE:-}"
+if [[ -z "${INPUT_TEMPLATE}" ]]; then
+  INPUT_TEMPLATE='dinov3_city={city}_res_exclude=None.parquet'
+fi
 RESOLUTION="${RESOLUTION:-8}"
 BATCH_SIZE="${BATCH_SIZE:-20}"
 ARRAY_CONCURRENCY="${ARRAY_CONCURRENCY:-2}"

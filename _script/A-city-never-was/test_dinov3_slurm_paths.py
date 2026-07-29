@@ -10,6 +10,11 @@ SAMPLE_SLURM_SCRIPTS = [
     REPO_ROOT / "slurm" / "dinov3_sample_h3_pairs.cmd",
     REPO_ROOT / "slurm" / "dinov3_build_sample_gallery.cmd",
 ]
+CITY_TEMPLATE_SCRIPTS = [
+    REPO_ROOT / "slurm" / "dinov3_sample_h3_pairs.cmd",
+    REPO_ROOT / "slurm" / "dinov3_03_pairwise_array.cmd",
+    REPO_ROOT / "slurm" / "submit_dinov3_pairwise_batches.bash",
+]
 
 
 def test_h3_array_rewrites_legacy_city_meta_path(tmp_path: Path) -> None:
@@ -59,3 +64,10 @@ def test_sample_jobs_ignore_unrelated_repo_dir_environment_variable() -> None:
             'uvi-time-machine/_script/A-city-never-was}"'
         ) in contents
         assert 'REPO_DIR="${REPO_DIR:-' not in contents
+
+
+def test_city_input_template_defaults_do_not_break_bash_braces() -> None:
+    for script in CITY_TEMPLATE_SCRIPTS:
+        contents = script.read_text(encoding="utf-8")
+        assert 'INPUT_TEMPLATE="${INPUT_TEMPLATE:-}"' in contents or 'H3_INPUT_TEMPLATE="${H3_INPUT_TEMPLATE:-}"' in contents
+        assert "dinov3_city={city}_res_exclude=None.parquet" in contents

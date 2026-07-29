@@ -24,6 +24,10 @@ if [[ ! -d "${REPO_DIR}" ]]; then
 fi
 REPO_ROOT="$(cd "${REPO_DIR}/../.." && pwd)"
 ROOTFOLDER="${ROOTFOLDER:-/lustre1/g/geog_pyloo/05_timemachine}"
+H3_INPUT_TEMPLATE="${H3_INPUT_TEMPLATE:-}"
+if [[ -z "${H3_INPUT_TEMPLATE}" ]]; then
+  H3_INPUT_TEMPLATE='dinov3_city={city}_res_exclude=None.parquet'
+fi
 VENV_PYTHON="${VENV_PYTHON:-${REPO_ROOT}/.venv/bin/python}"
 PYTHON="${VENV_PYTHON}"
 if [[ ! -x "${PYTHON}" ]]; then
@@ -51,7 +55,7 @@ mkdir -p logs/slurm sample_similar_pairs/output
 "${PYTHON}" "${REPO_DIR}/sample_similar_pairs/sample_h3_pairs_faiss.py" \
   --city-pairs "${CITY_PAIR_ARGS[@]}" \
   --h3-root "${H3_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_hex_summary}" \
-  --input-template "${H3_INPUT_TEMPLATE:-dinov3_city={city}_res_exclude=None.parquet}" \
+  --input-template "${H3_INPUT_TEMPLATE}" \
   --h3-resolution "${H3_RESOLUTION:-8}" \
   --core-h3-pool-root "${CORE_H3_POOL_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_core_hex_ids}" \
   --core-h3-profile "${CORE_H3_PROFILE:-pct5_sub30_z1_m05}" \
