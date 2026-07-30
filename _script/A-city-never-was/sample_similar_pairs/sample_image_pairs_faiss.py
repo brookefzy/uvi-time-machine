@@ -81,6 +81,7 @@ def search_image_pair(
                         "city_1": source.city, "name_1": source_row["name"], "panoid_1": source_row["panoid"], "hex_id_1": source_row["hex_id"], "lat_1": float(source_row["lat"]), "lon_1": float(source_row["lon"]),
                         "city_2": target.city, "name_2": target_row["name"], "panoid_2": target_row["panoid"], "hex_id_2": target_row["hex_id"], "lat_2": float(target_row["lat"]), "lon_2": float(target_row["lon"]),
                         "cosine_similarity": float(score), "city_pair_key": _city_pair_key(source.city, target.city),
+                        "_source_index": start + local_source, "_target_index": int(found_id),
                     }
                 )
     result = pd.DataFrame(records)
@@ -93,11 +94,14 @@ def apply_image_diversity_caps(
     max_pairs_per_source_image: int,
     max_pairs_per_hex_pair: int,
     pairs_per_city_pair: int,
+    candidate_pool_size: int | None = None,
 ) -> pd.DataFrame:
     if candidates.empty:
         return candidates.copy()
     if max_pairs_per_source_image < 0 or max_pairs_per_hex_pair < 0 or pairs_per_city_pair < 1:
         raise ValueError("diversity caps cannot be negative and pairs_per_city_pair must be positive")
+    if candidate_pool_size is not None and candidate_pool_size < 1:
+        raise ValueError("candidate_pool_size must be positive when provided")
     working = candidates.copy()
     working["_image_key"] = working.apply(lambda row: "|".join(sorted((str(row.name_1), str(row.name_2)))), axis=1)
     working["_hex_key"] = working.apply(lambda row: "|".join(sorted((str(row.hex_id_1), str(row.hex_id_2)))), axis=1)
@@ -116,9 +120,57 @@ def apply_image_diversity_caps(
         source_counts[source_name] = source_counts.get(source_name, 0) + 1
         hex_counts[hex_key] = hex_counts.get(hex_key, 0) + 1
         accepted.append(index)
-        if len(accepted) >= pairs_per_city_pair:
+        if len(accepted) >= (candidate_pool_size or pairs_per_city_pair):
             break
     return working.loc[accepted].drop(columns=["_image_key", "_hex_key"]).reset_index(drop=True)
+
+
+def select_mmr_image_pairs(
+    candidates: pd.DataFrame,
+    source: CityVectors,
+    target: CityVectors,
+    *,
+    candidate_pool_size: int,
+    relevance_weight: float,
+    pairs_per_city_pair: int,
+) -> pd.DataFrame:
+    """Rerank high-scoring candidates to retain visually distinct DINO scenes."""
+    if candidates.empty:
+        return candidates.copy()
+    if candidate_pool_size < 1 or pairs_per_city_pair < 1:
+        raise ValueError("candidate_pool_size and pairs_per_city_pair must be positive")
+    if not 0.0 <= relevance_weight <= 1.0:
+        raise ValueError("relevance_weight must be between 0 and 1")
+    required_columns = {"_source_index", "_target_index", "cosine_similarity"}
+    missing = required_columns.difference(candidates.columns)
+    if missing:
+        raise ValueError(f"MMR candidates are missing columns: {sorted(missing)}")
+
+    working = candidates.sort_values(
+        ["cosine_similarity", "name_1", "name_2"], ascending=[False, True, True], kind="stable"
+    ).head(candidate_pool_size).reset_index(drop=True)
+    source_indices = working["_source_index"].to_numpy(dtype=np.int64)
+    target_indices = working["_target_index"].to_numpy(dtype=np.int64)
+    pair_vectors = source.vectors[source_indices] + target.vectors[target_indices]
+    norms = np.linalg.norm(pair_vectors, axis=1)
+    if np.any(norms == 0):
+        raise ValueError("cannot construct an MMR pair embedding from opposite image vectors")
+    pair_vectors = pair_vectors / norms[:, np.newaxis]
+    relevance = working["cosine_similarity"].to_numpy(dtype=np.float32)
+
+    selected: list[int] = []
+    available = np.ones(len(working), dtype=bool)
+    while available.any() and len(selected) < pairs_per_city_pair:
+        if selected:
+            redundancy = (pair_vectors @ pair_vectors[selected].T).max(axis=1)
+            mmr_scores = relevance_weight * relevance - (1.0 - relevance_weight) * redundancy
+        else:
+            mmr_scores = relevance.copy()
+        mmr_scores[~available] = -np.inf
+        next_index = int(np.argmax(mmr_scores))
+        selected.append(next_index)
+        available[next_index] = False
+    return working.iloc[selected].drop(columns=["_source_index", "_target_index"]).reset_index(drop=True)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -135,11 +187,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--core-h3-profile", default=DEFAULT_CORE_H3_PROFILE)
     parser.add_argument("--max-images-per-h3", type=int, default=100)
     parser.add_argument("--max-images-per-city", type=int, default=0, help="Optional total city cap; 0 keeps all sampled H3 cells")
-    parser.add_argument("--top-k", type=int, default=30)
+    parser.add_argument("--top-k", type=int, default=30, help="FAISS neighbors retrieved per source image before global reranking")
     parser.add_argument("--threshold", type=float, default=-1.0, help="Minimum cosine; -1.0 retains all candidates before ranking")
     parser.add_argument("--query-batch-size", type=int, default=2048)
-    parser.add_argument("--max-pairs-per-source-image", type=int, default=0, help="Optional diversity cap; 0 disables it")
-    parser.add_argument("--max-pairs-per-hex-pair", type=int, default=0, help="Optional diversity cap; 0 disables it")
+    parser.add_argument("--max-pairs-per-source-image", type=int, default=1, help="Hard diversity cap; 0 disables it")
+    parser.add_argument("--max-pairs-per-hex-pair", type=int, default=1, help="Hard diversity cap; 0 disables it")
+    parser.add_argument("--mmr-candidate-pool", type=int, default=200, help="High-score candidates retained for MMR reranking")
+    parser.add_argument("--mmr-relevance-weight", type=float, default=0.7, help="MMR weight for cosine score versus visual novelty")
     parser.add_argument("--pairs-per-city-pair", type=int, default=10)
     parser.add_argument("--output", type=Path, required=True)
     return parser
@@ -161,12 +215,26 @@ def main(argv: list[str] | None = None) -> None:
             )
         loaded[city] = spatially_sample_city(vectors, args.max_images_per_h3, args.max_images_per_city)
     outputs: list[pd.DataFrame] = []
-    audit: dict[str, object] = {"method": "faiss.IndexFlatIP exact cosine over deterministic spatial samples", "threshold": args.threshold, "core_h3_pool_root": str(args.core_h3_pool_root), "core_h3_profile": args.core_h3_profile, "core_h3_pool_stats": core_pool_stats, "city_pairs": {}}
+    audit: dict[str, object] = {"method": "faiss.IndexFlatIP exact cosine over deterministic spatial samples, then MMR scene-diversity reranking", "threshold": args.threshold, "mmr_candidate_pool": args.mmr_candidate_pool, "mmr_relevance_weight": args.mmr_relevance_weight, "core_h3_pool_root": str(args.core_h3_pool_root), "core_h3_profile": args.core_h3_profile, "core_h3_pool_stats": core_pool_stats, "city_pairs": {}}
     for source_city, target_city in pairs:
         candidates, stats = search_image_pair(loaded[source_city], loaded[target_city], top_k=args.top_k, threshold=args.threshold, query_batch_size=args.query_batch_size)
-        accepted = apply_image_diversity_caps(candidates, max_pairs_per_source_image=args.max_pairs_per_source_image, max_pairs_per_hex_pair=args.max_pairs_per_hex_pair, pairs_per_city_pair=args.pairs_per_city_pair)
+        capped_candidates = apply_image_diversity_caps(
+            candidates,
+            max_pairs_per_source_image=args.max_pairs_per_source_image,
+            max_pairs_per_hex_pair=args.max_pairs_per_hex_pair,
+            pairs_per_city_pair=args.pairs_per_city_pair,
+            candidate_pool_size=args.mmr_candidate_pool,
+        )
+        accepted = select_mmr_image_pairs(
+            capped_candidates,
+            loaded[source_city],
+            loaded[target_city],
+            candidate_pool_size=args.mmr_candidate_pool,
+            relevance_weight=args.mmr_relevance_weight,
+            pairs_per_city_pair=args.pairs_per_city_pair,
+        )
         outputs.append(accepted)
-        audit["city_pairs"][f"{source_city}|{target_city}"] = {**stats, "source_sample_rows": len(loaded[source_city].metadata), "target_sample_rows": len(loaded[target_city].metadata), "accepted_pairs": len(accepted)}
+        audit["city_pairs"][f"{source_city}|{target_city}"] = {**stats, "source_sample_rows": len(loaded[source_city].metadata), "target_sample_rows": len(loaded[target_city].metadata), "candidates_after_hard_caps": len(capped_candidates), "accepted_pairs": len(accepted)}
     columns = ["city_1", "name_1", "panoid_1", "hex_id_1", "lat_1", "lon_1", "city_2", "name_2", "panoid_2", "hex_id_2", "lat_2", "lon_2", "cosine_similarity", "city_pair_key"]
     result = pd.concat(outputs, ignore_index=True) if outputs else pd.DataFrame(columns=columns)
     write_parquet_with_json_audit(result, args.output, audit)

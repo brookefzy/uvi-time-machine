@@ -62,7 +62,9 @@ mkdir -p logs/slurm sample_similar_pairs/output
   --top-k "${TOP_K:-30}" \
   --threshold "${DINO_THRESHOLD:--1.0}" \
   --query-batch-size "${QUERY_BATCH_SIZE:-2048}" \
-  --max-pairs-per-source-image "${MAX_PAIRS_PER_SOURCE_IMAGE:-0}" \
-  --max-pairs-per-hex-pair "${MAX_PAIRS_PER_HEX_PAIR:-0}" \
+  --max-pairs-per-source-image "${MAX_PAIRS_PER_SOURCE_IMAGE:-1}" \
+  --max-pairs-per-hex-pair "${MAX_PAIRS_PER_HEX_PAIR:-1}" \
+  --mmr-candidate-pool "${MMR_CANDIDATE_POOL:-200}" \
+  --mmr-relevance-weight "${MMR_RELEVANCE_WEIGHT:-0.7}" \
   --pairs-per-city-pair "${PAIRS_PER_CITY_PAIR:-10}" \
   --output "${OUTPUT:-sample_similar_pairs/output/dinov3_image_pairs.parquet}"

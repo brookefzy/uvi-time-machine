@@ -88,8 +88,15 @@ The defaults search these directed pairs: Paris→London, London→Hong Kong,
 Hong Kong→Singapore, London→Sydney, and New York→London. `IndexFlatIP` gives
 exact scores only within the deterministic spatial sample (up to `100` images
 per H3 cell); it exports the top `10` image pairs per requested city pair. The
-default `-1.0` threshold retains every cosine candidate before ranking, and
-diversity caps are disabled by default. The H3 script searches all
+default `-1.0` threshold retains every cosine candidate before ranking. For
+each city pair, FAISS retrieves `30` nearest images per source image, then
+keeps a global high-score pool of `200` candidates after two hard caps (at most
+one pair per source image and per unordered H3-cell pair). It uses maximal
+marginal relevance (MMR) to select the final `10`: `70%` cosine relevance and
+`30%` penalty for looking like an already selected pair, where a pair is
+represented by the normalized mean of its two DINOv3 embeddings. This helps
+avoid galleries made entirely of visually repetitive scenes such as tunnels or
+cars, without requiring predefined scene labels. The H3 script searches all
 resolution-8 cells.
 
 Override pairs with a semicolon-delimited variable, preserving spaces in city
@@ -98,6 +105,7 @@ names. For example:
 ```bash
 CITY_PAIRS='Paris|London;New York|London' \
   DINO_THRESHOLD=0.88 PAIRS_PER_CITY_PAIR=50 \
+  MMR_CANDIDATE_POOL=500 MMR_RELEVANCE_WEIGHT=0.7 \
   sbatch slurm/dinov3_sample_image_pairs.cmd
 ```
 

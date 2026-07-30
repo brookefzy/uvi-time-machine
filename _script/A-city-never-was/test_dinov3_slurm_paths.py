@@ -66,6 +66,15 @@ def test_sample_jobs_ignore_unrelated_repo_dir_environment_variable() -> None:
         assert 'REPO_DIR="${REPO_DIR:-' not in contents
 
 
+def test_image_sample_job_enables_mmr_scene_diversity_by_default() -> None:
+    contents = (REPO_ROOT / "slurm" / "dinov3_sample_image_pairs.cmd").read_text(encoding="utf-8")
+    assert '--top-k "${TOP_K:-30}"' in contents
+    assert '--max-pairs-per-source-image "${MAX_PAIRS_PER_SOURCE_IMAGE:-1}"' in contents
+    assert '--max-pairs-per-hex-pair "${MAX_PAIRS_PER_HEX_PAIR:-1}"' in contents
+    assert '--mmr-candidate-pool "${MMR_CANDIDATE_POOL:-200}"' in contents
+    assert '--mmr-relevance-weight "${MMR_RELEVANCE_WEIGHT:-0.7}"' in contents
+
+
 def test_city_input_template_defaults_do_not_break_bash_braces() -> None:
     for script in CITY_TEMPLATE_SCRIPTS:
         contents = script.read_text(encoding="utf-8")

@@ -150,6 +150,46 @@ def test_diversity_caps_repeated_source_and_hex_pairs():
     assert accepted[["name_1", "name_2"]].to_dict("records") == [{"name_1": "a", "name_2": "b"}]
 
 
+def test_mmr_reranking_selects_a_less_redundant_scene():
+    from sample_similar_pairs.common import CityVectors
+    from sample_similar_pairs.sample_image_pairs_faiss import select_mmr_image_pairs
+
+    source = CityVectors(
+        "Paris",
+        pd.DataFrame({"name": ["tunnel-a", "tunnel-b", "street"], "panoid": ["a", "b", "c"]}),
+        ["e_0000", "e_0001"],
+        np.array([[1.0, 0.0], [0.999, 0.045], [0.0, 1.0]], dtype=np.float32),
+    )
+    target = CityVectors(
+        "London",
+        pd.DataFrame({"name": ["tunnel-a", "tunnel-b", "street"], "panoid": ["d", "e", "f"]}),
+        ["e_0000", "e_0001"],
+        np.array([[1.0, 0.0], [0.999, 0.045], [0.0, 1.0]], dtype=np.float32),
+    )
+    candidates = pd.DataFrame(
+        [
+            {"name_1": "tunnel-a", "name_2": "tunnel-a", "cosine_similarity": 0.99, "_source_index": 0, "_target_index": 0},
+            {"name_1": "tunnel-b", "name_2": "tunnel-b", "cosine_similarity": 0.98, "_source_index": 1, "_target_index": 1},
+            {"name_1": "street", "name_2": "street", "cosine_similarity": 0.90, "_source_index": 2, "_target_index": 2},
+        ]
+    )
+
+    selected = select_mmr_image_pairs(
+        candidates,
+        source,
+        target,
+        candidate_pool_size=3,
+        relevance_weight=0.8,
+        pairs_per_city_pair=2,
+    )
+
+    assert selected[["name_1", "name_2"]].to_dict("records") == [
+        {"name_1": "tunnel-a", "name_2": "tunnel-a"},
+        {"name_1": "street", "name_2": "street"},
+    ]
+    assert "_source_index" not in selected and "_target_index" not in selected
+
+
 def test_image_sampler_defaults_rank_top_ten_without_a_cosine_cutoff():
     from sample_similar_pairs.sample_image_pairs_faiss import (
         apply_image_diversity_caps,
@@ -159,8 +199,13 @@ def test_image_sampler_defaults_rank_top_ten_without_a_cosine_cutoff():
     args = build_parser().parse_args(["--output", "pairs.parquet"])
     assert args.max_images_per_h3 == 100
     assert args.max_images_per_city == 0
+    assert args.top_k == 30
     assert args.threshold == -1.0
     assert args.pairs_per_city_pair == 10
+    assert args.mmr_candidate_pool == 200
+    assert args.mmr_relevance_weight == 0.7
+    assert args.max_pairs_per_source_image == 1
+    assert args.max_pairs_per_hex_pair == 1
     candidates = pd.DataFrame(
         [
             {"city_1": "Paris", "name_1": f"a{index}", "hex_id_1": f"x{index}", "city_2": "London", "name_2": f"b{index}", "hex_id_2": f"y{index}", "cosine_similarity": 1 - index / 100}
