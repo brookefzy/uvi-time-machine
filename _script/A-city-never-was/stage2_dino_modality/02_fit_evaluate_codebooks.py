@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-import sys
+import argparse, json, sys
 from pathlib import Path
 
 import numpy as np
@@ -65,3 +65,14 @@ def fit_candidates(vectors: np.ndarray, requested_k: list[int], seed: int = 42, 
         model.train(validate_vectors(training))
         candidates[k] = {"status": "ok", "centroids": normalize_rows(model.centroids.reshape(k, training.shape[1]))}
     return candidates
+
+
+def main():
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument("--input",type=Path,required=True,help="Sampled-image Parquet file or directory");p.add_argument("--output-root",type=Path,required=True);p.add_argument("--k",type=int,nargs="+",default=[64,128,256,512]);p.add_argument("--max-training-images-per-city",type=int,default=100000);p.add_argument("--seed",type=int,default=42);p.add_argument("--niter",type=int,default=50);a=p.parse_args()
+    files=[a.input] if a.input.is_file() else sorted(a.input.rglob("*.parquet"));frame=pd.concat([pd.read_parquet(x) for x in files],ignore_index=True);pool,columns=city_balanced_training_pool(frame,a.max_training_images_per_city);vectors=pool[columns].to_numpy("float32");candidates=fit_candidates(vectors,a.k,a.seed,a.niter);rows=[]
+    for k,candidate in candidates.items():
+        row={"k":k,"status":candidate["status"],"training_image_count":len(vectors),"error":candidate.get("error","")};rows.append(row)
+        if candidate["status"]=="ok":
+            model_id=f"k={k}-local";centroid=pd.DataFrame(candidate["centroids"],columns=columns);centroid.insert(0,"mode_id",range(k));centroid.insert(0,"k",k);centroid.insert(0,"model_id",model_id);target=a.output_root/f"codebook_candidates/k={k}";target.mkdir(parents=True,exist_ok=True);centroid.to_parquet(target/"centroids.parquet",index=False);(target/"metrics.json").write_text(json.dumps(row,sort_keys=True))
+    a.output_root.mkdir(parents=True,exist_ok=True);pd.DataFrame(rows).to_parquet(a.output_root/"scorecard.parquet",index=False)
+if __name__=="__main__":main()
