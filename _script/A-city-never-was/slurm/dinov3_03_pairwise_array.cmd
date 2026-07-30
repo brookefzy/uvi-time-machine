@@ -22,14 +22,21 @@ if [[ -z "${INPUT_TEMPLATE}" ]]; then
   INPUT_TEMPLATE='dinov3_city={city}_res_exclude=None.parquet'
 fi
 PAIR_MANIFEST="${PAIR_MANIFEST:?Set PAIR_MANIFEST to a CITY1|CITY2 manifest.}"
-PAIR="$(sed -n "${SLURM_ARRAY_TASK_ID:?SLURM_ARRAY_TASK_ID is required}p" "${PAIR_MANIFEST}")"
+PAIR_OFFSET="${PAIR_OFFSET:-0}"
+if [[ ! "${PAIR_OFFSET}" =~ ^[0-9]+$ ]]; then
+  printf 'PAIR_OFFSET must be a non-negative integer: %s\n' "${PAIR_OFFSET}" >&2
+  exit 2
+fi
+: "${SLURM_ARRAY_TASK_ID:?SLURM_ARRAY_TASK_ID is required}"
+PAIR_LINE_NUMBER=$((PAIR_OFFSET + SLURM_ARRAY_TASK_ID))
+PAIR="$(sed -n "${PAIR_LINE_NUMBER}p" "${PAIR_MANIFEST}")"
 
 if [[ ! -x "${PYTHON}" ]]; then
   printf 'Python interpreter is not executable: %s\n' "${PYTHON}" >&2
   exit 127
 fi
 if [[ -z "${PAIR}" || "${PAIR}" != *"|"* ]]; then
-  printf 'Invalid or empty pair manifest row %s in %s\n' "${SLURM_ARRAY_TASK_ID}" "${PAIR_MANIFEST}" >&2
+  printf 'Invalid or empty pair manifest row %s in %s\n' "${PAIR_LINE_NUMBER}" "${PAIR_MANIFEST}" >&2
   exit 2
 fi
 

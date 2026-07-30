@@ -28,7 +28,8 @@ MANIFEST="${PAIR_MANIFEST:-logs/dinov3_similarity/pairs_res=${RESOLUTION}_$(date
 PAIR_COUNT="$(wc -l < "${MANIFEST}")"
 for ((start=1; start<=PAIR_COUNT; start+=BATCH_SIZE)); do
   end=$((start + BATCH_SIZE - 1)); (( end > PAIR_COUNT )) && end="${PAIR_COUNT}"
-  job_id="$(sbatch --parsable --export=ALL,PAIR_MANIFEST="${MANIFEST}" --array="${start}-${end}%${ARRAY_CONCURRENCY}" slurm/dinov3_03_pairwise_array.cmd)"
+  task_count=$((end - start + 1))
+  job_id="$(sbatch --parsable --export=ALL,PAIR_MANIFEST="${MANIFEST}",PAIR_OFFSET=$((start - 1)) --array="1-${task_count}%${ARRAY_CONCURRENCY}" slurm/dinov3_03_pairwise_array.cmd)"
   printf 'Submitted pair tasks %s-%s/%s: job %s\n' "${start}" "${end}" "${PAIR_COUNT}" "${job_id}"
   while squeue -h -j "${job_id}" -o "%T" | grep -q .; do
     sleep "${POLL_SECONDS}"
