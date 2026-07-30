@@ -7,12 +7,24 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 from sklearn.metrics import adjusted_rand_score
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from stage2_dino_modality.common import normalize_rows, require_faiss, validate_vectors
+
+
+def city_balanced_training_pool(frame: pd.DataFrame, max_images_per_city: int) -> tuple[pd.DataFrame, list[str]]:
+    """Deterministically cap each city without replacing H3-balanced sampling."""
+    if max_images_per_city < 1:
+        raise ValueError("max_images_per_city must be positive")
+    columns = sorted((column for column in frame.columns if column.startswith("e_") and column[2:].isdigit()), key=lambda column: int(column[2:]))
+    if not columns or {"city", "name"} - set(frame.columns):
+        raise ValueError("sampled data requires city, name, and embedding columns")
+    selected = (frame.drop_duplicates(["city", "name"]).sort_values(["city", "name"], kind="stable").groupby("city", group_keys=False).head(max_images_per_city).reset_index(drop=True))
+    return selected, columns
 
 
 def seed_stability(labels_a: np.ndarray, labels_b: np.ndarray) -> float:

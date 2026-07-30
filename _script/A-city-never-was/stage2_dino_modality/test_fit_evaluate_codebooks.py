@@ -2,6 +2,7 @@ import importlib.util
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
 
 SCRIPT = Path(__file__).with_name("02_fit_evaluate_codebooks.py")
@@ -39,3 +40,11 @@ def test_assignment_metrics_report_cosine_and_mode_support():
     )
     assert metrics["held_out_mean_cohesion"] == 1.0
     assert metrics["near_empty_mode_count"] == 0
+
+
+def test_city_balanced_training_pool_caps_each_city_deterministically():
+    module = load_module()
+    frame = pd.DataFrame({"city": ["A", "A", "A", "B"], "name": ["z", "a", "b", "c"], "e_0000": [1., 1., 0., 0.], "e_0001": [0., 0., 1., 1.]})
+    selected, columns = module.city_balanced_training_pool(frame, max_images_per_city=2)
+    assert selected[["city", "name"]].values.tolist() == [["A", "a"], ["A", "b"], ["B", "c"]]
+    assert columns == ["e_0000", "e_0001"]
