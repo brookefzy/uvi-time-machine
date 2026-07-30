@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Compute exact cross-city H3 Jensen--Shannon similarities."""
 from __future__ import annotations
-import sys
+import argparse, sys
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -19,3 +19,6 @@ def compute_pairwise(source: pd.DataFrame,target: pd.DataFrame)->pd.DataFrame:
   return ids,out
  hs,a=dense(source);ht,b=dense(target); scores=blocked_js(a,b)
  return pd.DataFrame([(city1,x,city2,y,source.model_id.iloc[0],float(scores[i,j]),float(1-scores[i,j]),float(scores[i,j])) for i,x in enumerate(hs) for j,y in enumerate(ht)],columns=["city_1","hex_id_1","city_2","hex_id_2","model_id","js_similarity","js_distance","similarity"])
+def main():
+ p=argparse.ArgumentParser();p.add_argument("--source",type=Path,required=True);p.add_argument("--target",type=Path,required=True);p.add_argument("--output",type=Path,required=True);a=p.parse_args();a.output.parent.mkdir(parents=True,exist_ok=True);compute_pairwise(pd.read_parquet(a.source),pd.read_parquet(a.target)).to_parquet(a.output,index=False)
+if __name__=="__main__":main()
