@@ -8,7 +8,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=16G
-#SBATCH --time=02:00:00
+#SBATCH --time=48:00:00
 #SBATCH --export=ALL
 
 # This is deliberately a single Slurm job (not an array), so it uses one
