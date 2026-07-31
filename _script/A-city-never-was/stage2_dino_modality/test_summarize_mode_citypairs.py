@@ -6,3 +6,14 @@ def load():
 def test_summary_has_one_unordered_city_pair_row():
  result=load().summarize_city_pairs(pd.DataFrame({"city_1":["A","A"],"city_2":["B","B"],"js_similarity":[.5,1.]}))
  assert result.iloc[0].pair_count_observed==2 and result.iloc[0].js_similarity_avg==.75
+
+
+def test_read_similarity_input_concatenates_partitioned_pair_files(tmp_path):
+ module = load()
+ first = tmp_path / "city_1=A" / "city_2=B.parquet"
+ second = tmp_path / "city_1=A" / "city_2=C.parquet"
+ first.parent.mkdir()
+ second.parent.mkdir(exist_ok=True)
+ pd.DataFrame({"city_1":["A"],"city_2":["B"],"js_similarity":[.5]}).to_parquet(first)
+ pd.DataFrame({"city_1":["A"],"city_2":["C"],"js_similarity":[.7]}).to_parquet(second)
+ assert len(module.read_similarity_input(tmp_path)) == 2
