@@ -10,7 +10,10 @@ CITY_META="${CITY_META:-${REPO_DIR%/*}/city_meta.csv}"
 SOURCE_ROOT="${SOURCE_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_hex_summary}"
 RESOLUTION="${RESOLUTION:-6}"
 OUTPUT_ROOT="${OUTPUT_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_similarity_by_pair_res=${RESOLUTION}}"
-INPUT_TEMPLATE="${INPUT_TEMPLATE:-dinov3_city={city}_res_exclude=None.parquet}"
+INPUT_TEMPLATE="${INPUT_TEMPLATE:-}"
+if [[ -z "${INPUT_TEMPLATE}" ]]; then
+  INPUT_TEMPLATE='dinov3_city={city}_res_exclude=None.parquet'
+fi
 LOG_DIR="${LOG_DIR:-logs/dinov3_similarity}"
 MANIFEST="${PAIR_MANIFEST:-${LOG_DIR}/pairs_res=${RESOLUTION}_direct_$(date +%Y%m%d_%H%M%S).txt}"
 

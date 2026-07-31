@@ -105,7 +105,11 @@ def test_direct_pairwise_runners_provide_fresh_and_resume_safe_modes() -> None:
     assert "B5b_compute_similarity_pairwise-optimized.py" in direct
     assert '--resolution "${RESOLUTION}"' in direct
     assert '"${OUTPUT_ROOT}"' in direct
+    assert 'INPUT_TEMPLATE="${INPUT_TEMPLATE:-}"' in direct
+    assert "INPUT_TEMPLATE='dinov3_city={city}_res_exclude=None.parquet'" in direct
 
+    assert 'INPUT_TEMPLATE="${INPUT_TEMPLATE:-}"' in resume
+    assert "INPUT_TEMPLATE='dinov3_city={city}_res_exclude=None.parquet'" in resume
     assert 'SHARD="${OUTPUT_ROOT}/optimized/temp/city1=${CITY1}/city2=${CITY2}/part_res=${RESOLUTION}.parquet"' in resume
     assert '[[ -s "${SHARD}" ]]' in resume
     assert "DONE — skipping" in resume
