@@ -5,10 +5,13 @@ ROOT = Path(__file__).parents[1] / "slurm"
 JOBS = ["dinov3_mode_sample_array.cmd", "dinov3_mode_fit_codebooks.cmd", "dinov3_mode_gallery.cmd", "dinov3_mode_select.cmd", "dinov3_mode_assign_array.cmd", "dinov3_mode_histogram_array.cmd", "dinov3_mode_similarity_array.cmd", "dinov3_mode_city_summary.cmd"]
 
 
-def test_mode_jobs_use_configured_venv_and_fixed_stage_scripts():
+def test_mode_jobs_use_self_contained_remote_defaults_and_fixed_stage_scripts():
     for name in JOBS:
         text = (ROOT / name).read_text()
-        assert 'VENV_PYTHON:-${REPO_ROOT}/.venv/bin/python' in text
+        assert '#SBATCH --partition=amd' in text
+        assert '#SBATCH --export=ALL' in text
+        assert '/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/bin/python' in text
+        assert '/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was' in text
         assert 'if [[ ! -x "${PYTHON}" ]]' in text
 
 
@@ -34,6 +37,8 @@ def test_downstream_arrays_resolve_inputs_from_manifest_and_selected_model():
 
 def test_coordinator_waits_for_each_downstream_stage_and_passes_cli_paths():
     text = (ROOT / "run_dinov3_mode_pipeline.bash").read_text()
+    assert 'REPO_DIR="${UVI_SAMPLE_REPO_DIR:-/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was}"' in text
+    assert 'MODE_OUTPUT_ROOT="${MODE_OUTPUT_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_global_modes/res=8/sample=50}"' in text
     assert 'sbatch --wait' in text
     assert 'dinov3_mode_assign_array.cmd' in text
     assert 'dinov3_mode_histogram_array.cmd' in text

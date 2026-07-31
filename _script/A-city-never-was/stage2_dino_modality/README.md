@@ -8,37 +8,20 @@ expensive downstream stages.
 
 ## Remote setup
 
-From the repository's `A-city-never-was` directory:
+The Slurm jobs use the Lustre paths below by default, so no exports are needed
+on the remote server. From the repository's `A-city-never-was` directory:
 
 ```bash
-cd /path/to/uvi-time-machine/_script/A-city-never-was
+cd /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was
 git pull
 
-export UVI_SAMPLE_REPO_DIR="$PWD"
-export VENV_PYTHON="/path/to/uvi-time-machine/.venv/bin/python"
-
-export ROOTFOLDER="/path/to/data-root"
-export EMBEDDING_ROOT="/path/to/dinov3-embeddings"
-export TRAIN_TEST_FOLDER="/path/to/train-test-metadata"
-export CITY_META="/path/to/city_meta.csv"
-export IMAGE_INDEX_ROOT="/path/to/image-index-root"
-
-export MODE_OUTPUT_ROOT="${ROOTFOLDER}/_curated/c_city_dinov3_global_modes/res=8/sample=50"
-
-# Tune these for the remote account and Slurm cluster.
-export BATCH_SIZE=20
-export ARRAY_CONCURRENCY=2
-export POLL_SECONDS=60
-export SBATCH_ACCOUNT="your-account"
-export SBATCH_PARTITION="your-partition"
-export SBATCH_TIME="24:00:00"
-export SBATCH_CPUS_PER_TASK=4
-export SBATCH_MEM="32G"
-
-"$VENV_PYTHON" -c 'import faiss, h3, numpy, pandas, pyarrow, sklearn; print("environment OK")'
+bash slurm/run_dinov3_mode_pipeline.bash
 ```
 
-`CITY_META` must be a CSV with a `City` column. `IMAGE_INDEX_ROOT` is the
+The defaults are `ROOTFOLDER=/lustre1/g/geog_pyloo/05_timemachine`,
+`CITY_META=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv`,
+and the repository `.venv` under that checkout. `CITY_META` must have a `City`
+column. `IMAGE_INDEX_ROOT` is the
 existing image-index directory: it contains `<resolved-city-stem>.parquet`
 shards (for example, `hongkong.parquet`) with `path` and, optionally, `name`.
 The new `city=<city>.parquet` convention is also accepted.
@@ -59,6 +42,7 @@ RESUME=0 bash slurm/run_dinov3_mode_pipeline.bash
 Inspect candidate metrics:
 
 ```bash
+VENV_PYTHON=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/bin/python
 "$VENV_PYTHON" -c '
 import os, pandas as pd
 root = os.environ["MODE_OUTPUT_ROOT"]

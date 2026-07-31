@@ -2,13 +2,17 @@
 # Submit global-mode stages in dependency order.  Array submitters wait for each batch.
 set -euo pipefail
 
-REPO_DIR="${UVI_SAMPLE_REPO_DIR:?Set UVI_SAMPLE_REPO_DIR}"
-cd "${REPO_DIR}"
-CITY_META="${CITY_META:?Set CITY_META}"
-MODE_OUTPUT_ROOT="${MODE_OUTPUT_ROOT:?Set MODE_OUTPUT_ROOT}"
+REPO_DIR="${UVI_SAMPLE_REPO_DIR:-/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was}"
+ROOTFOLDER="${ROOTFOLDER:-/lustre1/g/geog_pyloo/05_timemachine}"
+CITY_META="${CITY_META:-/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv}"
+MODE_OUTPUT_ROOT="${MODE_OUTPUT_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_global_modes/res=8/sample=50}"
+IMAGE_INDEX_ROOT="${IMAGE_INDEX_ROOT:-${ROOTFOLDER}/_transformed/t_classifier_img_yolo8_inf_dir}"
+PYTHON="${VENV_PYTHON:-/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/bin/python}"
+[[ -d "${REPO_DIR}" ]] || { printf 'Repository directory does not exist: %s\n' "${REPO_DIR}" >&2; exit 2; }
+[[ -x "${PYTHON}" ]] || { printf 'Python interpreter is not executable: %s\n' "${PYTHON}" >&2; exit 127; }
+cd "${REPO_DIR}"; mkdir -p logs/slurm
 LAST_CITY="${LAST_CITY:-$(( $(wc -l < "${CITY_META}") - 1 ))}"
 SELECTED_MODEL="${SELECTED_MODEL:-${MODE_OUTPUT_ROOT}/selected_model.json}"
-PYTHON="${VENV_PYTHON:-$(cd ../.. && pwd)/.venv/bin/python}"
 
 all_city_artifacts_exist() {
   "${PYTHON}" -c 'import csv,sys; from pathlib import Path; root=Path(sys.argv[2]); cities=[r["City"] for r in csv.DictReader(open(sys.argv[1],newline=""))]; sys.exit(not all((root/f"city={city}.parquet").exists() for city in cities))' "${CITY_META}" "$1"
@@ -26,7 +30,7 @@ if [[ "${RESUME:-1}" != "1" || ! -f "${MODE_OUTPUT_ROOT}/scorecard.parquet" ]]; 
 fi
 
 if [[ -z "${SELECTED_K:-}" ]]; then
-  if [[ -n "${IMAGE_INDEX_ROOT:-}" ]]; then
+  if [[ -n "${IMAGE_INDEX_ROOT}" ]]; then
     for CENTROIDS in "${MODE_OUTPUT_ROOT}"/codebook_candidates/k=*/centroids.parquet; do
       [[ -f "${CENTROIDS}" ]] || continue
       K="$(basename "$(dirname "${CENTROIDS}")")"; K="${K#k=}"
