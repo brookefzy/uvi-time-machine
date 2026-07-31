@@ -2,6 +2,7 @@
 """Summarize exact H3 mode similarities by unordered city pair."""
 from __future__ import annotations
 import argparse
+from itertools import combinations
 from pathlib import Path
 import pandas as pd
 def summarize_city_pairs(frame:pd.DataFrame)->pd.DataFrame:
@@ -15,6 +16,15 @@ def read_similarity_input(path: Path) -> pd.DataFrame:
  if not files: raise ValueError(f"no similarity Parquet files under {path}")
  return pd.concat([pd.read_parquet(file) for file in files],ignore_index=True)
 
+
+def validate_expected_pairs(frame: pd.DataFrame, cities: list[str]) -> None:
+ expected=set(combinations(sorted(set(cities)),2))
+ observed=set(map(tuple, frame[["city_1","city_2"]].drop_duplicates().itertuples(index=False,name=None)))
+ if observed != expected: raise ValueError(f"expected {len(expected)} unordered city pairs, observed {len(observed)}")
+ if "model_id" in frame and frame.model_id.nunique()!=1: raise ValueError("similarity shards contain multiple model IDs")
+
 def main():
- p=argparse.ArgumentParser();p.add_argument("--input",type=Path,required=True);p.add_argument("--output",type=Path,required=True);a=p.parse_args();a.output.parent.mkdir(parents=True,exist_ok=True);summarize_city_pairs(read_similarity_input(a.input)).to_parquet(a.output,index=False)
+ p=argparse.ArgumentParser();p.add_argument("--input",type=Path,required=True);p.add_argument("--output",type=Path,required=True);p.add_argument("--city-meta",type=Path);a=p.parse_args();frame=read_similarity_input(a.input)
+ if a.city_meta: validate_expected_pairs(frame,pd.read_csv(a.city_meta)["City"].dropna().tolist())
+ a.output.parent.mkdir(parents=True,exist_ok=True);summarize_city_pairs(frame).to_parquet(a.output,index=False)
 if __name__=="__main__":main()

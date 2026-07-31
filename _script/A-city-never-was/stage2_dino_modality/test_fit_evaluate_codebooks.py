@@ -48,3 +48,10 @@ def test_city_balanced_training_pool_caps_each_city_deterministically():
     selected, columns = module.city_balanced_training_pool(frame, max_images_per_city=2)
     assert selected[["city", "name"]].values.tolist() == [["A", "a"], ["A", "b"], ["B", "c"]]
     assert columns == ["e_0000", "e_0001"]
+
+
+def test_split_train_holdout_is_disjoint_and_deterministic():
+    module = load_module()
+    train, holdout = module.split_train_holdout(np.arange(20, dtype=np.float32).reshape(10, 2), fraction=.2)
+    assert len(train) == 8 and len(holdout) == 2
+    assert not set(map(tuple, train)).intersection(map(tuple, holdout))

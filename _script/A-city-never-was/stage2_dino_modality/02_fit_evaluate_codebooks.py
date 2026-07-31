@@ -14,6 +14,7 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from stage2_dino_modality.common import build_model_id, centroid_checksum, normalize_rows, require_faiss, validate_vectors
+from stage2_dino_modality.mode_ops import select_model
 
 
 def city_balanced_training_pool(frame: pd.DataFrame, max_images_per_city: int) -> tuple[pd.DataFrame, list[str]]:
@@ -30,6 +31,16 @@ def city_balanced_training_pool(frame: pd.DataFrame, max_images_per_city: int) -
 def seed_stability(labels_a: np.ndarray, labels_b: np.ndarray) -> float:
     """Compare assignments without treating arbitrary cluster labels as meaningful."""
     return float(adjusted_rand_score(labels_a, labels_b))
+
+
+def split_train_holdout(vectors: np.ndarray, fraction: float = .2) -> tuple[np.ndarray, np.ndarray]:
+    """Deterministically reserve a non-overlapping evaluation holdout."""
+    if not 0 < fraction < 1:
+        raise ValueError("holdout fraction must be between zero and one")
+    count=max(1, int(round(len(vectors) * fraction)))
+    if count >= len(vectors):
+        raise ValueError("at least two training vectors are required")
+    return vectors[:-count], vectors[-count:]
 
 
 def assignment_metrics(holdout_vectors: np.ndarray, centroids: np.ndarray) -> dict[str, float | int]:
@@ -68,16 +79,21 @@ def fit_candidates(vectors: np.ndarray, requested_k: list[int], seed: int = 42, 
 
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument("--input",type=Path,required=True,help="Sampled-image Parquet file or directory");p.add_argument("--output-root",type=Path,required=True);p.add_argument("--k",type=int,nargs="+",default=[64,128,256,512]);p.add_argument("--max-training-images-per-city",type=int,default=100000);p.add_argument("--seed",type=int,default=42);p.add_argument("--niter",type=int,default=50);a=p.parse_args()
-    files=[a.input] if a.input.is_file() else sorted(a.input.rglob("*.parquet"));frame=pd.concat([pd.read_parquet(x) for x in files],ignore_index=True);pool,columns=city_balanced_training_pool(frame,a.max_training_images_per_city);vectors=pool[columns].to_numpy("float32");candidates=fit_candidates(vectors,a.k,a.seed,a.niter);rows=[]
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument("--input",type=Path,required=True,help="Sampled-image Parquet file or directory");p.add_argument("--output-root",type=Path,required=True);p.add_argument("--k",type=int,nargs="+",default=[64,128,256,512]);p.add_argument("--max-training-images-per-city",type=int,default=100000);p.add_argument("--holdout-fraction",type=float,default=.2);p.add_argument("--seed",type=int,default=42);p.add_argument("--niter",type=int,default=50);a=p.parse_args()
+    files=[a.input] if a.input.is_file() else sorted(a.input.rglob("*.parquet"));frame=pd.concat([pd.read_parquet(x) for x in files],ignore_index=True);pool,columns=city_balanced_training_pool(frame,a.max_training_images_per_city);vectors=pool[columns].to_numpy("float32");training,holdout=split_train_holdout(vectors,a.holdout_fraction);candidates=fit_candidates(training,a.k,a.seed,a.niter);secondary=fit_candidates(training,a.k,a.seed+1,a.niter);rows=[]
     for k,candidate in candidates.items():
         row={"k":k,"status":candidate["status"],"training_image_count":len(vectors),"error":candidate.get("error","")}
         if candidate["status"]=="ok":
-            heldout = vectors[::5] if len(vectors) >= 5 else vectors
-            metrics = assignment_metrics(heldout, candidate["centroids"])
-            config={"k":k,"seed":a.seed,"niter":a.niter,"embedding_columns":columns,"max_training_images_per_city":a.max_training_images_per_city}
+            metrics = assignment_metrics(holdout, candidate["centroids"])
+            primary_labels=(normalize_rows(holdout) @ candidate["centroids"].T).argmax(1)
+            alternate_labels=(normalize_rows(holdout) @ secondary[k]["centroids"].T).argmax(1)
+            config={"k":k,"seed":a.seed,"stability_seed":a.seed+1,"niter":a.niter,"embedding_columns":columns,"embedding_dim":len(columns),"max_training_images_per_city":a.max_training_images_per_city,"holdout_fraction":a.holdout_fraction}
             checksum=centroid_checksum(candidate["centroids"],config);model_id=build_model_id(checksum,config)
-            row.update(metrics);row["stability"]=1.0;row["model_id"]=model_id;centroid=pd.DataFrame(candidate["centroids"],columns=columns);centroid.insert(0,"mode_id",range(k));centroid.insert(0,"k",k);centroid.insert(0,"model_id",model_id);target=a.output_root/f"codebook_candidates/k={k}";target.mkdir(parents=True,exist_ok=True);centroid.to_parquet(target/"centroids.parquet",index=False);(target/"metrics.json").write_text(json.dumps(row,sort_keys=True))
+            row.update(metrics);row.update({"stability":seed_stability(primary_labels,alternate_labels),"model_id":model_id,"training_image_count":len(training),"holdout_image_count":len(holdout)});centroid=pd.DataFrame(candidate["centroids"],columns=columns);centroid.insert(0,"training_image_count",len(training));centroid.insert(0,"embedding_dim",len(columns));centroid.insert(0,"mode_id",range(k));centroid.insert(0,"k",k);centroid.insert(0,"model_id",model_id);target=a.output_root/f"codebook_candidates/k={k}";target.mkdir(parents=True,exist_ok=True);centroid.to_parquet(target/"centroids.parquet",index=False);(target/"metrics.json").write_text(json.dumps(row,sort_keys=True))
         rows.append(row)
-    a.output_root.mkdir(parents=True,exist_ok=True);pd.DataFrame(rows).to_parquet(a.output_root/"scorecard.parquet",index=False)
+    a.output_root.mkdir(parents=True,exist_ok=True);scorecard=pd.DataFrame(rows);scorecard.to_parquet(a.output_root/"scorecard.parquet",index=False)
+    try:
+        recommendation=select_model(scorecard); recommendation["model_id"]=str(scorecard.loc[scorecard.k==recommendation["selected_k"],"model_id"].iloc[0]);(a.output_root/"recommended_model.json").write_text(json.dumps(recommendation,sort_keys=True,indent=2))
+    except ValueError:
+        pass
 if __name__=="__main__":main()

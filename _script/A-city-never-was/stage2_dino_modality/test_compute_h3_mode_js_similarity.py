@@ -10,3 +10,13 @@ def test_pairwise_rejects_same_city_and_model_mismatch():
  with pytest.raises(ValueError,match="distinct"): load().compute_pairwise(frame,frame)
  other=frame.assign(city="B",model_id="other")
  with pytest.raises(ValueError,match="model IDs"): load().compute_pairwise(frame,other)
+
+
+def test_pairwise_writer_publishes_a_single_atomic_parquet_shard(tmp_path):
+ module=load()
+ source=pd.DataFrame({"city":["A"],"hex_id":["h1"],"res":[8],"mode_id":[0],"mode_fraction":[1.],"model_id":["m"]})
+ target=source.assign(city="B",hex_id="h2")
+ output=tmp_path / "part.parquet"
+ module.write_pairwise(source,target,output)
+ assert output.exists()
+ assert pd.read_parquet(output).js_similarity.iloc[0] == pytest.approx(1.)
