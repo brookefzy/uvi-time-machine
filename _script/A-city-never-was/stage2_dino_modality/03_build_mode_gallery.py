@@ -17,10 +17,15 @@ def render_gallery(rows:pd.DataFrame,output:Path)->None:
  output.parent.mkdir(parents=True,exist_ok=True)
  cards="".join(f"<article><h2>Mode {escape(str(r.mode_id))}</h2><p>{escape(str(getattr(r,'city','')))} · {escape(str(getattr(r,'hex_id','')))} · cosine {float(getattr(r,'assignment_cosine',0)):.4f}</p><img src='{escape(str(r.path))}'></article>" for r in rows.itertuples())
  output.write_text(f"<!doctype html><meta charset='utf-8'><title>Global DINO modes</title><style>article{{display:inline-block;width:280px;vertical-align:top;margin:8px}}img{{max-width:100%;height:180px;object-fit:contain}}</style>{cards}")
+def copy_gallery_images(rows:pd.DataFrame,output:Path)->pd.DataFrame:
+ images=output.parent/"images";images.mkdir(parents=True,exist_ok=True);result=rows.copy();portable=[]
+ for i,row in result.iterrows():
+  source=Path(row.path);target=images/f"mode-{row.mode_id}-{i}{source.suffix}";copy2(source,target);portable.append(f"images/{target.name}")
+ result["path"]=portable;return result
 def main():
  p=argparse.ArgumentParser(description=__doc__);p.add_argument("--representatives",type=Path);p.add_argument("--sampled",type=Path);p.add_argument("--centroids",type=Path);p.add_argument("--image-index",type=Path);p.add_argument("--images-per-mode",type=int,default=20);p.add_argument("--output",type=Path,required=True);a=p.parse_args()
  if a.representatives: rows=pd.read_parquet(a.representatives)
  elif a.sampled and a.centroids and a.image_index: rows=build_representatives(pd.read_parquet(a.sampled),pd.read_parquet(a.centroids),pd.read_parquet(a.image_index),a.images_per_mode)
  else: p.error("supply --representatives or --sampled --centroids --image-index")
- render_gallery(rows,a.output)
+ render_gallery(copy_gallery_images(rows,a.output),a.output)
 if __name__=="__main__":main()
