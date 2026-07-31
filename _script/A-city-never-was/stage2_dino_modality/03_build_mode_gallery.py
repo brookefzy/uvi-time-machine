@@ -7,6 +7,7 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 from shutil import copy2
+from dinov3_utils import resolve_city_file_stem
 
 def read_parquet_dataset(path:Path)->pd.DataFrame:
  files=[path] if path.is_file() else sorted(path.rglob("*.parquet"))
@@ -14,6 +15,7 @@ def read_parquet_dataset(path:Path)->pd.DataFrame:
  frames=[]
  for file in files:
   frame=pd.read_parquet(file)
+  frame["_index_file_stem"]=file.stem
   if "city" not in frame and file.stem.startswith("city="): frame=frame.assign(city=file.stem.removeprefix("city="))
   frames.append(frame)
  return pd.concat(frames,ignore_index=True)
@@ -22,7 +24,10 @@ def build_representatives(sampled:pd.DataFrame,centroids:pd.DataFrame,index:pd.D
  columns=[c for c in centroids if c.startswith("e_")]; scores=sampled[columns].to_numpy("float32") @ centroids[columns].to_numpy("float32").T
  work=sampled[[c for c in sampled if not c.startswith("e_")]].copy();work["mode_id"]=scores.argmax(1);work["assignment_cosine"]=scores.max(1)
  if "name" not in index: index=index.assign(name=index.path.map(lambda x:Path(x).name))
- if "city" not in index: raise ValueError("image index must contain city for unambiguous gallery joins")
+ if "city" not in index:
+  city_by_stem={resolve_city_file_stem(city):city for city in sampled.city.dropna().unique()}
+  index=index.assign(city=index._index_file_stem.map(city_by_stem))
+  if index.city.isna().any(): raise ValueError("image-index file names do not identify sampled cities")
  return work.merge(index[["city","name","path"]],on=["city","name"],how="inner").sort_values(["mode_id","assignment_cosine"],ascending=[True,False]).groupby("mode_id",group_keys=False).head(images_per_mode)
 def render_gallery(rows:pd.DataFrame,output:Path)->None:
  output.parent.mkdir(parents=True,exist_ok=True)

@@ -31,3 +31,13 @@ def test_gallery_derives_city_from_partition_filename_when_index_omits_it(tmp_pa
     path = tmp_path / "city=Paris.parquet"
     pd.DataFrame({"name":["image.jpg"], "path":["/image.jpg"]}).to_parquet(path)
     assert module.read_parquet_dataset(path).city.tolist() == ["Paris"]
+
+
+def test_gallery_maps_existing_city_stem_index_files_to_sampled_cities(tmp_path):
+    module = load()
+    sampled = pd.DataFrame({"city":["Hong Kong"],"name":["image.jpg"],"hex_id":["h"],"e_0000":[1.]})
+    index_path = tmp_path / "hongkong.parquet"
+    pd.DataFrame({"name":["image.jpg"], "path":["/image.jpg"]}).to_parquet(index_path)
+    centroids = pd.DataFrame({"mode_id":[0], "e_0000":[1.]})
+    rows = module.build_representatives(sampled, centroids, module.read_parquet_dataset(index_path))
+    assert rows.city.tolist() == ["Hong Kong"]

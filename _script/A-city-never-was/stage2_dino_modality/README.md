@@ -38,9 +38,10 @@ export SBATCH_MEM="32G"
 "$VENV_PYTHON" -c 'import faiss, h3, numpy, pandas, pyarrow, sklearn; print("environment OK")'
 ```
 
-`CITY_META` must be a CSV with a `City` column. `IMAGE_INDEX_ROOT` must contain
-`city=<city>.parquet` shards with `path` and, optionally, `name`; the city name
-may be supplied by the shard filename instead of a column.
+`CITY_META` must be a CSV with a `City` column. `IMAGE_INDEX_ROOT` is the
+existing image-index directory: it contains `<resolved-city-stem>.parquet`
+shards (for example, `hongkong.parquet`) with `path` and, optionally, `name`.
+The new `city=<city>.parquet` convention is also accepted.
 
 ## E2E smoke run
 
