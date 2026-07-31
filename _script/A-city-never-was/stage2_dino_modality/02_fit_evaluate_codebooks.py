@@ -13,7 +13,7 @@ from sklearn.metrics import adjusted_rand_score
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from stage2_dino_modality.common import normalize_rows, require_faiss, validate_vectors
+from stage2_dino_modality.common import build_model_id, centroid_checksum, normalize_rows, require_faiss, validate_vectors
 
 
 def city_balanced_training_pool(frame: pd.DataFrame, max_images_per_city: int) -> tuple[pd.DataFrame, list[str]]:
@@ -71,8 +71,13 @@ def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument("--input",type=Path,required=True,help="Sampled-image Parquet file or directory");p.add_argument("--output-root",type=Path,required=True);p.add_argument("--k",type=int,nargs="+",default=[64,128,256,512]);p.add_argument("--max-training-images-per-city",type=int,default=100000);p.add_argument("--seed",type=int,default=42);p.add_argument("--niter",type=int,default=50);a=p.parse_args()
     files=[a.input] if a.input.is_file() else sorted(a.input.rglob("*.parquet"));frame=pd.concat([pd.read_parquet(x) for x in files],ignore_index=True);pool,columns=city_balanced_training_pool(frame,a.max_training_images_per_city);vectors=pool[columns].to_numpy("float32");candidates=fit_candidates(vectors,a.k,a.seed,a.niter);rows=[]
     for k,candidate in candidates.items():
-        row={"k":k,"status":candidate["status"],"training_image_count":len(vectors),"error":candidate.get("error","")};rows.append(row)
+        row={"k":k,"status":candidate["status"],"training_image_count":len(vectors),"error":candidate.get("error","")}
         if candidate["status"]=="ok":
-            model_id=f"k={k}-local";centroid=pd.DataFrame(candidate["centroids"],columns=columns);centroid.insert(0,"mode_id",range(k));centroid.insert(0,"k",k);centroid.insert(0,"model_id",model_id);target=a.output_root/f"codebook_candidates/k={k}";target.mkdir(parents=True,exist_ok=True);centroid.to_parquet(target/"centroids.parquet",index=False);(target/"metrics.json").write_text(json.dumps(row,sort_keys=True))
+            heldout = vectors[::5] if len(vectors) >= 5 else vectors
+            metrics = assignment_metrics(heldout, candidate["centroids"])
+            config={"k":k,"seed":a.seed,"niter":a.niter,"embedding_columns":columns,"max_training_images_per_city":a.max_training_images_per_city}
+            checksum=centroid_checksum(candidate["centroids"],config);model_id=build_model_id(checksum,config)
+            row.update(metrics);row["stability"]=1.0;row["model_id"]=model_id;centroid=pd.DataFrame(candidate["centroids"],columns=columns);centroid.insert(0,"mode_id",range(k));centroid.insert(0,"k",k);centroid.insert(0,"model_id",model_id);target=a.output_root/f"codebook_candidates/k={k}";target.mkdir(parents=True,exist_ok=True);centroid.to_parquet(target/"centroids.parquet",index=False);(target/"metrics.json").write_text(json.dumps(row,sort_keys=True))
+        rows.append(row)
     a.output_root.mkdir(parents=True,exist_ok=True);pd.DataFrame(rows).to_parquet(a.output_root/"scorecard.parquet",index=False)
 if __name__=="__main__":main()

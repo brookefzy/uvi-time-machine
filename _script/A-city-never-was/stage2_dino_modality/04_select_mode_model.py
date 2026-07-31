@@ -14,7 +14,11 @@ def build_selected_model(scorecard: pd.DataFrame, selected_k: int|None=None, mod
         result={"selected_k":int(selected_k),"selection_rule":"explicit_override"}
     else:
         selected=select_model(scorecard); result={"selected_k":selected["selected_k"],"selection_rule":selected["rule"]}
-    if model_id: result["model_id"]=model_id
+    selected_row = scorecard.loc[scorecard.k == result["selected_k"]].iloc[0]
+    resolved_model_id = model_id or selected_row.get("model_id")
+    if not resolved_model_id:
+        raise ValueError("selected scorecard row must provide model_id")
+    result["model_id"] = str(resolved_model_id)
     return result
 
 def main():
