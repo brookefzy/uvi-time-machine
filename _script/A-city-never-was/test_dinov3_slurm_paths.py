@@ -17,6 +17,7 @@ CITY_TEMPLATE_SCRIPTS = [
 ]
 PAIRWISE_DIRECT_RUNNER = REPO_ROOT / "pipeline" / "run_dinov3_pairwise_direct.bash"
 PAIRWISE_RESUME_RUNNER = REPO_ROOT / "pipeline" / "run_dinov3_pairwise_resume.bash"
+PAIRWISE_RESUME_SUBMITTER = REPO_ROOT / "slurm" / "submit_dinov3_pairwise_resume_batches.bash"
 PIPELINE_INDEX = REPO_ROOT / "pipeline" / "INDEX.md"
 
 
@@ -116,3 +117,15 @@ def test_direct_pairwise_runners_provide_fresh_and_resume_safe_modes() -> None:
 
     assert "run_dinov3_pairwise_direct.bash" in index
     assert "run_dinov3_pairwise_resume.bash" in index
+
+
+def test_pairwise_resume_submitter_skips_nonempty_shards_and_batches_pending_pairs() -> None:
+    submitter = PAIRWISE_RESUME_SUBMITTER.read_text(encoding="utf-8")
+
+    assert "generate_dinov3_pair_manifest.py" in submitter
+    assert 'PENDING_MANIFEST="${PAIR_MANIFEST%.txt}_pending.txt"' in submitter
+    assert 'SHARD="${OUTPUT_ROOT}/optimized/temp/city1=${CITY1}/city2=${CITY2}/part_res=${RESOLUTION}.parquet"' in submitter
+    assert '[[ -s "${SHARD}" ]]' in submitter
+    assert 'printf \'Previously complete: %s; pending: %s\\n\'' in submitter
+    assert 'PAIR_OFFSET=$((start - 1))' in submitter
+    assert '--array="1-${task_count}%${ARRAY_CONCURRENCY}"' in submitter
