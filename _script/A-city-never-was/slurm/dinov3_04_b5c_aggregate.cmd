@@ -19,6 +19,10 @@ export NUMEXPR_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
 REPO_DIR="${REPO_DIR:-/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was}"
 CITY_META="${CITY_META:-/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv}"
 PYTHON="${PYTHON:-python}"
+ROOTFOLDER="${ROOTFOLDER:-/lustre1/g/geog_pyloo/05_timemachine}"
+RESOLUTION="${RESOLUTION:-8}"
+PAIRWISE_ROOT="${PAIRWISE_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_similarity_by_pair_res=${RESOLUTION}}"
+SIMILARITY_EXPORT_FOLDER="${SIMILARITY_EXPORT_FOLDER:-${ROOTFOLDER}/_curated/c_city_dinov3_similarity_res=${RESOLUTION}}"
 
 cd "${REPO_DIR}"
 mkdir -p logs/slurm
@@ -27,7 +31,9 @@ mkdir -p logs/slurm
   --stage b5c \
   --city-meta "${CITY_META}" \
   --repo-dir "${REPO_DIR}" \
-  --resolution "${RESOLUTION:-8}" \
+  --resolution "${RESOLUTION}" \
+  --pairwise-root "${PAIRWISE_ROOT}" \
+  --similarity-export-folder "${SIMILARITY_EXPORT_FOLDER}" \
   --b5c-memory-limit "${B5C_MEMORY_LIMIT:-64GB}" \
   --b5c-threads "${B5C_THREADS:-1}" \
   --execute
