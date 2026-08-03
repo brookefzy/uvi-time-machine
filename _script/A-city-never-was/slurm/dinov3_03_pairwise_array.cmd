@@ -53,4 +53,5 @@ mkdir -p logs/slurm
   --row-block-size "${ROW_BLOCK_SIZE:-1000}" \
   --memory-limit "${B5B_MEMORY_LIMIT:-96GB}" \
   --res-exclude None \
-  --log-dir "${LOG_DIR:-logs/dinov3_similarity}"
+  --log-dir "${LOG_DIR:-logs/dinov3_similarity}" \
+  --use-gpu
