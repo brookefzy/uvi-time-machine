@@ -338,6 +338,34 @@ python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-neve
 
 7. Aggregate optimized pairwise outputs with B5c. This works after B5b has removed temp shards because B5c can fall back to merged `optimized/similarity_city=<City>_res=8_optimized.parquet` files.
 
+For the Slurm B5c job, use `PAIRWISE_ROOT` (not `OUTPUT_ROOT`) to identify
+the B5b shard location. The current B5b array worker writes to the shared
+pairwise root by default, while B5c exports each H3 resolution to a separate
+folder. Submit one B5c job per resolution after its B5b pairs have completed:
+
+```bash
+cd /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was
+
+PAIRWISE_ROOT=/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_similarity_by_pair
+
+# Resolution 6
+sbatch --export=ALL,RESOLUTION=6,PAIRWISE_ROOT="${PAIRWISE_ROOT}",SIMILARITY_EXPORT_FOLDER=/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_similarity_res=6 \
+  slurm/dinov3_04_b5c_aggregate.cmd
+
+# Resolution 7
+sbatch --export=ALL,RESOLUTION=7,PAIRWISE_ROOT="${PAIRWISE_ROOT}",SIMILARITY_EXPORT_FOLDER=/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_similarity_res=7 \
+  slurm/dinov3_04_b5c_aggregate.cmd
+
+# Resolution 8
+sbatch --export=ALL,RESOLUTION=8,PAIRWISE_ROOT="${PAIRWISE_ROOT}",SIMILARITY_EXPORT_FOLDER=/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_similarity_res=8 \
+  slurm/dinov3_04_b5c_aggregate.cmd
+```
+
+The pairwise root may safely contain res-6, res-7, and res-8 shards together:
+B5c selects only `part_res=<resolution>.parquet`. If B5b was instead run with
+separate resolution-specific output roots, set `PAIRWISE_ROOT` to the matching
+root for each B5c command.
+
 ```bash
 python /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was/B5c_pairwise_agg_optimized.py \
   --resolution 8 \
