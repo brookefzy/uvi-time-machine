@@ -13,9 +13,28 @@ from dinov3_utils import (
     embed_image_batch,
     l2_normalize_rows,
     load_embedding_backend,
+    normalize_city_name,
     resolve_city_file_stem,
     verify_embedding_backend,
 )
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("  SÃO   PAULO  ", "saopaulo"),
+        ("Bogotá", "bogota"),
+        ("St. John's", "stjohns"),
+        ("Gainesville, FL", "gainesville"),
+        ("Gainesville Florida", "gainesville"),
+        ("Portland, Oregon", "portland"),
+        ("Québec, Province of Quebec", "quebec"),
+        ("Mexico City", "mexicocity"),
+        ("New York", "newyork"),
+    ],
+)
+def test_normalize_city_name_handles_cross_source_variants(raw, expected):
+    assert normalize_city_name(raw) == expected
 
 
 def test_build_embedding_columns_uses_zero_padded_suffixes():

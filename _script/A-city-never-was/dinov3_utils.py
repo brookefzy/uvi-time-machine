@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unicodedata
+import re
 from pathlib import Path
 from typing import Callable, Iterable, Sequence
 
@@ -15,6 +16,52 @@ CITY_FILE_STEM_EXCEPTIONS = {
     "gainesville, fl": "gainesville,fl",
     "portland, or": "portland,or",
 }
+
+_US_ADMIN_SUFFIXES = {
+    "al", "alabama", "ak", "alaska", "az", "arizona", "ar", "arkansas",
+    "ca", "california", "co", "colorado", "ct", "connecticut", "de", "delaware",
+    "fl", "florida", "ga", "georgia", "hi", "hawaii", "id", "idaho",
+    "il", "illinois", "in", "indiana", "ia", "iowa", "ks", "kansas",
+    "ky", "kentucky", "la", "louisiana", "me", "maine", "md", "maryland",
+    "ma", "massachusetts", "mi", "michigan", "mn", "minnesota", "ms", "mississippi",
+    "mo", "missouri", "mt", "montana", "ne", "nebraska", "nv", "nevada",
+    "nh", "newhampshire", "nj", "newjersey", "nm", "newmexico", "ny", "newyork",
+    "nc", "northcarolina", "nd", "northdakota", "oh", "ohio", "ok", "oklahoma",
+    "or", "oregon", "pa", "pennsylvania", "ri", "rhodeisland", "sc", "southcarolina",
+    "sd", "southdakota", "tn", "tennessee", "tx", "texas", "ut", "utah",
+    "vt", "vermont", "va", "virginia", "wa", "washington", "wv", "westvirginia",
+    "wi", "wisconsin", "wy", "wyoming", "dc", "districtofcolumbia",
+}
+
+
+def normalize_city_name(value: object) -> str:
+    """Canonicalize city labels used by every DINOv3 membership lookup.
+
+    The canonical form is accent-, case-, punctuation-, comma-, and whitespace-
+    insensitive. A comma-delimited administrative qualifier, or a trailing US
+    state name/code, is removed conservatively so intrinsic names such as
+    ``Mexico City`` remain intact.
+    """
+    if value is None or pd.isna(value):
+        return ""
+
+    text = unicodedata.normalize("NFKD", str(value).strip().casefold())
+    text = "".join(character for character in text if not unicodedata.combining(character))
+
+    if "," in text:
+        text = text.split(",", 1)[0]
+    else:
+        tokens = re.findall(r"[a-z0-9]+", text)
+        if len(tokens) > 1:
+            last = tokens[-1]
+            last_two = "".join(tokens[-2:])
+            if last in _US_ADMIN_SUFFIXES:
+                tokens.pop()
+            elif len(tokens) > 2 and last_two in _US_ADMIN_SUFFIXES:
+                del tokens[-2:]
+            text = " ".join(tokens)
+
+    return "".join(character for character in text if character.isalnum())
 
 
 def build_embedding_columns(dim: int) -> list[str]:

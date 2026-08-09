@@ -89,6 +89,8 @@ def test_build_all_commands_orders_city_stages_before_global_stages(tmp_path):
     assert "B5e_dinov3_vector_summary.py" in commands[3]
     assert "B5b_compute_similarity_pairwise-optimized.py" in commands[4]
     assert "B5c_pairwise_agg_optimized.py" in commands[5]
+    assert "--h3-membership-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_hex_summary" in commands[5]
+    assert "dinov3_city={city}_res_exclude=None.parquet" in commands[5]
     assert "B5h_summarize_dinov3_citypair_similarity.py" in commands[6]
     assert "--threshold -1.0" in commands[4]
     assert "dinov3_city={city}_res_exclude=None.parquet" in commands[4]
