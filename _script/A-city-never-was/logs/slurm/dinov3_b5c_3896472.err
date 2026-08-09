@@ -1,0 +1,263 @@
+2026-08-10 00:21:20,725 - __main__.139958552519040 - INFO - Logging initialized. Log file: logs/urban_similarity_optimized_20260810_002120.log
+2026-08-10 00:21:20,850 - __main__.139958552519040 - INFO - Starting optimized urban similarity aggregation
+2026-08-10 00:21:52,471 - __main__.139958552519040 - WARNING - Missing 10 authoritative H3 membership files; affected rows will be quarantined
+2026-08-10 00:21:54,039 - __main__.139958552519040 - INFO - Loaded 23406 H3-to-city membership rows for resolution 7
+2026-08-10 00:21:54,066 - __main__.139958552519040 - WARNING - Ignoring legacy aggregation progress without validation contract
+2026-08-10 00:21:54,066 - __main__.139958552519040 - INFO - Processing 127 cities (0 already completed)
+Processing cities:   0%|          | 0/127 [00:00<?, ?it/s]2026-08-10 00:21:54,115 - __main__.139958552519040 - INFO - Processing similarity data for city: Buenos Aires
+2026-08-10 00:21:54,116 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Buenos Aires
+2026-08-10 00:21:54,122 - __main__.139958552519040 - INFO - Processing similarity data for city: Sydney
+2026-08-10 00:21:54,123 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Sydney
+2026-08-10 00:21:54,125 - __main__.139958552519040 - INFO - Processing similarity data for city: Vienna
+2026-08-10 00:21:54,125 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Vienna
+2026-08-10 00:21:54,128 - __main__.139958552519040 - INFO - Processing similarity data for city: Saidpur
+2026-08-10 00:21:54,128 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Saidpur
+2026-08-10 00:21:54,131 - __main__.139958552519040 - INFO - Processing similarity data for city: Rajshahi
+2026-08-10 00:21:54,131 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Rajshahi
+2026-08-10 00:21:54,134 - __main__.139958552519040 - INFO - Processing similarity data for city: Dhaka
+2026-08-10 00:21:54,134 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Dhaka
+2026-08-10 00:21:54,137 - __main__.139958552519040 - INFO - Processing similarity data for city: Antwerp
+2026-08-10 00:21:54,137 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Antwerp
+2026-08-10 00:21:54,139 - __main__.139958552519040 - INFO - Processing similarity data for city: Brussels
+2026-08-10 00:21:54,140 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Brussels
+2026-08-10 00:21:54,142 - __main__.139958552519040 - INFO - Processing similarity data for city: Cochabamba
+2026-08-10 00:21:54,143 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Cochabamba
+2026-08-10 00:21:54,145 - __main__.139958552519040 - INFO - Processing similarity data for city: Gaborone
+2026-08-10 00:21:54,146 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Gaborone
+2026-08-10 00:21:54,148 - __main__.139958552519040 - INFO - Processing similarity data for city: Ilheus
+2026-08-10 00:21:54,148 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Ilheus
+2026-08-10 00:21:54,151 - __main__.139958552519040 - INFO - Processing similarity data for city: Jequie
+2026-08-10 00:21:54,151 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Jequie
+2026-08-10 00:21:54,154 - __main__.139958552519040 - INFO - Processing similarity data for city: Palmas
+2026-08-10 00:21:54,154 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Palmas
+2026-08-10 00:21:54,157 - __main__.139958552519040 - INFO - Processing similarity data for city: Florianopolis
+2026-08-10 00:21:54,157 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Florianopolis
+2026-08-10 00:21:54,159 - __main__.139958552519040 - INFO - Processing similarity data for city: Ribeirao Preto
+2026-08-10 00:21:54,160 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Ribeirao Preto
+2026-08-10 00:21:54,162 - __main__.139958552519040 - INFO - Processing similarity data for city: Belo Horizonte
+2026-08-10 00:21:54,162 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Belo Horizonte
+2026-08-10 00:21:54,165 - __main__.139958552519040 - INFO - Processing similarity data for city: Curitiba
+2026-08-10 00:21:54,165 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Curitiba
+2026-08-10 00:21:54,168 - __main__.139958552519040 - INFO - Processing similarity data for city: Sao Paulo
+2026-08-10 00:21:54,168 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Sao Paulo
+2026-08-10 00:21:54,171 - __main__.139958552519040 - INFO - Processing similarity data for city: Rio de Janeiro
+2026-08-10 00:21:54,171 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Rio de Janeiro
+2026-08-10 00:21:54,173 - __main__.139958552519040 - INFO - Processing similarity data for city: Victoria
+2026-08-10 00:21:54,174 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Victoria
+2026-08-10 00:21:54,176 - __main__.139958552519040 - INFO - Processing similarity data for city: Montreal
+2026-08-10 00:21:54,177 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Montreal
+2026-08-10 00:21:54,179 - __main__.139958552519040 - INFO - Processing similarity data for city: Toronto
+2026-08-10 00:21:54,180 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Toronto
+2026-08-10 00:21:54,182 - __main__.139958552519040 - INFO - Processing similarity data for city: Santiago
+2026-08-10 00:21:54,182 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Santiago
+2026-08-10 00:21:54,185 - __main__.139958552519040 - INFO - Processing similarity data for city: Taipei
+2026-08-10 00:21:54,185 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Taipei
+2026-08-10 00:21:54,188 - __main__.139958552519040 - INFO - Processing similarity data for city: Hong Kong
+2026-08-10 00:21:54,188 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Hong Kong
+2026-08-10 00:21:54,191 - __main__.139958552519040 - INFO - Processing similarity data for city: Valledupar
+2026-08-10 00:21:54,191 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Valledupar
+2026-08-10 00:21:54,194 - __main__.139958552519040 - INFO - Processing similarity data for city: Bogotá
+2026-08-10 00:21:54,194 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Bogotá
+2026-08-10 00:21:54,197 - __main__.139958552519040 - INFO - Processing similarity data for city: Copenhagen
+2026-08-10 00:21:54,197 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Copenhagen
+2026-08-10 00:21:54,200 - __main__.139958552519040 - INFO - Processing similarity data for city: Quito
+2026-08-10 00:21:54,200 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Quito
+2026-08-10 00:21:54,202 - __main__.139958552519040 - INFO - Processing similarity data for city: Le Mans
+2026-08-10 00:21:54,203 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Le Mans
+Processing cities:  24%|██▎       | 30/127 [00:00<00:00, 243.73it/s]2026-08-10 00:21:54,238 - __main__.139958552519040 - INFO - Processing similarity data for city: Paris
+2026-08-10 00:21:54,238 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Paris
+2026-08-10 00:21:54,433 - __main__.139958552519040 - INFO - Processing similarity data for city: Munich
+2026-08-10 00:21:54,433 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Munich
+2026-08-10 00:21:54,436 - __main__.139958552519040 - INFO - Processing similarity data for city: Berlin
+2026-08-10 00:21:54,437 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Berlin
+2026-08-10 00:21:54,439 - __main__.139958552519040 - INFO - Processing similarity data for city: Accra
+2026-08-10 00:21:54,440 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Accra
+2026-08-10 00:21:54,442 - __main__.139958552519040 - INFO - Processing similarity data for city: Thessaloniki
+2026-08-10 00:21:54,443 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Thessaloniki
+2026-08-10 00:21:54,445 - __main__.139958552519040 - INFO - Processing similarity data for city: Athens
+2026-08-10 00:21:54,446 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Athens
+2026-08-10 00:21:54,448 - __main__.139958552519040 - INFO - Processing similarity data for city: Guatemala City
+2026-08-10 00:21:54,449 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Guatemala City
+2026-08-10 00:21:54,451 - __main__.139958552519040 - INFO - Processing similarity data for city: Budapest
+2026-08-10 00:21:54,452 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Budapest
+2026-08-10 00:21:54,454 - __main__.139958552519040 - INFO - Processing similarity data for city: Hindupur
+2026-08-10 00:21:54,454 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Hindupur
+2026-08-10 00:21:54,457 - __main__.139958552519040 - INFO - Processing similarity data for city: Vijayawada
+2026-08-10 00:21:54,457 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Vijayawada
+2026-08-10 00:21:54,460 - __main__.139958552519040 - INFO - Processing similarity data for city: Delhi
+2026-08-10 00:21:54,460 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Delhi
+2026-08-10 00:21:54,463 - __main__.139958552519040 - INFO - Processing similarity data for city: Bangalore
+2026-08-10 00:21:54,463 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Bangalore
+2026-08-10 00:21:54,466 - __main__.139958552519040 - INFO - Processing similarity data for city: Kozhikode
+2026-08-10 00:21:54,466 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Kozhikode
+2026-08-10 00:21:54,468 - __main__.139958552519040 - INFO - Processing similarity data for city: Mumbai
+2026-08-10 00:21:54,469 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Mumbai
+2026-08-10 00:21:54,471 - __main__.139958552519040 - INFO - Processing similarity data for city: Malegaon
+2026-08-10 00:21:54,472 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Malegaon
+2026-08-10 00:21:54,474 - __main__.139958552519040 - INFO - Processing similarity data for city: Pune
+2026-08-10 00:21:54,475 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Pune
+2026-08-10 00:21:54,477 - __main__.139958552519040 - INFO - Processing similarity data for city: Parbhani
+2026-08-10 00:21:54,478 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Parbhani
+2026-08-10 00:21:54,481 - __main__.139958552519040 - INFO - Processing similarity data for city: Jalna
+2026-08-10 00:21:54,481 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Jalna
+2026-08-10 00:21:54,484 - __main__.139958552519040 - INFO - Processing similarity data for city: Jaipur
+2026-08-10 00:21:54,484 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Jaipur
+2026-08-10 00:21:54,486 - __main__.139958552519040 - INFO - Processing similarity data for city: Hyderabad
+2026-08-10 00:21:54,487 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Hyderabad
+2026-08-10 00:21:54,489 - __main__.139958552519040 - INFO - Processing similarity data for city: Sitapur
+2026-08-10 00:21:54,490 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Sitapur
+2026-08-10 00:21:54,492 - __main__.139958552519040 - INFO - Processing similarity data for city: Kanpur
+2026-08-10 00:21:54,493 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Kanpur
+2026-08-10 00:21:54,495 - __main__.139958552519040 - INFO - Processing similarity data for city: Parepare
+2026-08-10 00:21:54,496 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Parepare
+2026-08-10 00:21:54,498 - __main__.139958552519040 - INFO - Processing similarity data for city: Cirebon
+2026-08-10 00:21:54,499 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Cirebon
+2026-08-10 00:21:54,501 - __main__.139958552519040 - INFO - Processing similarity data for city: Medan
+2026-08-10 00:21:54,502 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Medan
+Processing cities:  43%|████▎     | 55/127 [00:00<00:00, 130.24it/s]2026-08-10 00:21:54,505 - __main__.139958552519040 - INFO - Processing similarity data for city: Palembang
+2026-08-10 00:21:54,505 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Palembang
+2026-08-10 00:21:54,508 - __main__.139958552519040 - INFO - Processing similarity data for city: Jakarta
+2026-08-10 00:21:54,509 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Jakarta
+2026-08-10 00:21:54,511 - __main__.139958552519040 - INFO - Processing similarity data for city: Tel Aviv
+2026-08-10 00:21:54,511 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Tel Aviv
+2026-08-10 00:21:54,514 - __main__.139958552519040 - INFO - Processing similarity data for city: Jerusalem
+2026-08-10 00:21:54,515 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Jerusalem
+2026-08-10 00:21:54,517 - __main__.139958552519040 - INFO - Processing similarity data for city: Palermo
+2026-08-10 00:21:54,518 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Palermo
+2026-08-10 00:21:54,520 - __main__.139958552519040 - INFO - Processing similarity data for city: Rome
+2026-08-10 00:21:54,521 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Rome
+2026-08-10 00:21:54,523 - __main__.139958552519040 - INFO - Processing similarity data for city: Milan
+2026-08-10 00:21:54,523 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Milan
+2026-08-10 00:21:54,526 - __main__.139958552519040 - INFO - Processing similarity data for city: Yamaguchi
+2026-08-10 00:21:54,526 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Yamaguchi
+2026-08-10 00:21:54,529 - __main__.139958552519040 - INFO - Processing similarity data for city: Tokyo
+2026-08-10 00:21:54,530 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Tokyo
+2026-08-10 00:21:54,532 - __main__.139958552519040 - INFO - Processing similarity data for city: Okayama
+2026-08-10 00:21:54,533 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Okayama
+2026-08-10 00:21:54,535 - __main__.139958552519040 - INFO - Processing similarity data for city: Fukuoka
+2026-08-10 00:21:54,536 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Fukuoka
+2026-08-10 00:21:54,538 - __main__.139958552519040 - INFO - Processing similarity data for city: Nagoya
+2026-08-10 00:21:54,539 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Nagoya
+2026-08-10 00:21:54,541 - __main__.139958552519040 - INFO - Processing similarity data for city: Nairobi
+2026-08-10 00:21:54,542 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Nairobi
+2026-08-10 00:21:54,544 - __main__.139958552519040 - INFO - Processing similarity data for city: Kaunas
+2026-08-10 00:21:54,545 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Kaunas
+2026-08-10 00:21:54,547 - __main__.139958552519040 - INFO - Processing similarity data for city: Kuala Lumpur
+2026-08-10 00:21:54,548 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Kuala Lumpur
+2026-08-10 00:21:54,551 - __main__.139958552519040 - INFO - Processing similarity data for city: Guadalajara
+2026-08-10 00:21:54,551 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Guadalajara
+2026-08-10 00:21:54,554 - __main__.139958552519040 - INFO - Processing similarity data for city: Reynosa
+2026-08-10 00:21:54,554 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Reynosa
+2026-08-10 00:21:54,557 - __main__.139958552519040 - INFO - Processing similarity data for city: Culiacan
+2026-08-10 00:21:54,557 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Culiacan
+2026-08-10 00:21:54,560 - __main__.139958552519040 - INFO - Processing similarity data for city: Mexico City
+2026-08-10 00:21:54,560 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Mexico City
+2026-08-10 00:21:54,563 - __main__.139958552519040 - INFO - Processing similarity data for city: Zwolle
+2026-08-10 00:21:54,563 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Zwolle
+2026-08-10 00:21:54,566 - __main__.139958552519040 - INFO - Processing similarity data for city: Amsterdam
+2026-08-10 00:21:54,566 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Amsterdam
+2026-08-10 00:21:54,569 - __main__.139958552519040 - INFO - Processing similarity data for city: Wellington
+2026-08-10 00:21:54,569 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Wellington
+2026-08-10 00:21:54,572 - __main__.139958552519040 - INFO - Processing similarity data for city: Auckland
+2026-08-10 00:21:54,572 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Auckland
+2026-08-10 00:21:54,575 - __main__.139958552519040 - INFO - Processing similarity data for city: Gombe
+2026-08-10 00:21:54,575 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Gombe
+2026-08-10 00:21:54,578 - __main__.139958552519040 - INFO - Processing similarity data for city: Lagos
+2026-08-10 00:21:54,578 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Lagos
+2026-08-10 00:21:54,581 - __main__.139958552519040 - INFO - Processing similarity data for city: Lima
+2026-08-10 00:21:54,582 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Lima
+2026-08-10 00:21:54,584 - __main__.139958552519040 - INFO - Processing similarity data for city: Manila
+2026-08-10 00:21:54,585 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Manila
+2026-08-10 00:21:54,587 - __main__.139958552519040 - INFO - Processing similarity data for city: Bacolod
+2026-08-10 00:21:54,588 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Bacolod
+2026-08-10 00:21:54,590 - __main__.139958552519040 - INFO - Processing similarity data for city: Cebu City
+2026-08-10 00:21:54,591 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Cebu City
+2026-08-10 00:21:54,593 - __main__.139958552519040 - INFO - Processing similarity data for city: Metro Manila
+2026-08-10 00:21:54,594 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Metro Manila
+2026-08-10 00:21:54,596 - __main__.139958552519040 - INFO - Processing similarity data for city: Warsaw
+2026-08-10 00:21:54,597 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Warsaw
+2026-08-10 00:21:54,599 - __main__.139958552519040 - INFO - Processing similarity data for city: Seoul
+2026-08-10 00:21:54,600 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Seoul
+2026-08-10 00:21:54,602 - __main__.139958552519040 - INFO - Processing similarity data for city: Berezniki
+2026-08-10 00:21:54,603 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Berezniki
+Processing cities:  69%|██████▉   | 88/127 [00:00<00:00, 187.53it/s]2026-08-10 00:21:54,605 - __main__.139958552519040 - INFO - Processing similarity data for city: Dzerzhinsk
+2026-08-10 00:21:54,606 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Dzerzhinsk
+2026-08-10 00:21:54,609 - __main__.139958552519040 - INFO - Processing similarity data for city: Astrakhan
+2026-08-10 00:21:54,609 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Astrakhan
+2026-08-10 00:21:54,612 - __main__.139958552519040 - INFO - Processing similarity data for city: Tyumen
+2026-08-10 00:21:54,612 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Tyumen
+2026-08-10 00:21:54,615 - __main__.139958552519040 - INFO - Processing similarity data for city: Saint Petersburg
+2026-08-10 00:21:54,615 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Saint Petersburg
+2026-08-10 00:21:54,618 - __main__.139958552519040 - INFO - Processing similarity data for city: Moscow
+2026-08-10 00:21:54,618 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Moscow
+2026-08-10 00:21:54,623 - __main__.139958552519040 - INFO - Processing similarity data for city: Kigali
+2026-08-10 00:21:54,623 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Kigali
+2026-08-10 00:21:54,626 - __main__.139958552519040 - INFO - Processing similarity data for city: Belgrade
+2026-08-10 00:21:54,626 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Belgrade
+2026-08-10 00:21:54,630 - __main__.139958552519040 - INFO - Processing similarity data for city: Singapore
+2026-08-10 00:21:54,630 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Singapore
+2026-08-10 00:21:54,633 - __main__.139958552519040 - INFO - Processing similarity data for city: Capetown
+2026-08-10 00:21:54,633 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Capetown
+2026-08-10 00:21:54,636 - __main__.139958552519040 - INFO - Processing similarity data for city: Johannesburg
+2026-08-10 00:21:54,637 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Johannesburg
+2026-08-10 00:21:54,640 - __main__.139958552519040 - INFO - Processing similarity data for city: Madrid
+2026-08-10 00:21:54,640 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Madrid
+2026-08-10 00:21:54,643 - __main__.139958552519040 - INFO - Processing similarity data for city: Stockholm
+2026-08-10 00:21:54,643 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Stockholm
+2026-08-10 00:21:54,646 - __main__.139958552519040 - INFO - Processing similarity data for city: Bangkok
+2026-08-10 00:21:54,647 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Bangkok
+2026-08-10 00:21:54,649 - __main__.139958552519040 - INFO - Processing similarity data for city: Istanbul
+2026-08-10 00:21:54,650 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Istanbul
+2026-08-10 00:21:54,652 - __main__.139958552519040 - INFO - Processing similarity data for city: Kampala
+2026-08-10 00:21:54,653 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Kampala
+2026-08-10 00:21:54,656 - __main__.139958552519040 - INFO - Processing similarity data for city: Rovno
+2026-08-10 00:21:54,656 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Rovno
+2026-08-10 00:21:54,659 - __main__.139958552519040 - INFO - Processing similarity data for city: Kyiv
+2026-08-10 00:21:54,659 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Kyiv
+2026-08-10 00:21:54,662 - __main__.139958552519040 - INFO - Processing similarity data for city: Dubai
+2026-08-10 00:21:54,662 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Dubai
+2026-08-10 00:21:54,665 - __main__.139958552519040 - INFO - Processing similarity data for city: Manchester
+2026-08-10 00:21:54,666 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Manchester
+2026-08-10 00:21:54,668 - __main__.139958552519040 - INFO - Processing similarity data for city: Sheffield
+2026-08-10 00:21:54,669 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Sheffield
+2026-08-10 00:21:54,672 - __main__.139958552519040 - INFO - Processing similarity data for city: London
+2026-08-10 00:21:54,672 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: London
+2026-08-10 00:21:54,675 - __main__.139958552519040 - INFO - Processing similarity data for city: Killeen
+2026-08-10 00:21:54,675 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Killeen
+2026-08-10 00:21:54,678 - __main__.139958552519040 - INFO - Processing similarity data for city: Modesto
+2026-08-10 00:21:54,678 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Modesto
+2026-08-10 00:21:54,681 - __main__.139958552519040 - INFO - Processing similarity data for city: Gainesville, FL
+2026-08-10 00:21:54,682 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Gainesville, FL
+2026-08-10 00:21:54,684 - __main__.139958552519040 - INFO - Processing similarity data for city: Minneapolis
+2026-08-10 00:21:54,685 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Minneapolis
+2026-08-10 00:21:54,687 - __main__.139958552519040 - INFO - Processing similarity data for city: Toledo
+2026-08-10 00:21:54,688 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Toledo
+2026-08-10 00:21:54,691 - __main__.139958552519040 - INFO - Processing similarity data for city: Cleveland
+2026-08-10 00:21:54,691 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Cleveland
+2026-08-10 00:21:54,694 - __main__.139958552519040 - INFO - Processing similarity data for city: Portland, OR
+2026-08-10 00:21:54,695 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Portland, OR
+2026-08-10 00:21:54,697 - __main__.139958552519040 - INFO - Processing similarity data for city: Raleigh
+2026-08-10 00:21:54,698 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Raleigh
+2026-08-10 00:21:54,701 - __main__.139958552519040 - INFO - Processing similarity data for city: Miami
+2026-08-10 00:21:54,701 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Miami
+2026-08-10 00:21:54,704 - __main__.139958552519040 - INFO - Processing similarity data for city: San Francisco
+2026-08-10 00:21:54,704 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: San Francisco
+Processing cities:  94%|█████████▎| 119/127 [00:00<00:00, 222.02it/s]2026-08-10 00:21:54,707 - __main__.139958552519040 - INFO - Processing similarity data for city: Boston
+2026-08-10 00:21:54,708 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Boston
+2026-08-10 00:21:54,711 - __main__.139958552519040 - INFO - Processing similarity data for city: Denver
+2026-08-10 00:21:54,711 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Denver
+2026-08-10 00:21:54,714 - __main__.139958552519040 - INFO - Processing similarity data for city: Detroit
+2026-08-10 00:21:54,714 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Detroit
+2026-08-10 00:21:54,717 - __main__.139958552519040 - INFO - Processing similarity data for city: New York
+2026-08-10 00:21:54,717 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: New York
+2026-08-10 00:21:54,720 - __main__.139958552519040 - INFO - Processing similarity data for city: Los Angeles
+2026-08-10 00:21:54,721 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Los Angeles
+2026-08-10 00:21:54,723 - __main__.139958552519040 - INFO - Processing similarity data for city: Houston
+2026-08-10 00:21:54,724 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Houston
+2026-08-10 00:21:54,727 - __main__.139958552519040 - INFO - Processing similarity data for city: Philadelphia
+2026-08-10 00:21:54,727 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Philadelphia
+2026-08-10 00:21:54,730 - __main__.139958552519040 - INFO - Processing similarity data for city: Chicago
+2026-08-10 00:21:54,730 - __main__.139958552519040 - WARNING - No optimized pairwise shard or merged files found for city: Chicago
+Processing cities: 100%|██████████| 127/127 [00:00<00:00, 205.42it/s]
+2026-08-10 00:21:54,733 - __main__.139958552519040 - INFO - Processing complete. Total: 0 inner-city pairs, 0 inter-city pairs
+2026-08-10 00:21:54,736 - __main__.139958552519040 - INFO - Membership audit written to /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_similarity_res=7/_audit_res=7.json
