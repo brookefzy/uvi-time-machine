@@ -21,7 +21,7 @@ CITY_META="${CITY_META:-/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_s
 PYTHON="${PYTHON:-python}"
 ROOTFOLDER="${ROOTFOLDER:-/lustre1/g/geog_pyloo/05_timemachine}"
 RESOLUTION="${RESOLUTION:-7}"
-PAIRWISE_ROOT="${PAIRWISE_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_similarity_by_pair"
+PAIRWISE_ROOT="${PAIRWISE_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_similarity_by_pair}"
 SIMILARITY_EXPORT_FOLDER="${SIMILARITY_EXPORT_FOLDER:-${ROOTFOLDER}/_curated/c_city_dinov3_similarity_res=${RESOLUTION}}"
 H3_MEMBERSHIP_ROOT="${H3_MEMBERSHIP_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_hex_summary}"
 
