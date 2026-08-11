@@ -157,13 +157,27 @@ OUTPUT                     result Parquet path
 VENV_PYTHON                explicit Python interpreter override
 ```
 
-For example, override the schema assertion and probability root explicitly:
+For example, override the schema assertion and probability root, then submit
+the gallery job with an `afterok` dependency so it starts only after pair
+sampling succeeds:
 
 ```bash
-CLASSIFIER_PROB_ROOT=/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_classifiier_prob \
-CLASSIFIER_SCHEMA_ID=city-classifier-train4-probabilities-v1 \
-sbatch slurm/classifier_sample_image_pairs.cmd
+CLASSIFIER_SAMPLE_JOB_ID=$(
+  CLASSIFIER_PROB_ROOT=/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_classifiier_prob \
+  CLASSIFIER_SCHEMA_ID=city-classifier-train4-probabilities-v1 \
+  OUTPUT=sample_similar_pairs/output/classifier_image_pairs.parquet \
+  sbatch --parsable slurm/classifier_sample_image_pairs.cmd
+)
+
+PAIRS=sample_similar_pairs/output/classifier_image_pairs.parquet \
+OUTPUT_DIR=sample_similar_pairs/output/classifier_image_gallery \
+sbatch --dependency="afterok:${CLASSIFIER_SAMPLE_JOB_ID}" \
+  slurm/classifier_build_sample_gallery.cmd
 ```
+
+The gallery entry point is `slurm/classifier_build_sample_gallery.cmd`. It
+copies the selected images and writes `index.html`, `manifest.parquet`, and
+`manifest.json` under `OUTPUT_DIR`.
 
 ## Urban-core filter
 
