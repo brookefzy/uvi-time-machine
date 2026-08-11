@@ -1,5 +1,7 @@
 import importlib.util
 from pathlib import Path
+import subprocess
+import sys
 
 import pandas as pd
 
@@ -10,6 +12,17 @@ def load():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def test_gallery_cli_resolves_repository_modules_outside_repo_working_directory(tmp_path):
+    script = Path(__file__).with_name("03_build_mode_gallery.py").resolve()
+    result = subprocess.run(
+        [sys.executable, str(script), "--help"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
 
 
 def test_gallery_reads_partitioned_datasets_and_joins_on_city_and_name(tmp_path):

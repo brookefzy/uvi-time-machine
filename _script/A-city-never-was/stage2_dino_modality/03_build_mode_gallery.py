@@ -2,11 +2,15 @@
 """Render a portable HTML review gallery for global DINO mode representatives."""
 from __future__ import annotations
 from html import escape
-import argparse
+import argparse, sys
 from pathlib import Path
 import pandas as pd
 import numpy as np
 from shutil import copy2
+
+if __package__ in {None, ""}:
+ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from dinov3_utils import resolve_city_file_stem
 
 def read_parquet_dataset(path:Path)->pd.DataFrame:
