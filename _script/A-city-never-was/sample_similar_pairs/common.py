@@ -88,6 +88,102 @@ def load_city_embeddings(embedding_root: Path | str, city: str) -> CityVectors:
     return CityVectors(city, frame.drop(columns=columns).reset_index(drop=True), columns, vectors)
 
 
+def _classifier_probability_files(probability_root: Path, city: str) -> list[Path]:
+    city_dir = probability_root / resolve_city_file_stem(city)
+    files = sorted(city_dir.glob("*.parquet"))
+    if not files:
+        raise FileNotFoundError(
+            f"no classifier probability Parquet shards found for {city!r} under {city_dir}"
+        )
+    return files
+
+
+def _numeric_probability_columns(frame: pd.DataFrame) -> list[str]:
+    return sorted(
+        (column for column in frame.columns if column.isdecimal()),
+        key=int,
+    )
+
+
+def load_city_classifier_probabilities(
+    probability_root: Path | str,
+    city: str,
+    expected_dim: int = 127,
+    *,
+    return_stats: bool = False,
+) -> CityVectors | tuple[CityVectors, dict[str, int | float]]:
+    """Load classifier probability shards and L2-normalize them for cosine search."""
+    if expected_dim < 1:
+        raise ValueError("expected_dim must be positive")
+    files = _classifier_probability_files(Path(probability_root), city)
+    frames: list[pd.DataFrame] = []
+    shard_columns: list[list[str]] = []
+    for file_path in files:
+        frame = pd.read_parquet(file_path)
+        frame.columns = [str(column) for column in frame.columns]
+        if frame.columns.duplicated().any():
+            raise ValueError(f"classifier probability data for {city!r} has duplicate columns")
+        frames.append(frame)
+        shard_columns.append(_numeric_probability_columns(frame))
+    if any(columns != shard_columns[0] for columns in shard_columns[1:]):
+        raise ValueError(
+            f"classifier probability data for {city!r} has inconsistent probability columns across shards"
+        )
+
+    expected_indices = set(range(expected_dim))
+    actual_indices = {int(column) for column in shard_columns[0]}
+    missing_indices = sorted(expected_indices - actual_indices)
+    unexpected_indices = sorted(actual_indices - expected_indices)
+    if missing_indices or unexpected_indices:
+        details: list[str] = []
+        if missing_indices:
+            details.append(f"missing probability columns {missing_indices}")
+        if unexpected_indices:
+            details.append(f"unexpected probability columns {unexpected_indices}")
+        raise ValueError(f"classifier probability data for {city!r} has " + " and ".join(details))
+
+    frame = pd.concat(frames, ignore_index=True)
+    if "name" not in frame.columns:
+        raise ValueError(f"classifier probability data for {city!r} is missing the name column")
+    if frame["name"].isna().any():
+        raise ValueError(f"classifier probability data for {city!r} contains null names")
+    if frame["name"].duplicated().any():
+        raise ValueError(f"classifier probability data for {city!r} contains duplicate names")
+
+    source_columns = [str(index) for index in range(expected_dim)]
+    vectors = np.ascontiguousarray(
+        frame[source_columns].to_numpy(dtype=np.float32),
+        dtype=np.float32,
+    )
+    if not np.isfinite(vectors).all():
+        raise ValueError(f"classifier probability data for {city!r} contains non-finite values")
+    if np.any(vectors < 0):
+        raise ValueError(f"classifier probability data for {city!r} contains negative values")
+    probability_sums = vectors.sum(axis=1)
+    norms = np.linalg.norm(vectors, axis=1)
+    if np.any(probability_sums <= 1e-12) or np.any(norms <= 1e-12):
+        raise ValueError(f"classifier probability data for {city!r} contains a row with zero probability mass")
+    vectors = np.ascontiguousarray(vectors / norms[:, np.newaxis], dtype=np.float32)
+
+    metadata = frame.drop(columns=source_columns).copy()
+    metadata["name"] = metadata["name"].astype(str)
+    metadata["panoid"] = metadata["name"].str[:22]
+    city_vectors = CityVectors(
+        city,
+        metadata.reset_index(drop=True),
+        [f"prob_{index:03d}" for index in range(expected_dim)],
+        vectors,
+    )
+    stats: dict[str, int | float] = {
+        "input_shards": len(files),
+        "input_rows": len(frame),
+        "probability_sum_min": float(probability_sums.min()),
+        "probability_sum_mean": float(probability_sums.mean()),
+        "probability_sum_max": float(probability_sums.max()),
+    }
+    return (city_vectors, stats) if return_stats else city_vectors
+
+
 def _latlng_to_cell(lat: float, lon: float, resolution: int) -> str:
     if hasattr(h3, "geo_to_h3"):
         return h3.geo_to_h3(lat, lon, resolution)

@@ -1,23 +1,173 @@
-# DINOv3 Similar-Pair Sampling
+# Cross-City Similar-Pair Sampling
 
-These scripts create reproducible cross-city samples from the DINOv3 outputs.
-They use FAISS `IndexFlatIP`; because the DINOv3 vectors are L2-normalized,
-the returned inner-product score is exact cosine similarity within the selected
-input rows.
+These scripts create reproducible cross-city image samples from either DINOv3
+embeddings or city-classifier probability profiles. They use exact FAISS
+`IndexFlatIP` search over deterministic spatial samples. DINOv3 inputs are
+already L2-normalized; classifier probability rows are L2-normalized by the
+loader. In both cases the returned inner-product score is exact cosine
+similarity within the selected input rows.
 
 - `sample_image_pairs_faiss.py` searches spatially sampled source images against
-  a sampled target city.
+  a sampled target city using DINOv3 embeddings.
+- `sample_classifier_image_pairs_faiss.py` performs the same image sampling,
+  eligibility, exact search, and diversity selection using classifier
+  probability profiles.
 - `sample_h3_pairs_faiss.py` searches all selected-resolution H3 vectors for
-  each target city.
+  each target city using DINOv3 summaries. There is no classifier-probability
+  H3-pair sampler.
 - `build_image_pair_gallery.py` copies the selected source images to a portable
-  gallery folder and writes a side-by-side HTML preview with location maps.
+  gallery folder and writes a side-by-side HTML preview with location maps; its
+  title and similarity label are configurable by modality.
 
-Both scripts will write a Parquet result and a JSON audit sidecar. Their inputs
-and output paths are configurable for the remote Slurm environment.
+The sampling scripts write a Parquet result and a JSON audit sidecar. Their
+inputs and output paths are configurable for the remote Slurm environment.
+
+## Classifier-probability image pipeline
+
+### Input contract and similarity meaning
+
+`stage1_classifier/B3_inference_city_prob.py` writes one city directory of
+Parquet shards under the established production path (including its historical
+`classifiier` spelling):
+
+```text
+/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_classifiier_prob/
+  paris/*.parquet
+  london/*.parquet
+  hongkong/*.parquet
+  singapore/*.parquet
+  sydney/*.parquet
+  newyork/*.parquet
+```
+
+Each shard must contain numeric probability columns `0` through `126` and a
+unique, non-null `name` column. The sampler derives `panoid` from the first 22
+characters of `name`, validates that all values are finite and nonnegative,
+rejects zero-mass rows, and L2-normalizes each 127-dimensional row before
+search. The sibling JSON audit records shard/row counts and min/mean/max raw
+probability sums for every city.
+
+Classifier-probability cosine has a different meaning from DINOv3 cosine:
+
+- DINOv3 compares learned visual representations.
+- Classifier-probability cosine compares distributions over the classifier's
+  127 output classes.
+- Classifier MMR promotes diversity between probability profiles, not general
+  visual-scene diversity.
+
+All probability shards in one run must come from the same checkpoint with the
+same class ordering. Legacy shards do not store that provenance. The
+`--vector-schema-id`/`CLASSIFIER_SCHEMA_ID` value is therefore an explicit audit
+assertion by the operator, not proof inferred from the files. Do not combine
+shards from different checkpoints merely because both have 127 columns.
+
+The classifier sampler reuses the existing urban-core H3 pools. Their current
+directory name contains `dinov3`, but the pools themselves contain only
+geographic `hex_id` eligibility lists and are modality-independent.
+
+### Full remote run
+
+From the repository directory on the Slurm host, submit the pair sampler:
+
+```bash
+cd /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was
+sbatch slurm/classifier_sample_image_pairs.cmd
+```
+
+The default job searches these directed pairs: Paris→London, London→Hong Kong,
+Hong Kong→Singapore, London→Sydney, and New York→London. It writes:
+
+```text
+sample_similar_pairs/output/classifier_image_pairs.parquet
+sample_similar_pairs/output/classifier_image_pairs.json
+```
+
+After that job succeeds, build the portable side-by-side gallery:
+
+```bash
+sbatch slurm/classifier_build_sample_gallery.cmd
+```
+
+The gallery job reads the classifier pair Parquet and writes:
+
+```text
+sample_similar_pairs/output/classifier_image_gallery/index.html
+sample_similar_pairs/output/classifier_image_gallery/manifest.parquet
+sample_similar_pairs/output/classifier_image_gallery/manifest.json
+sample_similar_pairs/output/classifier_image_gallery/images/
+```
+
+Open `index.html` in a browser. Images are copied into the package, while the
+Leaflet/OpenStreetMap location maps require an internet connection.
+
+### Recommended bounded pilot
+
+Before the full five-pair run, validate schema, provenance, score behavior, and
+gallery quality with one bounded city pair:
+
+```bash
+CITY_PAIRS='Paris|London' \
+MAX_IMAGES_PER_CITY=5000 \
+PAIRS_PER_CITY_PAIR=20 \
+OUTPUT=sample_similar_pairs/output/classifier_paris_london_pilot.parquet \
+sbatch slurm/classifier_sample_image_pairs.cmd
+```
+
+Build a separate pilot gallery after the sampling job succeeds:
+
+```bash
+PAIRS=sample_similar_pairs/output/classifier_paris_london_pilot.parquet \
+OUTPUT_DIR=sample_similar_pairs/output/classifier_paris_london_pilot_gallery \
+sbatch slurm/classifier_build_sample_gallery.cmd
+```
+
+Begin with `CLASSIFIER_THRESHOLD=-1.0`, the job default, so candidates are
+selected by rank, hard diversity caps, and MMR. Inspect score quantiles and the
+pilot gallery before introducing a cutoff. Do not copy a DINOv3 threshold into
+this pipeline because the two vector spaces have different score
+distributions.
+
+### Classifier job overrides
+
+The sampling job accepts these environment variables:
+
+```text
+CITY_PAIRS                 semicolon-delimited directed CITY1|CITY2 values
+CLASSIFIER_PROB_ROOT       probability-shard root
+CLASSIFIER_EXPECTED_DIM    expected probability width (default 127)
+CLASSIFIER_SCHEMA_ID       operator-asserted checkpoint/class-order identity
+CLASSIFIER_THRESHOLD       minimum classifier-profile cosine (default -1.0)
+ROOTFOLDER                 Street View project root
+TRAIN_TEST_FOLDER          classifier train/test image root
+RES_EXCLUDE                optional high-resolution exclusion level
+MIN_YEAR / MAX_YEAR        inclusive panorama year range
+H3_RESOLUTION              spatial sampling/core-pool resolution
+CORE_H3_POOL_ROOT          core-H3 eligibility pool, or none to disable
+CORE_H3_PROFILE            core-H3 profile identifier
+MAX_IMAGES_PER_H3          deterministic per-cell image cap
+MAX_IMAGES_PER_CITY        optional total city cap; 0 disables it
+TOP_K                      FAISS neighbors per source image
+QUERY_BATCH_SIZE           FAISS query batch size
+MAX_PAIRS_PER_SOURCE_IMAGE hard source-image diversity cap
+MAX_PAIRS_PER_HEX_PAIR     hard unordered H3-pair diversity cap
+MMR_CANDIDATE_POOL         high-score pool retained before MMR
+MMR_RELEVANCE_WEIGHT       cosine relevance weight versus profile novelty
+PAIRS_PER_CITY_PAIR        final accepted pairs per directed city pair
+OUTPUT                     result Parquet path
+VENV_PYTHON                explicit Python interpreter override
+```
+
+For example, override the schema assertion and probability root explicitly:
+
+```bash
+CLASSIFIER_PROB_ROOT=/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_classifiier_prob \
+CLASSIFIER_SCHEMA_ID=city-classifier-train4-probabilities-v1 \
+sbatch slurm/classifier_sample_image_pairs.cmd
+```
 
 ## Urban-core filter
 
-Both sample jobs default to the resolution-8 POI urban-core pool generated from
+All sample jobs default to the resolution-8 POI urban-core pool generated from
 the `pct5_sub30_z1_m05` profile. The expected Lustre layout is:
 
 ```text

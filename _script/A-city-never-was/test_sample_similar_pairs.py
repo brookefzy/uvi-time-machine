@@ -3,10 +3,86 @@
 from pathlib import Path
 import subprocess
 import sys
+from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
 import pytest
+
+
+def _write_pano_metadata(root: Path, city_stem: str, panoid: str, lat: float, lon: float) -> None:
+    metadata_dir = root / "GSV" / "gsv_rgb" / city_stem / "gsvmeta"
+    metadata_dir.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(
+        [{"panoid": panoid, "year": 2020, "lat": lat, "lon": lon}]
+    ).to_csv(metadata_dir / "gsv_pano.csv", index=False)
+    pd.DataFrame([{"panoid": panoid}]).to_csv(metadata_dir / "gsv_path.csv", index=False)
+
+
+def test_shared_image_pair_pipeline_preserves_result_and_audit_contract(tmp_path):
+    from sample_similar_pairs.common import CityVectors
+    from sample_similar_pairs.image_pair_pipeline import run_image_pair_pipeline
+
+    city_rows = {
+        "Paris": ("abcdefghijklmnopqrstuv", 48.8566, 2.3522),
+        "London": ("zyxwvutsrqponmlkjihgfe", 51.5072, -0.1276),
+    }
+    for city, (panoid, lat, lon) in city_rows.items():
+        _write_pano_metadata(tmp_path, city.lower(), panoid, lat, lon)
+
+    def loader(city):
+        panoid, _lat, _lon = city_rows[city]
+        return CityVectors(
+            city,
+            pd.DataFrame({"name": [f"{panoid}_0.jpg"], "panoid": [panoid]}),
+            ["e_0000", "e_0001"],
+            np.array([[1.0, 0.0]], dtype=np.float32),
+        )
+
+    args = SimpleNamespace(
+        city_pairs=["Paris|London"],
+        rootfolder=tmp_path,
+        train_test_folder=tmp_path / "train",
+        min_year=2012,
+        max_year=2022,
+        h3_resolution=8,
+        res_exclude=None,
+        core_h3_pool_root="none",
+        core_h3_profile="pct5_sub30_z1_m05",
+        max_images_per_h3=100,
+        max_images_per_city=0,
+        top_k=1,
+        threshold=-1.0,
+        query_batch_size=1,
+        max_pairs_per_source_image=1,
+        max_pairs_per_hex_pair=1,
+        mmr_candidate_pool=1,
+        mmr_relevance_weight=0.7,
+        pairs_per_city_pair=1,
+    )
+
+    result, audit = run_image_pair_pipeline(
+        args=args,
+        vector_loader=loader,
+        modality="dinov3",
+        method_description="exact DINOv3 cosine with MMR scene diversity",
+        vector_schema_id="test-dino-v1",
+        vector_root=tmp_path / "embeddings",
+        faiss_module=_FakeFaiss,
+    )
+
+    assert result.columns.tolist() == [
+        "city_1", "name_1", "panoid_1", "hex_id_1", "lat_1", "lon_1",
+        "city_2", "name_2", "panoid_2", "hex_id_2", "lat_2", "lon_2",
+        "cosine_similarity", "city_pair_key",
+    ]
+    assert result[["city_1", "city_2", "cosine_similarity"]].to_dict("records") == [
+        {"city_1": "Paris", "city_2": "London", "cosine_similarity": 1.0}
+    ]
+    assert audit["modality"] == "dinov3"
+    assert audit["vector_schema_id"] == "test-dino-v1"
+    assert audit["vector_root"] == str(tmp_path / "embeddings")
+    assert audit["city_pairs"]["Paris|London"]["accepted_pairs"] == 1
 
 
 def test_sampling_entry_points_expose_parsers():
