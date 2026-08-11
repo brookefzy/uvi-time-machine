@@ -30,6 +30,7 @@ def test_classifier_sample_job_passes_probability_and_selection_options() -> Non
     assert "sample_classifier_image_pairs_faiss.py" in contents
     assert '"Paris|London"' in contents and '"Hong Kong|Singapore"' in contents
     assert '--probability-root "${CLASSIFIER_PROB_ROOT:-${ROOTFOLDER}/_curated/c_city_classifiier_prob}"' in contents
+    assert '--image-index-root "${IMAGE_INDEX_ROOT:-${ROOTFOLDER}/_transformed/t_classifier_img_yolo8_inf_dir}"' in contents
     assert '--expected-dim "${CLASSIFIER_EXPECTED_DIM:-127}"' in contents
     assert '--vector-schema-id "${CLASSIFIER_SCHEMA_ID:-city-classifier-train4-probabilities-v1}"' in contents
     assert '--threshold "${CLASSIFIER_THRESHOLD:--1.0}"' in contents

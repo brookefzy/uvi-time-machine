@@ -41,11 +41,23 @@ Parquet shards under the established production path (including its historical
 ```
 
 Each shard must contain numeric probability columns `0` through `126` and a
-unique, non-null `name` column. The sampler derives `panoid` from the first 22
-characters of `name`, validates that all values are finite and nonnegative,
-rejects zero-mass rows, and L2-normalizes each 127-dimensional row before
-search. The sibling JSON audit records shard/row counts and min/mean/max raw
-probability sums for every city.
+non-null `name` column. The sampler reads the corresponding city Parquet under
+`--image-index-root` and treats its full `<panoid>_<angle>.jpg` basenames as the
+authoritative image identifiers. It retains probability rows whose `name`
+matches that set, requires complete and unique image-index coverage, and derives
+`panoid` from the first 22 characters of the retained full name.
+
+The production probability folders may also contain an older complete run in
+which every viewing angle was stored under its 22-character panoid only. Those
+recognized legacy rows are ignored rather than mistaken for duplicate images;
+any other unrecognized name still fails validation. This lets the sampler use
+the later full-filename run without rewriting or deleting the legacy shards.
+The JSON audit records total input rows, image-index rows, retained full-name
+rows, and ignored legacy-panoid rows for every city.
+
+After name selection, the sampler validates that all probabilities are finite
+and nonnegative, rejects zero-mass rows, and L2-normalizes each 127-dimensional
+row before search. The audit also records min/mean/max raw probability sums.
 
 Classifier-probability cosine has a different meaning from DINOv3 cosine:
 
@@ -134,6 +146,7 @@ The sampling job accepts these environment variables:
 ```text
 CITY_PAIRS                 semicolon-delimited directed CITY1|CITY2 values
 CLASSIFIER_PROB_ROOT       probability-shard root
+IMAGE_INDEX_ROOT           city image-index Parquets with full image paths
 CLASSIFIER_EXPECTED_DIM    expected probability width (default 127)
 CLASSIFIER_SCHEMA_ID       operator-asserted checkpoint/class-order identity
 CLASSIFIER_THRESHOLD       minimum classifier-profile cosine (default -1.0)

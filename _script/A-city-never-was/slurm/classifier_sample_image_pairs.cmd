@@ -52,6 +52,7 @@ mkdir -p logs/slurm sample_similar_pairs/output
 "${PYTHON}" "${REPO_DIR}/sample_similar_pairs/sample_classifier_image_pairs_faiss.py" \
   --city-pairs "${CITY_PAIR_ARGS[@]}" \
   --probability-root "${CLASSIFIER_PROB_ROOT:-${ROOTFOLDER}/_curated/c_city_classifiier_prob}" \
+  --image-index-root "${IMAGE_INDEX_ROOT:-${ROOTFOLDER}/_transformed/t_classifier_img_yolo8_inf_dir}" \
   --expected-dim "${CLASSIFIER_EXPECTED_DIM:-127}" \
   --vector-schema-id "${CLASSIFIER_SCHEMA_ID:-city-classifier-train4-probabilities-v1}" \
   --rootfolder "${ROOTFOLDER}" \

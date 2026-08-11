@@ -105,11 +105,31 @@ def _numeric_probability_columns(frame: pd.DataFrame) -> list[str]:
     )
 
 
+def _classifier_image_index_names(image_index_root: Path, city: str) -> pd.Series:
+    index_path = image_index_root / f"{resolve_city_file_stem(city)}.parquet"
+    if not index_path.exists():
+        raise FileNotFoundError(f"classifier image index is missing for {city!r}: {index_path}")
+    frame = pd.read_parquet(index_path)
+    if "name" in frame.columns:
+        names = frame["name"]
+    elif "path" in frame.columns:
+        names = frame["path"].map(lambda value: Path(str(value)).name)
+    else:
+        raise ValueError(f"classifier image index for {city!r} must contain name or path: {index_path}")
+    if names.isna().any():
+        raise ValueError(f"classifier image index for {city!r} contains null names")
+    names = names.astype(str).reset_index(drop=True)
+    if names.duplicated().any():
+        raise ValueError(f"classifier image index for {city!r} contains duplicate names")
+    return names
+
+
 def load_city_classifier_probabilities(
     probability_root: Path | str,
     city: str,
     expected_dim: int = 127,
     *,
+    image_index_root: Path | str | None = None,
     return_stats: bool = False,
 ) -> CityVectors | tuple[CityVectors, dict[str, int | float]]:
     """Load classifier probability shards and L2-normalize them for cosine search."""
@@ -143,10 +163,36 @@ def load_city_classifier_probabilities(
         raise ValueError(f"classifier probability data for {city!r} has " + " and ".join(details))
 
     frame = pd.concat(frames, ignore_index=True)
+    input_rows = len(frame)
     if "name" not in frame.columns:
         raise ValueError(f"classifier probability data for {city!r} is missing the name column")
     if frame["name"].isna().any():
         raise ValueError(f"classifier probability data for {city!r} contains null names")
+    frame["name"] = frame["name"].astype(str)
+
+    image_index_rows: int | None = None
+    ignored_legacy_panoid_rows = 0
+    if image_index_root is not None:
+        image_names = _classifier_image_index_names(Path(image_index_root), city)
+        image_name_set = set(image_names)
+        expected_panoids = {name[:22] for name in image_names}
+        keep = frame["name"].isin(image_name_set)
+        ignored_names = set(frame.loc[~keep, "name"])
+        unrecognized_names = sorted(ignored_names - expected_panoids)
+        if unrecognized_names:
+            raise ValueError(
+                f"classifier probability data for {city!r} contains names absent from the image index "
+                f"and not recognized as legacy panoids: {unrecognized_names[:5]}"
+            )
+        ignored_legacy_panoid_rows = int((~keep).sum())
+        frame = frame.loc[keep].reset_index(drop=True)
+        image_index_rows = len(image_names)
+        missing_image_names = sorted(image_name_set - set(frame["name"]))
+        if missing_image_names:
+            raise ValueError(
+                f"classifier probability data for {city!r} is missing {len(missing_image_names)} "
+                f"image-index names after legacy filtering: {missing_image_names[:5]}"
+            )
     if frame["name"].duplicated().any():
         raise ValueError(f"classifier probability data for {city!r} contains duplicate names")
 
@@ -166,7 +212,6 @@ def load_city_classifier_probabilities(
     vectors = np.ascontiguousarray(vectors / norms[:, np.newaxis], dtype=np.float32)
 
     metadata = frame.drop(columns=source_columns).copy()
-    metadata["name"] = metadata["name"].astype(str)
     metadata["panoid"] = metadata["name"].str[:22]
     city_vectors = CityVectors(
         city,
@@ -176,11 +221,19 @@ def load_city_classifier_probabilities(
     )
     stats: dict[str, int | float] = {
         "input_shards": len(files),
-        "input_rows": len(frame),
+        "input_rows": input_rows,
         "probability_sum_min": float(probability_sums.min()),
         "probability_sum_mean": float(probability_sums.mean()),
         "probability_sum_max": float(probability_sums.max()),
     }
+    if image_index_rows is not None:
+        stats.update(
+            {
+                "image_index_rows": image_index_rows,
+                "retained_image_rows": len(frame),
+                "ignored_legacy_panoid_rows": ignored_legacy_panoid_rows,
+            }
+        )
     return (city_vectors, stats) if return_stats else city_vectors
 
 

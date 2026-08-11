@@ -67,6 +67,14 @@ def _write_pano_metadata(root: Path, city_stem: str, panoid: str, lat: float, lo
     pd.DataFrame([{"panoid": panoid}]).to_csv(metadata_dir / "gsv_path.csv", index=False)
 
 
+def _write_image_index(root: Path, city_stem: str, names: list[str]) -> None:
+    root.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame({"path": [f"/images/{name}" for name in names]}).to_parquet(
+        root / f"{city_stem}.parquet",
+        index=False,
+    )
+
+
 def test_load_city_classifier_probabilities_discovers_normalizes_and_audits(tmp_path: Path) -> None:
     from sample_similar_pairs.common import load_city_classifier_probabilities
 
@@ -99,6 +107,46 @@ def test_load_city_classifier_probabilities_discovers_normalizes_and_audits(tmp_
         "probability_sum_mean": 4.5,
         "probability_sum_max": 7.0,
     }
+
+
+def test_classifier_loader_keeps_full_image_run_and_ignores_legacy_panoid_run(
+    tmp_path: Path,
+) -> None:
+    from sample_similar_pairs.common import load_city_classifier_probabilities
+
+    panoid = "abcdefghijklmnopqrstuv"
+    image_names = [f"{panoid}_0.jpg", f"{panoid}_90.jpg"]
+    vectors = [[0.9, 0.1], [0.2, 0.8]]
+    probability_root = tmp_path / "probabilities"
+    image_index_root = tmp_path / "image-index"
+    _write_city_shard(
+        probability_root,
+        "paris",
+        "paris_legacy.parquet",
+        _probability_rows([panoid, panoid], vectors),
+    )
+    _write_city_shard(
+        probability_root,
+        "paris",
+        "paris_current.parquet",
+        _probability_rows(image_names, vectors),
+    )
+    _write_image_index(image_index_root, "paris", image_names)
+
+    loaded, stats = load_city_classifier_probabilities(
+        probability_root,
+        "Paris",
+        expected_dim=2,
+        image_index_root=image_index_root,
+        return_stats=True,
+    )
+
+    assert loaded.metadata["name"].tolist() == image_names
+    assert loaded.metadata["panoid"].tolist() == [panoid, panoid]
+    assert stats["input_rows"] == 4
+    assert stats["image_index_rows"] == 2
+    assert stats["retained_image_rows"] == 2
+    assert stats["ignored_legacy_panoid_rows"] == 2
 
 
 def test_classifier_probability_loader_requires_city_shards(tmp_path: Path) -> None:
@@ -204,6 +252,7 @@ def test_classifier_image_sampler_parser_defaults() -> None:
     args = build_parser().parse_args(["--output", "pairs.parquet"])
 
     assert str(args.probability_root).endswith("/_curated/c_city_classifiier_prob")
+    assert str(args.image_index_root).endswith("/_transformed/t_classifier_img_yolo8_inf_dir")
     assert args.expected_dim == 127
     assert args.vector_schema_id == "city-classifier-train4-probabilities-v1"
     assert args.threshold == -1.0
@@ -231,6 +280,7 @@ def test_classifier_image_sampler_runs_end_to_end(tmp_path: Path, monkeypatch: p
     from sample_similar_pairs.sample_classifier_image_pairs_faiss import main
 
     probability_root = tmp_path / "probabilities"
+    image_index_root = tmp_path / "image-index"
     city_inputs = {
         "paris": ("abcdefghijklmnopqrstuv", [1.0, 0.0], 48.8566, 2.3522),
         "london": ("zyxwvutsrqponmlkjihgfe", [1.0, 0.0], 51.5072, -0.1276),
@@ -243,6 +293,7 @@ def test_classifier_image_sampler_runs_end_to_end(tmp_path: Path, monkeypatch: p
             _probability_rows([f"{panoid}_0.jpg"], [vector]),
         )
         _write_pano_metadata(tmp_path, city_stem, panoid, lat, lon)
+        _write_image_index(image_index_root, city_stem, [f"{panoid}_0.jpg"])
     monkeypatch.setattr(image_pair_pipeline, "_faiss", lambda: _FakeFaiss)
     output = tmp_path / "classifier_pairs.parquet"
 
@@ -250,6 +301,7 @@ def test_classifier_image_sampler_runs_end_to_end(tmp_path: Path, monkeypatch: p
         [
             "--city-pairs", "Paris|London",
             "--probability-root", str(probability_root),
+            "--image-index-root", str(image_index_root),
             "--expected-dim", "2",
             "--vector-schema-id", "test-classifier-v1",
             "--rootfolder", str(tmp_path),

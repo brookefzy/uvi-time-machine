@@ -19,6 +19,7 @@ from sample_similar_pairs.image_pair_pipeline import run_image_pair_pipeline
 
 DEFAULT_ROOT = "/lustre1/g/geog_pyloo/05_timemachine"
 DEFAULT_PROBABILITY_ROOT = f"{DEFAULT_ROOT}/_curated/c_city_classifiier_prob"
+DEFAULT_IMAGE_INDEX_ROOT = f"{DEFAULT_ROOT}/_transformed/t_classifier_img_yolo8_inf_dir"
 DEFAULT_CORE_H3_POOL_ROOT = f"{DEFAULT_ROOT}/_curated/c_city_dinov3_core_hex_ids"
 DEFAULT_CORE_H3_PROFILE = "pct5_sub30_z1_m05"
 DEFAULT_VECTOR_SCHEMA_ID = "city-classifier-train4-probabilities-v1"
@@ -35,6 +36,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--city-pairs", nargs="+", default=DEFAULT_PAIRS, help="Directed CITY1|CITY2 pairs")
     parser.add_argument("--probability-root", type=Path, default=Path(DEFAULT_PROBABILITY_ROOT))
+    parser.add_argument(
+        "--image-index-root",
+        type=Path,
+        default=Path(DEFAULT_IMAGE_INDEX_ROOT),
+        help="City image-index Parquets used to retain full image-name probability rows",
+    )
     parser.add_argument("--expected-dim", type=int, default=127)
     parser.add_argument("--vector-schema-id", default=DEFAULT_VECTOR_SCHEMA_ID)
     parser.add_argument("--rootfolder", type=Path, default=Path(DEFAULT_ROOT))
@@ -111,6 +118,7 @@ def main(argv: list[str] | None = None) -> None:
             args.probability_root,
             city,
             expected_dim=args.expected_dim,
+            image_index_root=args.image_index_root,
             return_stats=True,
         ),
         modality="classifier_probability",
