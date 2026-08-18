@@ -59,6 +59,71 @@ $MODE_OUTPUT_ROOT/mode_gallery/k=256/index.html
 $MODE_OUTPUT_ROOT/mode_gallery/k=512/index.html
 ```
 
+Codebook evaluation uses a deterministic hash-stratified holdout within every
+city. By default, five models are fitted with seeds 42 through 46 and
+`stability` is the median adjusted Rand score across all ten seed pairs. The
+scorecard also records `stability_mean`, `stability_min`, `stability_max`,
+`stability_std`, seed/pair counts, holdout strategy, and train/holdout city
+counts. The versioned stability strategy is `all_pairs_ari_median_v1`. The
+primary seed (42 by default) supplies the saved centroids; all
+other fits are evaluation models.
+
+To rerun only codebook evaluation against completed samples, use a fresh output
+root and link the immutable sample shards into it:
+
+```bash
+export SOURCE_MODE_OUTPUT_ROOT=/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_global_modes/res=8/sample=50
+export MODE_OUTPUT_ROOT="${SOURCE_MODE_OUTPUT_ROOT}-stratified-5seed-v1"
+mkdir -p "$MODE_OUTPUT_ROOT"
+ln -s "$SOURCE_MODE_OUTPUT_ROOT/sampled_images" "$MODE_OUTPUT_ROOT/sampled_images"
+
+JOB_ID="$(sbatch --parsable slurm/dinov3_mode_fit_codebooks.cmd \
+  --input "$MODE_OUTPUT_ROOT/sampled_images" \
+  --output-root "$MODE_OUTPUT_ROOT" \
+  --k 4 8 16 32 64 \
+  --holdout-fraction 0.20 \
+  --holdout-split-seed 42 \
+  --seed 42 \
+  --stability-seed-count 5 \
+  --niter 100)"
+echo "Submitted job: $JOB_ID"
+```
+
+Five-seed evaluation performs five full FAISS fits per K and therefore takes
+roughly 2.5 times as much fitting work as the former two-seed evaluation.
+Monitor the submitted job and inspect its peak memory after completion:
+
+```bash
+squeue -j "$JOB_ID" -o "%.18i %.28j %.10T %.10M %.6D %R"
+tail -f "logs/slurm/dinov3_mode_fit_${JOB_ID}.out"
+
+sacct -j "$JOB_ID" --units=G \
+  --format=JobID,JobName,State,ExitCode,Elapsed,ReqMem,MaxRSS,MaxVMSize
+```
+
+Inspect the expanded scorecard after the job succeeds:
+
+```bash
+export VENV_PYTHON=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/bin/python
+"$VENV_PYTHON" -c '
+import os, pandas as pd
+x = pd.read_parquet(os.environ["MODE_OUTPUT_ROOT"] + "/scorecard.parquet")
+columns = [
+    "k", "status", "held_out_mean_cohesion", "held_out_p05_cohesion",
+    "min_mode_share", "near_empty_mode_count", "stability",
+    "stability_mean", "stability_min", "stability_max", "stability_std",
+    "stability_seed_count", "stability_pair_count", "training_city_count",
+    "holdout_city_count", "model_id",
+]
+print(x[[column for column in columns if column in x]].to_string(index=False))
+'
+```
+
+For the default five-seed run, each valid scorecard row should report
+`stability_seed_count=5`, `stability_pair_count=10`,
+`holdout_strategy=city_stratified_hash_v1`, and
+`stability_strategy=all_pairs_ari_median_v1`.
+
 ### Pass 2: select K and run assignments through summary
 
 Choose a reviewed candidate. For a smoke run, use a restrictive threshold;
@@ -67,6 +132,11 @@ Choose a reviewed candidate. For a smoke run, use a restrictive threshold;
 ```bash
 export SELECTED_K=128
 export SIMILARITY_THRESHOLD=0.80
+export CITY_META=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv
+
+# City array jobs index the CSV data rows from zero.
+export FIRST_CITY=0
+export LAST_CITY=$(( $(wc -l < "$CITY_META") - 2 ))
 
 RESUME=1 bash slurm/run_dinov3_mode_pipeline.bash
 ```

@@ -136,7 +136,7 @@ Run: `python3 -m pytest stage2_dino_modality/test_fit_evaluate_codebooks.py -q`
 - Read the sampled-image Parquet dataset with PyArrow batches; validate one embedding schema and deduplicate `(city, name)`.
 - Form a deterministic, **city-balanced** FAISS training subset from the up-to-50-per-H3 pool. Expose `--max-training-images-per-city`; default it conservatively (for example `100000`) so London/Tokyo cannot define the global vocabulary. This is a second-stage cap, not a replacement for the required 50-per-H3 sampling output.
 - Hold out a deterministic 20% of that balanced subset for metrics; train each K on the remaining 80% with at least two fixed seeds, CPU FAISS `Kmeans(..., spherical=True)`, and configurable `--niter`, `--max-points-per-centroid`, and `--seed`.
-- For each K, save the primary-seed centroids; calculate held-out mean/p05 assignment cosine (cohesion), mean ARI between two seed assignments (stability), min/median mode share, number of near-empty modes, training/holdout counts, and runtime.
+- For each K, save the primary-seed centroids; calculate held-out mean/p05 assignment cosine (cohesion), median/mean/min/max/std pairwise ARI across multiple seed assignments (stability), min/median mode share, number of near-empty modes, and city-stratified training/holdout counts.
 - Write a scorecard with one row per K, including `status` and `error` fields. Keep all K artifacts and unsuccessful diagnostics; do not silently discard a candidate. A K greater than available training rows is a recorded invalid candidate, not a reason to discard valid requested K values.
 
 **Step 4: Run green tests**

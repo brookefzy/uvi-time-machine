@@ -50,8 +50,77 @@ def test_city_balanced_training_pool_caps_each_city_deterministically():
     assert columns == ["e_0000", "e_0001"]
 
 
-def test_split_train_holdout_is_disjoint_and_deterministic():
+def test_split_train_holdout_is_city_stratified_disjoint_and_order_independent():
     module = load_module()
-    train, holdout = module.split_train_holdout(np.arange(20, dtype=np.float32).reshape(10, 2), fraction=.2)
-    assert len(train) == 8 and len(holdout) == 2
-    assert not set(map(tuple, train)).intersection(map(tuple, holdout))
+    pool = pd.DataFrame(
+        {
+            "city": ["A"] * 5 + ["B"] * 5,
+            "name": [f"image-{index}" for index in range(5)] * 2,
+            "e_0000": np.arange(10, dtype=np.float32),
+        }
+    )
+
+    train, holdout = module.split_train_holdout(pool, fraction=.2, seed=17)
+    shuffled_train, shuffled_holdout = module.split_train_holdout(
+        pool.sample(frac=1, random_state=9), fraction=.2, seed=17
+    )
+
+    assert train.groupby("city").size().to_dict() == {"A": 4, "B": 4}
+    assert holdout.groupby("city").size().to_dict() == {"A": 1, "B": 1}
+    assert not set(zip(train.city, train.name)).intersection(zip(holdout.city, holdout.name))
+    assert set(zip(train.city, train.name)) == set(zip(shuffled_train.city, shuffled_train.name))
+    assert set(zip(holdout.city, holdout.name)) == set(zip(shuffled_holdout.city, shuffled_holdout.name))
+
+
+def test_split_train_holdout_rejects_city_with_only_one_image():
+    module = load_module()
+    pool = pd.DataFrame({"city": ["A", "B", "B"], "name": ["only", "one", "two"]})
+
+    with __import__("pytest").raises(ValueError, match="at least two images per city"):
+        module.split_train_holdout(pool, fraction=.2, seed=17)
+
+
+def test_multi_seed_stability_reports_all_pairwise_ari_statistics():
+    module = load_module()
+    labels = [
+        np.array([0, 0, 1, 1]),
+        np.array([9, 9, 3, 3]),
+        np.array([0, 1, 0, 1]),
+    ]
+
+    result = module.summarize_seed_stability(labels)
+
+    expected = [module.seed_stability(a, b) for a, b in __import__("itertools").combinations(labels, 2)]
+    assert result["stability"] == __import__("pytest").approx(np.median(expected))
+    assert result["stability_mean"] == __import__("pytest").approx(np.mean(expected))
+    assert result["stability_min"] == __import__("pytest").approx(np.min(expected))
+    assert result["stability_pair_count"] == 3
+    assert result["stability_seed_count"] == 3
+
+
+def test_stability_seed_sequence_requires_at_least_two_models():
+    module = load_module()
+
+    assert module.stability_seeds(primary_seed=42, count=5) == [42, 43, 44, 45, 46]
+    with __import__("pytest").raises(ValueError, match="at least two"):
+        module.stability_seeds(primary_seed=42, count=1)
+
+
+def test_model_config_versions_holdout_and_stability_evaluation():
+    module = load_module()
+
+    config = module.build_model_config(
+        k=16,
+        primary_seed=42,
+        seeds=[42, 43, 44, 45, 46],
+        niter=100,
+        columns=["e_0000", "e_0001"],
+        max_training_images_per_city=100000,
+        holdout_fraction=.2,
+        holdout_split_seed=17,
+    )
+
+    assert config["holdout_strategy"] == "city_stratified_hash_v1"
+    assert config["stability_strategy"] == "all_pairs_ari_median_v1"
+    assert config["stability_seeds"] == [42, 43, 44, 45, 46]
+    assert config["holdout_split_seed"] == 17
