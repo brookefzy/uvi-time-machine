@@ -36,7 +36,7 @@ CITY_PAIRS_DEFAULT=(
   "Paris|London"
   "London|Hong Kong"
   "Hong Kong|Singapore"
-  "London|Sydney"
+  "London|Taipei"
   "New York|London"
 )
 if [[ -n "${CITY_PAIRS:-}" ]]; then
