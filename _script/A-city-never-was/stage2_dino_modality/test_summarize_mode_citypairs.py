@@ -17,3 +17,17 @@ def test_read_similarity_input_concatenates_partitioned_pair_files(tmp_path):
  pd.DataFrame({"city_1":["A"],"city_2":["B"],"js_similarity":[.5]}).to_parquet(first)
  pd.DataFrame({"city_1":["A"],"city_2":["C"],"js_similarity":[.7]}).to_parquet(second)
  assert len(module.read_similarity_input(tmp_path)) == 2
+
+
+def test_manifest_reader_ignores_stale_pairs_outside_current_manifest(tmp_path):
+ module = load()
+ current = tmp_path / "city_1=A" / "city_2=B" / "part_res=8.parquet"
+ stale = tmp_path / "city_1=A" / "city_2=C" / "part_res=8.parquet"
+ current.parent.mkdir(parents=True)
+ stale.parent.mkdir(parents=True)
+ pd.DataFrame({"city_1":["A"],"city_2":["B"],"js_similarity":[.5]}).to_parquet(current)
+ pd.DataFrame({"city_1":["A"],"city_2":["C"],"js_similarity":[.7]}).to_parquet(stale)
+
+ result = module.read_manifest_similarity_input(tmp_path, [("A", "B")])
+
+ assert result[["city_1", "city_2"]].values.tolist() == [["A", "B"]]

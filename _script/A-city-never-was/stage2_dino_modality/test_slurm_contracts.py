@@ -45,3 +45,10 @@ def test_coordinator_waits_for_each_downstream_stage_and_passes_cli_paths():
     assert 'generate_dinov3_mode_pair_manifest.py' in text
     assert 'dinov3_mode_similarity_array.cmd' in text
     assert 'dinov3_mode_city_summary.cmd' in text
+    assert 'ALLOW_MISSING_CITIES' in text
+    assert '--allow-missing' in text
+    assert '--expected-model-id "${MODEL_ID}"' in text
+    assert '--pair-manifest' in text
+    assert 'Accepting existing histogram subset because ALLOW_MISSING_CITIES=1' in text
+    assert '"${ALLOW_MISSING_CITIES:-0}" == "1" && "${RESUME:-1}" == "1"' in text
+    assert 'if [[ "${RESUME:-1}" != "1" || ! -f "${MODE_OUTPUT_ROOT}/model=${MODEL_ID}/city_pair_summary.parquet" ]]' not in text

@@ -141,6 +141,56 @@ export LAST_CITY=$(( $(wc -l < "$CITY_META") - 2 ))
 RESUME=1 bash slurm/run_dinov3_mode_pipeline.bash
 ```
 
+### Continue while auditing cities with missing histograms
+
+Strict mode is the default: a city listed in `CITY_META` without a histogram
+stops pair-manifest generation. If missing histograms are known and the
+remaining cities should continue through similarity and summary, opt in
+explicitly:
+
+```bash
+export ALLOW_MISSING_CITIES=1
+unset PAIR_MANIFEST
+unset SELECTED_MODEL
+
+RESUME=1 bash slurm/run_dinov3_mode_pipeline.bash
+```
+
+Only absent `city=<city>.parquet` histogram files are skipped. An existing
+histogram that is empty, has the wrong resolution, or belongs to a different
+model remains a fatal validation error. When at least one histogram exists,
+allow-missing mode accepts that existing subset without resubmitting and
+overwriting the complete histogram array. The model directory records the
+exact city population used:
+
+```text
+model=<model_id>/available_cities.txt
+model=<model_id>/skipped_cities.txt
+model=<model_id>/pair_manifest.txt
+```
+
+Inspect the audit before using the final statistics:
+
+```bash
+MODEL_ID="$("$VENV_PYTHON" -c '
+import json, os
+print(json.load(open(os.path.join(
+    os.environ["MODE_OUTPUT_ROOT"], "selected_model.json"
+)))["model_id"])
+')"
+
+cat "$MODE_OUTPUT_ROOT/model=$MODEL_ID/skipped_cities.txt"
+wc -l "$MODE_OUTPUT_ROOT/model=$MODEL_ID/available_cities.txt"
+wc -l "$MODE_OUTPUT_ROOT/model=$MODEL_ID/pair_manifest.txt"
+```
+
+The pair manifest becomes authoritative for similarity and summary. Stale
+similarity partitions for excluded cities are ignored, and a city pair with
+no rows above `SIMILARITY_THRESHOLD` remains in the summary with
+`pair_count_observed=0` and null similarity statistics. The summary is rebuilt
+after every manifest regeneration so it cannot retain rows for newly excluded
+cities.
+
 Inspect the final summary:
 
 ```bash

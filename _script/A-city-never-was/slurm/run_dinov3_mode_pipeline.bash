@@ -52,18 +52,29 @@ fi
 if [[ "${RESUME:-1}" != "1" ]] || ! all_city_artifacts_exist "${MODE_OUTPUT_ROOT}/model=${MODEL_ID}/assignments"; then
   LAST_CITY="${LAST_CITY}" JOB_SCRIPT=slurm/dinov3_mode_assign_array.cmd bash slurm/submit_dinov3_mode_city_batches.bash
 fi
-if [[ "${RESUME:-1}" != "1" ]] || ! all_city_artifacts_exist "${MODE_OUTPUT_ROOT}/model=${MODEL_ID}/h3_histograms"; then
+HISTOGRAM_ROOT="${MODE_OUTPUT_ROOT}/model=${MODEL_ID}/h3_histograms"
+EXISTING_HISTOGRAMS=()
+if [[ "${ALLOW_MISSING_CITIES:-0}" == "1" ]]; then
+  shopt -s nullglob
+  EXISTING_HISTOGRAMS=("${HISTOGRAM_ROOT}"/city=*.parquet)
+  shopt -u nullglob
+fi
+if [[ "${ALLOW_MISSING_CITIES:-0}" == "1" && "${RESUME:-1}" == "1" && ${#EXISTING_HISTOGRAMS[@]} -gt 0 ]]; then
+  printf 'Accepting existing histogram subset because ALLOW_MISSING_CITIES=1 (%s files).\n' "${#EXISTING_HISTOGRAMS[@]}"
+elif [[ "${RESUME:-1}" != "1" ]] || ! all_city_artifacts_exist "${HISTOGRAM_ROOT}"; then
   LAST_CITY="${LAST_CITY}" JOB_SCRIPT=slurm/dinov3_mode_histogram_array.cmd bash slurm/submit_dinov3_mode_city_batches.bash
 fi
 
 PAIR_MANIFEST="${PAIR_MANIFEST:-${MODE_OUTPUT_ROOT}/model=${MODEL_ID}/pair_manifest.txt}"
-"${PYTHON}" slurm/generate_dinov3_mode_pair_manifest.py --city-meta "${CITY_META}" --histogram-root "${MODE_OUTPUT_ROOT}/model=${MODEL_ID}/h3_histograms" --output "${PAIR_MANIFEST}"
+MANIFEST_ARGS=(--city-meta "${CITY_META}" --histogram-root "${MODE_OUTPUT_ROOT}/model=${MODEL_ID}/h3_histograms" --expected-model-id "${MODEL_ID}" --output "${PAIR_MANIFEST}")
+if [[ "${ALLOW_MISSING_CITIES:-0}" == "1" ]]; then
+  MANIFEST_ARGS+=(--allow-missing --available-cities-output "${MODE_OUTPUT_ROOT}/model=${MODEL_ID}/available_cities.txt" --skipped-cities-output "${MODE_OUTPUT_ROOT}/model=${MODEL_ID}/skipped_cities.txt")
+fi
+"${PYTHON}" slurm/generate_dinov3_mode_pair_manifest.py "${MANIFEST_ARGS[@]}"
 PAIR_COUNT="$(wc -l < "${PAIR_MANIFEST}")"
 if (( PAIR_COUNT > 0 )); then
   if [[ "${RESUME:-1}" != "1" ]] || ! all_pair_artifacts_exist "${MODE_OUTPUT_ROOT}/model=${MODEL_ID}/h3_similarity"; then
     PAIR_COUNT="${PAIR_COUNT}" PAIR_MANIFEST="${PAIR_MANIFEST}" JOB_SCRIPT=slurm/dinov3_mode_similarity_array.cmd bash slurm/submit_dinov3_mode_similarity_batches.bash
   fi
 fi
-if [[ "${RESUME:-1}" != "1" || ! -f "${MODE_OUTPUT_ROOT}/model=${MODEL_ID}/city_pair_summary.parquet" ]]; then
-  sbatch --wait slurm/dinov3_mode_city_summary.cmd --input "${MODE_OUTPUT_ROOT}/model=${MODEL_ID}/h3_similarity" --city-meta "${CITY_META}" --output "${MODE_OUTPUT_ROOT}/model=${MODEL_ID}/city_pair_summary.parquet"
-fi
+sbatch --wait slurm/dinov3_mode_city_summary.cmd --input "${MODE_OUTPUT_ROOT}/model=${MODEL_ID}/h3_similarity" --pair-manifest "${PAIR_MANIFEST}" --output "${MODE_OUTPUT_ROOT}/model=${MODEL_ID}/city_pair_summary.parquet"
