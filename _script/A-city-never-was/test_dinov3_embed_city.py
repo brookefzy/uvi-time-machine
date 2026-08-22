@@ -131,6 +131,33 @@ def test_embed_city_resumes_by_skipping_names_in_existing_chunks(tmp_path):
     )
 
 
+def test_embed_city_can_read_an_alias_index_and_write_to_a_different_stem(tmp_path):
+    valfolder, rows = make_input(tmp_path, city_stem="calicut-index", count=2)
+    output_root = tmp_path / "out"
+    backend = FakeBackend()
+
+    written = embed_city(
+        city="Kozhikode",
+        city_file_stem="calicut-index",
+        output_city_file_stem="calicut",
+        valfolder=valfolder,
+        output_root=output_root,
+        model_name="fake-dinov3",
+        backend_name="fake",
+        batch_size=10,
+        device="cpu",
+        local_files_only=True,
+        backend_loader=lambda **_kwargs: (backend.model, backend.processor),
+        embedder=backend.embed,
+    )
+
+    assert written
+    assert all(path.parent == output_root / "calicut" for path in written)
+    assert sorted(pd.concat(pd.read_parquet(path) for path in written)["name"]) == sorted(
+        Path(row["path"]).name for row in rows
+    )
+
+
 def test_resume_rejects_existing_shards_with_mixed_embedding_dimensions(tmp_path):
     output_dir = tmp_path / "out" / "hongkong"
     output_dir.mkdir(parents=True)

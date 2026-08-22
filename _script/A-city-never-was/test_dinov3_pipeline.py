@@ -8,10 +8,23 @@ import pytest
 from dinov3_pipeline import (
     DEFAULT_MODEL_NAME,
     DINOv3PipelineConfig,
+    build_b5c_command,
     build_stage_commands,
     load_cities,
     render_slurm_array_script,
 )
+
+
+def test_b5c_command_accepts_an_isolated_aggregation_progress_path(tmp_path):
+    progress = tmp_path / "run" / "aggregation.json"
+    config = DINOv3PipelineConfig(
+        repo_dir=tmp_path / "repo",
+        b5c_agg_progress_file=progress,
+    )
+
+    built = build_b5c_command(config)
+
+    assert f"--agg-progress-file {progress}" in built
 
 
 def test_load_cities_supports_city_column_and_one_based_array_index(tmp_path):

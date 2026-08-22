@@ -399,6 +399,13 @@ Validation checklist:
 - Final B5c aggregated outputs contain no rows where `city_1 == city_2`.
 - B5h summary row count equals `n * (n - 1) / 2` unordered city pairs when `--city-meta` or `--expected-city-count` is provided.
 
+For a city-scoped resolution-7 recovery that audits aliases and source files,
+rebuilds only affected H3/pairwise artifacts, monitors Slurm jobs through
+terminal accounting states, and validates the five-column downstream export,
+use [`pipeline/run_dinov3_res7_recovery.bash`](pipeline/run_dinov3_res7_recovery.bash).
+Its preflight/execute contract and output layout are documented in
+[`pipeline/INDEX.md`](pipeline/INDEX.md).
+
 4. process the distance between hexagons and their associated CBD
 ```python B6a_h3_distance_processor.py```
 

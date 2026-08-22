@@ -158,6 +158,51 @@ def test_aggregates_dinov3_embeddings_without_default_h3_exclusion_and_unit_vect
     assert stats["res8_mean_image_count"] == 1.5
 
 
+def test_h3_aggregation_accepts_an_explicit_alias_stem(tmp_path):
+    city = "Kozhikode"
+    alias_stem = "calicut"
+    input_root = tmp_path / "embed"
+    output_root = tmp_path / "hex"
+    root = tmp_path / "root"
+    train_test_root = tmp_path / "train_test"
+    panoid = _panoid("alias")
+
+    meta_dir = root / "GSV" / "gsv_rgb" / alias_stem / "gsvmeta"
+    meta_dir.mkdir(parents=True)
+    pd.DataFrame(
+        [{"panoid": panoid, "lat": 11.25, "lon": 75.78, "year": 2018}]
+    ).to_csv(meta_dir / "gsv_pano.csv", index=False)
+    pd.DataFrame({"panoid": [panoid]}).to_csv(meta_dir / "gsv_path.csv", index=False)
+    embed_dir = input_root / alias_stem
+    embed_dir.mkdir(parents=True)
+    pd.DataFrame(
+        [{
+            "name": f"{panoid}_000.jpg",
+            "panoid": panoid,
+            "model_name": "fake-dinov3",
+            "embedding_dim": 2,
+            "e_0000": 1.0,
+            "e_0001": 0.0,
+        }]
+    ).to_parquet(embed_dir / "part.parquet", index=False)
+
+    config = build_default_config()
+    config.update(
+        {
+            "ROOTFOLDER": str(root),
+            "CURATED_FOLDER": str(input_root),
+            "CURATE_FOLDER_EXPORT": str(output_root),
+            "TRAIN_TEST_FOLDER": str(train_test_root),
+        }
+    )
+    aggregator = DINOv3H3HexagonAggregator(config, log_level="ERROR")
+
+    assert aggregator.process_city(city, city_file_stem=alias_stem)
+    output = output_root / "dinov3_city=Kozhikode_res_exclude=None.parquet"
+    assert output.exists()
+    assert set(pd.read_parquet(output)["res"]) == {6, 7, 8}
+
+
 def test_h3_aggregation_filters_existing_embedding_shards_to_2012_2022_years(tmp_path):
     city = "Year City"
     input_root = tmp_path / "embed"

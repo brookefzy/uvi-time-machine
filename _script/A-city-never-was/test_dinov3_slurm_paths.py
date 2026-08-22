@@ -141,3 +141,5 @@ def test_b5c_job_passes_resolution_specific_pairwise_and_export_roots() -> None:
     assert '--similarity-export-folder "${SIMILARITY_EXPORT_FOLDER}"' in job
     assert '--hex-root "${H3_MEMBERSHIP_ROOT}"' in job
     assert 'H3_MEMBERSHIP_ROOT="${H3_MEMBERSHIP_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_hex_summary}"' in job
+    assert '--b5c-agg-progress-file "${B5C_AGG_PROGRESS_FILE:-${SIMILARITY_EXPORT_FOLDER}/_aggregation_progress.json}"' in job
+    assert '--duckdb-temp-dir "${B5C_DUCKDB_TEMP_DIR:-${SIMILARITY_EXPORT_FOLDER}/_duckdb_tmp}"' in job

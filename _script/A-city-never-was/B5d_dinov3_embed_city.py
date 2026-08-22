@@ -250,6 +250,7 @@ def embed_city(
     min_year: int = DEFAULT_MIN_YEAR,
     max_year: int = DEFAULT_MAX_YEAR,
     year_filter_enabled: bool = False,
+    output_city_file_stem: str | None = None,
     backend_loader: Callable[..., tuple] = load_embedding_backend,
     embedder: Callable[..., np.ndarray] | None = None,
 ) -> list[Path]:
@@ -257,15 +258,18 @@ def embed_city(
     if batch_size <= 0:
         raise ValueError("batch_size must be positive")
 
-    city_stem = resolve_city_file_stem(city, city_file_stem)
-    output_dir = Path(output_root) / city_stem
+    index_stem = resolve_city_file_stem(city, city_file_stem)
+    output_stem = resolve_city_file_stem(
+        city, output_city_file_stem or index_stem
+    )
+    output_dir = Path(output_root) / output_stem
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    df = load_city_image_index(valfolder, city_stem)
+    df = load_city_image_index(valfolder, index_stem)
     if year_filter_enabled:
         year_metadata = load_city_year_metadata(
             year_metadata_root,
-            city_stem,
+            output_stem,
             pano_path_template=pano_path_template,
         )
         df = filter_image_index_by_year(df, year_metadata, min_year, max_year)
@@ -295,7 +299,7 @@ def embed_city(
         shard = _build_embedding_frame(batch, embeddings, model_name)
         validate_embedding_frame(shard)
         timestamp = dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S_%f")
-        output_path = output_dir / f"{city_stem}_{timestamp}_{batch_index:04d}.parquet"
+        output_path = output_dir / f"{output_stem}_{timestamp}_{batch_index:04d}.parquet"
         atomic_write_parquet(shard, output_path)
         written.append(output_path)
 
@@ -306,6 +310,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Embed one city's images with DINOv3")
     parser.add_argument("--city", required=True, help="Display city name, e.g. Hong Kong")
     parser.add_argument("--city-file-stem", default=None, help="Override city parquet stem")
+    parser.add_argument(
+        "--output-city-file-stem",
+        default=None,
+        help="Override embedding output/metadata stem independently of the source index stem",
+    )
     parser.add_argument("--valfolder", default=DEFAULT_VALFOLDER)
     parser.add_argument("--output-root", default=DEFAULT_OUTPUT_ROOT)
     parser.add_argument(
@@ -359,6 +368,7 @@ def main() -> None:
     written = embed_city(
         city=args.city,
         city_file_stem=args.city_file_stem,
+        output_city_file_stem=args.output_city_file_stem,
         valfolder=args.valfolder,
         output_root=args.output_root,
         model_name=args.model_name,

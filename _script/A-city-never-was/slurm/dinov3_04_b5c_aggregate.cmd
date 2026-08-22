@@ -21,7 +21,7 @@ CITY_META="${CITY_META:-/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_s
 PYTHON="${PYTHON:-python}"
 ROOTFOLDER="${ROOTFOLDER:-/lustre1/g/geog_pyloo/05_timemachine}"
 RESOLUTION="${RESOLUTION:-7}"
-PAIRWISE_ROOT="${PAIRWISE_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_similarity_by_pair}"
+PAIRWISE_ROOT="${PAIRWISE_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_similarity_by_pair_res=${RESOLUTION}}"
 SIMILARITY_EXPORT_FOLDER="${SIMILARITY_EXPORT_FOLDER:-${ROOTFOLDER}/_curated/c_city_dinov3_similarity_res=${RESOLUTION}}"
 H3_MEMBERSHIP_ROOT="${H3_MEMBERSHIP_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_hex_summary}"
 
@@ -36,6 +36,8 @@ mkdir -p logs/slurm
   --pairwise-root "${PAIRWISE_ROOT}" \
   --hex-root "${H3_MEMBERSHIP_ROOT}" \
   --similarity-export-folder "${SIMILARITY_EXPORT_FOLDER}" \
+  --b5c-agg-progress-file "${B5C_AGG_PROGRESS_FILE:-${SIMILARITY_EXPORT_FOLDER}/_aggregation_progress.json}" \
+  --duckdb-temp-dir "${B5C_DUCKDB_TEMP_DIR:-${SIMILARITY_EXPORT_FOLDER}/_duckdb_tmp}" \
   --b5c-memory-limit "${B5C_MEMORY_LIMIT:-64GB}" \
   --b5c-threads "${B5C_THREADS:-1}" \
   --execute

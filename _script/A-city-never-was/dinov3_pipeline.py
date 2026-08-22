@@ -80,6 +80,7 @@ class DINOv3PipelineConfig:
     b5c_memory_limit: str = "32GB"
     b5c_threads: int = 1
     b5c_parquet_file_size: str = "512MB"
+    b5c_agg_progress_file: Path | None = None
     duckdb_temp_dir: Path = Path(DEFAULT_TMP_ROOT)
     python: str = "python"
     log_dir: Path = Path("logs/dinov3_similarity")
@@ -262,7 +263,10 @@ def build_b5c_command(config: DINOv3PipelineConfig) -> str:
             config.pairwise_root / "optimized" / f"_progress_res={config.resolution}_optimized.json",
             "--resume",
             "--agg-progress-file",
-            config.rootfolder / "_curated" / f"c_city_dinov3_similarity_agg_progress_res={config.resolution}.json",
+            config.b5c_agg_progress_file
+            or config.rootfolder
+            / "_curated"
+            / f"c_city_dinov3_similarity_agg_progress_res={config.resolution}.json",
             "--duckdb-memory-limit",
             config.b5c_memory_limit,
             "--duckdb-temp-dir",
@@ -397,6 +401,7 @@ def config_from_args(args: argparse.Namespace) -> DINOv3PipelineConfig:
         b5c_memory_limit=args.b5c_memory_limit,
         b5c_threads=args.b5c_threads,
         b5c_parquet_file_size=args.b5c_parquet_file_size,
+        b5c_agg_progress_file=args.b5c_agg_progress_file,
         duckdb_temp_dir=args.duckdb_temp_dir,
         python=args.python,
         log_dir=args.log_dir,
@@ -464,6 +469,12 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--b5c-memory-limit", default="32GB")
     parser.add_argument("--b5c-threads", type=int, default=1)
     parser.add_argument("--b5c-parquet-file-size", default="512MB")
+    parser.add_argument(
+        "--b5c-agg-progress-file",
+        type=Path,
+        default=None,
+        help="Optional B5c city-level resume checkpoint path",
+    )
     parser.add_argument("--duckdb-temp-dir", type=Path, default=Path(DEFAULT_TMP_ROOT))
     parser.add_argument("--python", default="python")
     parser.add_argument("--log-dir", type=Path, default=Path("logs/dinov3_similarity"))

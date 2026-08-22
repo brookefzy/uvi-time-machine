@@ -127,8 +127,10 @@ class DINOv3H3HexagonAggregator:
             / f"dinov3_city={city}_res_exclude={str(res_exclude)}{sampling_suffix}.parquet"
         )
 
-    def load_pano_metadata(self, city: str) -> pd.DataFrame:
-        city_abbr = resolve_city_file_stem(city)
+    def load_pano_metadata(
+        self, city: str, city_file_stem: Optional[str] = None
+    ) -> pd.DataFrame:
+        city_abbr = resolve_city_file_stem(city, city_file_stem)
         pano_path = Path(
             str(self.config["PANO_PATH"]).format(
                 ROOTFOLDER=self.config["ROOTFOLDER"], cityabbr=city_abbr
@@ -177,8 +179,10 @@ class DINOv3H3HexagonAggregator:
             ]
         return result
 
-    def load_embedding_data(self, city: str) -> pd.DataFrame:
-        city_abbr = resolve_city_file_stem(city)
+    def load_embedding_data(
+        self, city: str, city_file_stem: Optional[str] = None
+    ) -> pd.DataFrame:
+        city_abbr = resolve_city_file_stem(city, city_file_stem)
         input_root = Path(str(self.config["CURATED_FOLDER"]))
         files = sorted((input_root / city_abbr).glob("*.parquet"))
         if not files:
@@ -218,11 +222,17 @@ class DINOv3H3HexagonAggregator:
 
         return df
 
-    def load_train_test_panoids(self, city: str) -> Set[str]:
-        pattern = f"*/{city}/*.jpg"
+    def load_train_test_panoids(
+        self, city: str, city_file_stem: Optional[str] = None
+    ) -> Set[str]:
+        labels = [city]
+        if city_file_stem and city_file_stem != city:
+            labels.append(city_file_stem)
+        root = Path(str(self.config["TRAIN_TEST_FOLDER"]))
         return {
             path.stem[:22]
-            for path in Path(str(self.config["TRAIN_TEST_FOLDER"])).glob(pattern)
+            for label in labels
+            for path in root.glob(f"*/{label}/*.jpg")
         }
 
     def apply_exclusion(
@@ -352,6 +362,7 @@ class DINOv3H3HexagonAggregator:
     def process_city(
         self,
         city: str,
+        city_file_stem: Optional[str] = None,
         res_exclude: Optional[int] = None,
         allow_empty: bool = False,
         equal_sampling: bool = False,
@@ -360,8 +371,8 @@ class DINOv3H3HexagonAggregator:
     ) -> bool:
         output_file = self.output_path(city, res_exclude, equal_sampling)
 
-        df_pano = self.load_pano_metadata(city)
-        df_embeddings = self.load_embedding_data(city)
+        df_pano = self.load_pano_metadata(city, city_file_stem)
+        df_embeddings = self.load_embedding_data(city, city_file_stem)
         if df_pano.empty or df_embeddings.empty:
             counts = {
                 "image_count_before_exclusion": 0,
@@ -372,7 +383,7 @@ class DINOv3H3HexagonAggregator:
             self.write_sidecar(output_file, stats)
             return allow_empty
 
-        train_panoids = self.load_train_test_panoids(city)
+        train_panoids = self.load_train_test_panoids(city, city_file_stem)
         df_filtered, counts = self.apply_exclusion(
             df_embeddings, df_pano, train_panoids, res_exclude
         )
@@ -407,6 +418,11 @@ class DINOv3H3HexagonAggregator:
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Aggregate DINOv3 vectors to H3 cells")
     parser.add_argument("--city", default="Hong Kong", help="City name")
+    parser.add_argument(
+        "--city-file-stem",
+        default=None,
+        help="Override source metadata and embedding stem while retaining the display city name",
+    )
     parser.add_argument(
         "--rootfolder",
         default=DEFAULT_ROOT,
@@ -478,6 +494,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     aggregator = DINOv3H3HexagonAggregator(config, log_level=args.log_level)
     ok = aggregator.process_city(
         args.city,
+        city_file_stem=args.city_file_stem,
         res_exclude=args.res_exclude,
         allow_empty=args.allow_empty,
         equal_sampling=args.equal_sampling,
