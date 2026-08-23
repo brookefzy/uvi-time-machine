@@ -6,6 +6,10 @@ Jensen--Shannon similarity. Run it on the remote Slurm cluster in two passes:
 first create and review codebook candidates, then select `K` and submit the
 expensive downstream stages.
 
+If mode fitting fails with `ValueError: No objects to concatenate`, follow
+[the empty sampled-input troubleshooting runbook](TROUBLESHOOTING_EMPTY_SAMPLED_INPUT.md)
+before resubmitting any jobs.
+
 ## Remote setup
 
 The Slurm jobs use the Lustre paths below by default, so no exports are needed
