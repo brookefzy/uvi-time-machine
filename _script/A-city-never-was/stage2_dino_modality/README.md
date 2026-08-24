@@ -198,6 +198,7 @@ cities.
 Inspect the final summary:
 
 ```bash
+VENV_PYTHON="${VENV_PYTHON:-/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/bin/python}"
 MODEL_ID="$("$VENV_PYTHON" -c '
 import json, os
 print(json.load(open(os.path.join(os.environ["MODE_OUTPUT_ROOT"], "selected_model.json")))["model_id"])
@@ -273,12 +274,62 @@ RESUME=1 bash slurm/run_dinov3_mode_pipeline.bash
 ```
 
 Resume is safe but coarse-grained: if any output in a city-array or pair-array
-stage is absent, the coordinator resubmits that entire stage's arrays. Existing
-sample and pair shards are replaced atomically; existing assignment and
-histogram files are overwritten by their re-run tasks. If every expected file
-exists but one is unreadable, rerun the affected array task explicitly (or
-archive the root and do a clean rerun), because the coordinator's completeness
-check is existence-based.
+stage is absent, the coordinator resubmits that stage's arrays. Existing
+similarity shards are reused when `RESUME=1`, so only missing city-pair shards
+are computed by the resubmitted pair tasks. Existing sample shards are replaced
+atomically; existing assignment and histogram files are overwritten by their
+re-run tasks. If every expected file exists but one is unreadable, rerun the
+affected array task explicitly (or archive the root and do a clean rerun),
+because the coordinator's completeness check is existence-based.
+
+### Recover from `Invalid job array specification` in similarity
+
+An older version of the similarity submitter used global pair-manifest row
+numbers as Slurm array task IDs. With 112 available cities, the manifest has
+6,216 pairs; on clusters whose maximum array task index is 1,000, submission
+therefore failed when the next batch reached `--array=1001-1020`. The current
+submitter uses local task IDs `1..BATCH_SIZE` plus a manifest offset, so every
+array stays below that limit.
+
+After updating the repository on the remote server, resume the same output
+root. This keeps the 15 missing cities excluded, regenerates the authoritative
+pair manifest, reuses completed similarity shards, and computes the remaining
+pairs:
+
+```bash
+cd /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was
+
+export MODE_OUTPUT_ROOT=/path/to/the/lower-k/output-root
+export CITY_META=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv
+export SELECTED_K=16
+export SIMILARITY_THRESHOLD=0.80
+export ALLOW_MISSING_CITIES=1
+export FIRST_CITY=0
+export LAST_CITY=$(( $(wc -l < "$CITY_META") - 2 ))
+
+unset PAIR_MANIFEST
+unset SELECTED_MODEL
+
+RESUME=1 bash slurm/run_dinov3_mode_pipeline.bash 2>&1 | \
+  tee "logs/dinov3_mode_resume_$(date +%Y%m%d-%H%M%S).log"
+```
+
+Do not delete the existing `h3_similarity` directory before resuming. Check
+progress with:
+
+```bash
+MODEL_ID="$("$VENV_PYTHON" -c '
+import json, os
+print(json.load(open(os.path.join(os.environ["MODE_OUTPUT_ROOT"], "selected_model.json")))["model_id"])
+')"
+
+PAIR_MANIFEST="$MODE_OUTPUT_ROOT/model=$MODEL_ID/pair_manifest.txt"
+SIMILARITY_ROOT="$MODE_OUTPUT_ROOT/model=$MODEL_ID/h3_similarity"
+
+printf 'expected pairs: '; wc -l < "$PAIR_MANIFEST"
+printf 'finished shards: '; find "$SIMILARITY_ROOT" -name part_res=8.parquet -type f | wc -l
+squeue -u "$USER" -o '%.18i %.30j %.8T %.10M %.6D %R'
+```
 
 ### Complete rerun without replacing prior results (recommended)
 

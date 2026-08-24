@@ -22,6 +22,27 @@ def test_submitters_are_bounded_and_wait_between_batches():
         assert 'while squeue -h -j' in text
 
 
+def test_similarity_batches_use_local_array_indices_with_manifest_offsets():
+    submitter = (ROOT / "submit_dinov3_mode_similarity_batches.bash").read_text()
+    worker = (ROOT / "dinov3_mode_similarity_array.cmd").read_text()
+
+    assert 'batch_count=$((end-start+1))' in submitter
+    assert 'pair_index_offset=$((start-1))' in submitter
+    assert '--array="1-${batch_count}%${ARRAY_CONCURRENCY}"' in submitter
+    assert '--export="ALL,PAIR_INDEX_OFFSET=${pair_index_offset}"' in submitter
+    assert 'PAIR_INDEX_OFFSET="${PAIR_INDEX_OFFSET:-0}"' in worker
+    assert 'PAIR_INDEX=$((PAIR_INDEX_OFFSET + SLURM_ARRAY_TASK_ID))' in worker
+    assert '"${PAIR_MANIFEST}" "${PAIR_INDEX}"' in worker
+
+
+def test_similarity_worker_reuses_complete_shards_when_resuming():
+    worker = (ROOT / "dinov3_mode_similarity_array.cmd").read_text()
+
+    assert 'OUTPUT=' in worker
+    assert '[[ "${RESUME:-1}" == "1" && -f "${OUTPUT}" ]]' in worker
+    assert '--output "${OUTPUT}"' in worker
+
+
 def test_downstream_arrays_resolve_inputs_from_manifest_and_selected_model():
     assign = (ROOT / "dinov3_mode_assign_array.cmd").read_text()
     histogram = (ROOT / "dinov3_mode_histogram_array.cmd").read_text()
