@@ -63,6 +63,11 @@ $MODE_OUTPUT_ROOT/mode_gallery/k=256/index.html
 $MODE_OUTPUT_ROOT/mode_gallery/k=512/index.html
 ```
 
+Within each mode, gallery representatives are selected distinct-city-first:
+the highest-cosine image from each available city is chosen before a city is
+used again. If a mode's matched candidates all come from one city, the gallery
+still fills that mode from the available single-city candidates.
+
 Codebook evaluation uses a deterministic hash-stratified holdout within every
 city. By default, five models are fitted with seeds 42 through 46 and
 `stability` is the median adjusted Rand score across all ten seed pairs. The

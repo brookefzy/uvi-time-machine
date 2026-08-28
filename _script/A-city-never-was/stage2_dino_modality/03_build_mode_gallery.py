@@ -24,6 +24,16 @@ def read_parquet_dataset(path:Path)->pd.DataFrame:
   frames.append(frame)
  return pd.concat(frames,ignore_index=True)
 
+def select_distinct_cities_first(rows:pd.DataFrame,images_per_mode:int)->pd.DataFrame:
+ if images_per_mode < 1: return rows.iloc[0:0].copy()
+ ranked=rows.sort_values(["mode_id","assignment_cosine"],ascending=[True,False],kind="mergesort")
+ selected=[]
+ for _,mode_rows in ranked.groupby("mode_id",sort=True):
+  distinct=mode_rows.drop_duplicates(subset=["city"],keep="first").head(images_per_mode)
+  remaining=mode_rows.loc[~mode_rows.index.isin(distinct.index)].head(images_per_mode-len(distinct))
+  selected.append(pd.concat([distinct,remaining]))
+ return pd.concat(selected) if selected else ranked.iloc[0:0].copy()
+
 def build_representatives(sampled:pd.DataFrame,centroids:pd.DataFrame,index:pd.DataFrame,images_per_mode:int=20)->pd.DataFrame:
  columns=[c for c in centroids if c.startswith("e_")]; scores=sampled[columns].to_numpy("float32") @ centroids[columns].to_numpy("float32").T
  work=sampled[[c for c in sampled if not c.startswith("e_")]].copy();work["mode_id"]=scores.argmax(1);work["assignment_cosine"]=scores.max(1)
@@ -32,7 +42,8 @@ def build_representatives(sampled:pd.DataFrame,centroids:pd.DataFrame,index:pd.D
   city_by_stem={resolve_city_file_stem(city):city for city in sampled.city.dropna().unique()}
   index=index.assign(city=index._index_file_stem.map(city_by_stem))
   if index.city.isna().any(): raise ValueError("image-index file names do not identify sampled cities")
- return work.merge(index[["city","name","path"]],on=["city","name"],how="inner").sort_values(["mode_id","assignment_cosine"],ascending=[True,False]).groupby("mode_id",group_keys=False).head(images_per_mode)
+ candidates=work.merge(index[["city","name","path"]],on=["city","name"],how="inner")
+ return select_distinct_cities_first(candidates,images_per_mode)
 def render_gallery(rows:pd.DataFrame,output:Path)->None:
  output.parent.mkdir(parents=True,exist_ok=True)
  cards="".join(f"<article><h2>Mode {escape(str(r.mode_id))}</h2><p>{escape(str(getattr(r,'city','')))} · {escape(str(getattr(r,'hex_id','')))} · cosine {float(getattr(r,'assignment_cosine',0)):.4f}</p><img src='{escape(str(r.path))}'></article>" for r in rows.itertuples())

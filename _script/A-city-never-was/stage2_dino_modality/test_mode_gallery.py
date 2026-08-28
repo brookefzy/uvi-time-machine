@@ -54,3 +54,33 @@ def test_gallery_maps_existing_city_stem_index_files_to_sampled_cities(tmp_path)
     centroids = pd.DataFrame({"mode_id":[0], "e_0000":[1.]})
     rows = module.build_representatives(sampled, centroids, module.read_parquet_dataset(index_path))
     assert rows.city.tolist() == ["Hong Kong"]
+
+
+def test_gallery_selects_distinct_cities_before_reusing_a_city():
+    module = load()
+    sampled = pd.DataFrame(
+        {
+            "city": ["A", "A", "B"],
+            "name": ["a-best.jpg", "a-second.jpg", "b-best.jpg"],
+            "hex_id": ["a1", "a2", "b1"],
+            "e_0000": [1.0, 0.99, 0.8],
+        }
+    )
+    index = pd.DataFrame(
+        {
+            "city": ["A", "A", "B"],
+            "name": ["a-best.jpg", "a-second.jpg", "b-best.jpg"],
+            "path": ["/a-best.jpg", "/a-second.jpg", "/b-best.jpg"],
+        }
+    )
+    centroids = pd.DataFrame({"mode_id": [0], "e_0000": [1.0]})
+
+    rows = module.build_representatives(
+        sampled,
+        centroids,
+        index,
+        images_per_mode=2,
+    )
+
+    assert rows.city.tolist() == ["A", "B"]
+    assert rows.name.tolist() == ["a-best.jpg", "b-best.jpg"]
