@@ -135,12 +135,13 @@ For the default five-seed run, each valid scorecard row should report
 
 ### Pass 2: select K and run assignments through summary
 
-Choose a reviewed candidate. For a smoke run, use a restrictive threshold;
-`-1` retains every H3-by-H3 result and can create a very large output.
+Choose a reviewed candidate. The default similarity threshold is `-1`, which
+retains every H3-by-H3 result so city-pair statistics include the full
+distribution. This can create a very large output.
 
 ```bash
 export SELECTED_K=128
-export SIMILARITY_THRESHOLD=0.80
+export SIMILARITY_THRESHOLD=-1
 export CITY_META=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv
 
 # City array jobs index the CSV data rows from zero.
@@ -273,7 +274,7 @@ requeueing its cancelled parent job:
 export MODE_OUTPUT_ROOT=/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_global_modes/res=8/sample=50
 export CITY_META=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv
 export SELECTED_K=128                 # must agree with selected_model.json
-export SIMILARITY_THRESHOLD=0.80      # must agree with existing pair shards
+export SIMILARITY_THRESHOLD=-1        # must agree with existing pair shards
 
 RESUME=1 bash slurm/run_dinov3_mode_pipeline.bash
 ```
@@ -307,7 +308,7 @@ cd /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-wa
 export MODE_OUTPUT_ROOT=/path/to/the/lower-k/output-root
 export CITY_META=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv
 export SELECTED_K=16
-export SIMILARITY_THRESHOLD=0.80
+export SIMILARITY_THRESHOLD=-1
 export ALLOW_MISSING_CITIES=1
 export FIRST_CITY=0
 export LAST_CITY=$(( $(wc -l < "$CITY_META") - 2 ))
@@ -347,7 +348,7 @@ export RUN_TAG="$(date +%Y%m%d-%H%M%S)"
 export MODE_OUTPUT_ROOT="/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_global_modes/res=8/sample=50-rerun-${RUN_TAG}"
 export CITY_META=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv
 export SELECTED_K=128
-export SIMILARITY_THRESHOLD=0.80
+export SIMILARITY_THRESHOLD=-1
 export SIMILARITY_ROW_BLOCK_SIZE=64
 export SIMILARITY_TARGET_BLOCK_SIZE=2048
 
@@ -370,7 +371,7 @@ export RUN_TAG="$(date +%Y%m%d-%H%M%S)"
 mv "$MODE_OUTPUT_ROOT" "${MODE_OUTPUT_ROOT}.before-rerun-${RUN_TAG}"
 
 export SELECTED_K=128
-export SIMILARITY_THRESHOLD=0.80
+export SIMILARITY_THRESHOLD=-1
 RESUME=0 bash slurm/run_dinov3_mode_pipeline.bash
 ```
 

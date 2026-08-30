@@ -60,6 +60,7 @@ def test_coordinator_waits_for_each_downstream_stage_and_passes_cli_paths():
     text = (ROOT / "run_dinov3_mode_pipeline.bash").read_text()
     assert 'REPO_DIR="${UVI_SAMPLE_REPO_DIR:-/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was}"' in text
     assert 'MODE_OUTPUT_ROOT="${MODE_OUTPUT_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_global_modes/res=8/sample=50}"' in text
+    assert 'export SIMILARITY_THRESHOLD="${SIMILARITY_THRESHOLD:--1}"' in text
     assert 'sbatch --wait' in text
     assert 'dinov3_mode_assign_array.cmd' in text
     assert 'dinov3_mode_histogram_array.cmd' in text

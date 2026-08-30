@@ -7,6 +7,7 @@ ROOTFOLDER="${ROOTFOLDER:-/lustre1/g/geog_pyloo/05_timemachine}"
 CITY_META="${CITY_META:-/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv}"
 MODE_OUTPUT_ROOT="${MODE_OUTPUT_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_global_modes/res=8/sample=50}"
 IMAGE_INDEX_ROOT="${IMAGE_INDEX_ROOT:-${ROOTFOLDER}/_transformed/t_classifier_img_yolo8_inf_dir}"
+export SIMILARITY_THRESHOLD="${SIMILARITY_THRESHOLD:--1}"
 PYTHON="${VENV_PYTHON:-/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/bin/python}"
 [[ -d "${REPO_DIR}" ]] || { printf 'Repository directory does not exist: %s\n' "${REPO_DIR}" >&2; exit 2; }
 [[ -x "${PYTHON}" ]] || { printf 'Python interpreter is not executable: %s\n' "${PYTHON}" >&2; exit 127; }
