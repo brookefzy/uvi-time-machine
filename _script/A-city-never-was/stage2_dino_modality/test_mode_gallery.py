@@ -84,3 +84,43 @@ def test_gallery_selects_distinct_cities_before_reusing_a_city():
 
     assert rows.city.tolist() == ["A", "B"]
     assert rows.name.tolist() == ["a-best.jpg", "b-best.jpg"]
+
+
+def test_gallery_attaches_tier_metadata_and_reports_zero_core_support(tmp_path):
+    module = load()
+    rows = pd.DataFrame(
+        {
+            "city": ["Bogotá"],
+            "hex_id": ["h1"],
+            "res": [8],
+            "name": ["image.jpg"],
+            "path": ["images/image.jpg"],
+            "mode_id": [0],
+            "assignment_cosine": [.9],
+        }
+    )
+    tiers = pd.DataFrame(
+        {
+            "city": ["bogotá"],
+            "hex_id": ["h1"],
+            "resolution": [8],
+            "landuse_tier": ["suburban"],
+            "poi_density": [10.0],
+            "poi_diversity": [.5],
+            "poi_density_z": [.2],
+            "poi_diversity_z": [.4],
+            "urban_intensity": [.3],
+        }
+    )
+    tier_path = tmp_path / "tiers.csv"
+    tiers.to_csv(tier_path, index=False)
+    enriched = module.attach_gallery_tiers(rows, tier_path)
+    output = tmp_path / "index.html"
+
+    module.render_gallery(enriched, output)
+
+    html = output.read_text()
+    assert enriched.landuse_tier.tolist() == ["suburban"]
+    assert "urban intensity 0.3000" in html
+    assert "core representatives: 0" in html
+    assert "suburban representatives: 1" in html

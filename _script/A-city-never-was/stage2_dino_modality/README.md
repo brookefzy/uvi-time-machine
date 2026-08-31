@@ -30,6 +30,101 @@ existing image-index directory: it contains `<resolved-city-stem>.parquet`
 shards (for example, `hongkong.parquet`) with `path` and, optionally, `name`.
 The new `city=<city>.parquet` convention is also accepted.
 
+## POI-stratified production run
+
+The codebook fitting stage uses the resolution-8 POI density/diversity export
+from profile `pct10_sub30_z1_m05`. Its saved configuration defines the top 10%
+of occupied cells within each city as `core`. Zero-POI cells are kept in a
+separate `no_poi` fitting stratum rather than being allowed to dominate the
+occupied-rural sample.
+
+The server paths used by this repository are mounted under `/lustre1/g` (not
+`/luster/g`). Upload the local CSV to:
+
+```text
+/lustre1/g/geog_pyloo/05_timemachine/_curated/03_similarity_grid/landuse_tiers/h3_landuse_tiers_pct10_res=8.csv
+```
+
+From the local machine, replace `<user@host>` with the remote SSH destination:
+
+```bash
+LOCAL_TIERS="/Users/yuan/Dropbox (Personal)/Personal Work/_Projects2025/urban-sim-flow/_data/_curated/03_similarity_grid/landuse_tiers/h3_landuse_tiers_pct10_res=8.csv"
+REMOTE_HOST="<user@host>"
+REMOTE_DIR="/lustre1/g/geog_pyloo/05_timemachine/_curated/03_similarity_grid/landuse_tiers"
+
+ssh "$REMOTE_HOST" "mkdir -p '$REMOTE_DIR'"
+scp "$LOCAL_TIERS" "$REMOTE_HOST:$REMOTE_DIR/"
+
+shasum -a 256 "$LOCAL_TIERS"
+ssh "$REMOTE_HOST" "sha256sum '$REMOTE_DIR/h3_landuse_tiers_pct10_res=8.csv'"
+```
+
+The two checksum values must match.
+
+### Pass 1: reuse samples, fit candidates, and build galleries
+
+Run these commands from the remote repository checkout. A new output root is
+required because the tier checksum and balancing configuration are part of the
+immutable model ID. The symlink reuses the completed 50-images-per-H3 samples;
+only fitting and later stages are new.
+
+```bash
+cd /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was
+git pull
+
+export ROOTFOLDER=/lustre1/g/geog_pyloo/05_timemachine
+export LANDUSE_TIERS_PATH="$ROOTFOLDER/_curated/03_similarity_grid/landuse_tiers/h3_landuse_tiers_pct10_res=8.csv"
+export SOURCE_MODE_OUTPUT_ROOT="$ROOTFOLDER/_curated/c_city_dinov3_global_modes/res=8/sample=50"
+export MODE_OUTPUT_ROOT="$ROOTFOLDER/_curated/c_city_dinov3_global_modes/res=8/sample=50-poi-stratified-pct10-v1"
+export MODE_K_VALUES="32 64 128"
+export MODE_MAX_TRAINING_IMAGES_PER_CITY=2000
+export MODE_MAX_TRAINING_IMAGES_PER_H3=5
+export MODE_STRATUM_WEIGHTS="core=.4,suburban=.3,occupied_rural=.2,no_poi=.1"
+export MODE_GALLERY_MEMORY=128G
+
+mkdir -p "$MODE_OUTPUT_ROOT"
+ln -s "$SOURCE_MODE_OUTPUT_ROOT/sampled_images" "$MODE_OUTPUT_ROOT/sampled_images"
+
+unset SELECTED_K
+RESUME=1 bash slurm/run_dinov3_mode_pipeline.bash
+```
+
+If the sample symlink already exists, leave it in place rather than running
+`ln -s` again. Review:
+
+```text
+$MODE_OUTPUT_ROOT/training_pool_audit.json
+$MODE_OUTPUT_ROOT/training_pool_audit.parquet
+$MODE_OUTPUT_ROOT/scorecard.parquet
+$MODE_OUTPUT_ROOT/mode_gallery/k=32/index.html
+$MODE_OUTPUT_ROOT/mode_gallery/k=64/index.html
+$MODE_OUTPUT_ROOT/mode_gallery/k=128/index.html
+```
+
+### Pass 2: select K and compute complete similarities
+
+After reviewing tier-conditioned metrics and galleries, set the chosen K. The
+example starts with 64; this is a review choice, not an automatic requirement.
+
+```bash
+export SELECTED_K=64
+export SIMILARITY_THRESHOLD=-1
+export CITY_META=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/city_meta.csv
+export FIRST_CITY=0
+export LAST_CITY=$(( $(wc -l < "$CITY_META") - 2 ))
+
+RESUME=1 bash slurm/run_dinov3_mode_pipeline.bash
+```
+
+Threshold `-1` retains every cross-city H3 pair for full statistics and may
+produce very large similarity shards. Existing thresholded shards from an old
+output root must not be reused.
+
+The default fitting pool is deterministic and capped at 2,000 images per city
+and 5 per H3, allocated 40% core, 30% suburban, 20% occupied rural, and 10%
+no-POI when capacity permits. These weights affect centroid fitting only. Mode
+assignment and H3 histograms continue to use the original sampled images.
+
 ## E2E smoke run
 
 Before submitting every city, use a separate two- or three-city `CITY_META`

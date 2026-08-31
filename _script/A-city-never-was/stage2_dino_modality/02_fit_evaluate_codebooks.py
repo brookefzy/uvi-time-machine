@@ -15,6 +15,14 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from stage2_dino_modality.common import build_model_id, centroid_checksum, normalize_rows, require_faiss, validate_vectors
+from stage2_dino_modality.landuse_tiers import (
+    STRATA,
+    attach_landuse_strata,
+    build_stratified_training_pool,
+    expected_training_config,
+    load_landuse_tiers,
+    parse_stratum_weights,
+)
 from stage2_dino_modality.mode_ops import select_model
 
 
@@ -109,6 +117,28 @@ def assignment_metrics(holdout_vectors: np.ndarray, centroids: np.ndarray) -> di
     }
 
 
+def assignment_metrics_by_stratum(
+    holdout_frame: pd.DataFrame,
+    holdout_vectors: np.ndarray,
+    centroids: np.ndarray,
+) -> dict[str, float | int]:
+    if len(holdout_frame) != len(holdout_vectors):
+        raise ValueError("holdout metadata and vectors must have equal lengths")
+    result: dict[str, float | int] = {}
+    for stratum in STRATA:
+        mask = holdout_frame["training_stratum"].eq(stratum).to_numpy()
+        prefix = f"held_out_{stratum}"
+        result[f"{prefix}_image_count"] = int(mask.sum())
+        if mask.any():
+            metrics = assignment_metrics(holdout_vectors[mask], centroids)
+            result[f"{prefix}_mean_cohesion"] = metrics["held_out_mean_cohesion"]
+            result[f"{prefix}_p05_cohesion"] = metrics["held_out_p05_cohesion"]
+        else:
+            result[f"{prefix}_mean_cohesion"] = float("nan")
+            result[f"{prefix}_p05_cohesion"] = float("nan")
+    return result
+
+
 def _fit_candidates_normalized(training: np.ndarray, requested_k: list[int], seed: int, niter: int) -> dict[int, dict]:
     faiss = require_faiss()
     candidates: dict[int, dict] = {}
@@ -134,8 +164,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, required=True, help="Sampled-image Parquet file or directory")
     parser.add_argument("--output-root", type=Path, required=True)
+    parser.add_argument("--landuse-tiers", type=Path, required=True)
     parser.add_argument("--k", type=int, nargs="+", default=[64, 128, 256, 512])
-    parser.add_argument("--max-training-images-per-city", type=int, default=100000)
+    parser.add_argument("--max-training-images-per-city", type=int, default=2000)
+    parser.add_argument("--max-training-images-per-h3", type=int, default=5)
+    parser.add_argument(
+        "--stratum-weights",
+        default="core=.4,suburban=.3,occupied_rural=.2,no_poi=.1",
+    )
+    parser.add_argument("--training-sampling-seed", type=int, default=42)
     parser.add_argument("--holdout-fraction", type=float, default=.2)
     parser.add_argument("--holdout-split-seed", type=int, default=42)
     parser.add_argument("--seed", type=int, default=42, help="Primary seed used for the saved centroid model")
@@ -152,6 +189,11 @@ def build_model_config(
     niter: int,
     columns: list[str],
     max_training_images_per_city: int,
+    max_training_images_per_h3: int,
+    stratum_weights: dict[str, float],
+    training_sampling_seed: int,
+    landuse_tiers_sha256: str,
+    landuse_tiers_resolution: int,
     holdout_fraction: float,
     holdout_split_seed: int,
 ) -> dict:
@@ -165,6 +207,12 @@ def build_model_config(
         "embedding_columns": columns,
         "embedding_dim": len(columns),
         "max_training_images_per_city": max_training_images_per_city,
+        "max_training_images_per_h3": max_training_images_per_h3,
+        "stratum_weights": stratum_weights,
+        "training_sampling_seed": training_sampling_seed,
+        "training_sampling_strategy": "city_poi_stratified_v1",
+        "landuse_tiers_sha256": landuse_tiers_sha256,
+        "landuse_tiers_resolution": landuse_tiers_resolution,
         "holdout_fraction": holdout_fraction,
         "holdout_strategy": "city_stratified_hash_v1",
         "holdout_split_seed": holdout_split_seed,
@@ -173,16 +221,60 @@ def build_model_config(
 
 def main():
     a = build_parser().parse_args()
+    weights = parse_stratum_weights(a.stratum_weights)
+    training_config = expected_training_config(
+        a.landuse_tiers,
+        max_images_per_city=a.max_training_images_per_city,
+        max_images_per_h3=a.max_training_images_per_h3,
+        stratum_weights=weights,
+        sampling_seed=a.training_sampling_seed,
+        requested_k_values=a.k,
+    )
     seeds = stability_seeds(a.seed, a.stability_seed_count)
     files = [a.input] if a.input.is_file() else sorted(a.input.rglob("*.parquet"))
+    if not files:
+        raise ValueError(f"no Parquet files under {a.input}")
     frame = pd.concat([pd.read_parquet(path) for path in files], ignore_index=True)
-    pool, columns = city_balanced_training_pool(frame, a.max_training_images_per_city)
+    tiers = load_landuse_tiers(a.landuse_tiers, expected_resolution=8)
+    enriched, join_audit = attach_landuse_strata(frame, tiers, expected_resolution=8)
+    pool, pool_audit = build_stratified_training_pool(
+        enriched,
+        max_images_per_city=a.max_training_images_per_city,
+        max_images_per_h3=a.max_training_images_per_h3,
+        stratum_weights=weights,
+        seed=a.training_sampling_seed,
+    )
+    columns = sorted(
+        (column for column in pool.columns if column.startswith("e_") and column[2:].isdigit()),
+        key=lambda column: int(column[2:]),
+    )
+    if not columns:
+        raise ValueError("sampled data requires embedding columns")
+    a.output_root.mkdir(parents=True, exist_ok=True)
+    pool_audit.to_parquet(a.output_root / "training_pool_audit.parquet", index=False)
+    audit_json = {
+        "schema_version": 1,
+        "landuse_tiers_path": str(a.landuse_tiers),
+        **training_config,
+        "join_audit": join_audit,
+        "training_pool_image_count": int(len(pool)),
+        "training_pool_city_count": int(pool.city.nunique()),
+        "selected_by_stratum": {
+            key: int(value)
+            for key, value in pool.training_stratum.value_counts().items()
+        },
+        "undersupplied_city_stratum_count": int((pool_audit.shortfall_count > 0).sum()),
+    }
+    (a.output_root / "training_pool_audit.json").write_text(
+        json.dumps(audit_json, sort_keys=True, indent=2)
+    )
     training_frame, holdout_frame = split_train_holdout(pool, a.holdout_fraction, a.holdout_split_seed)
-    del frame, pool
+    del frame, enriched, tiers, pool
     training_city_count = int(training_frame.city.nunique())
     holdout_city_count = int(holdout_frame.city.nunique())
     training = normalize_rows(training_frame[columns].to_numpy("float32"))
     holdout = normalize_rows(holdout_frame[columns].to_numpy("float32"))
+    holdout_metadata = holdout_frame[["training_stratum"]].copy()
     del training_frame, holdout_frame
     candidate_runs = {
         seed: _fit_candidates_normalized(training, a.k, seed, a.niter)
@@ -194,6 +286,9 @@ def main():
         row={"k":k,"status":candidate["status"],"training_image_count":len(training),"error":candidate.get("error","")}
         if candidate["status"]=="ok":
             metrics = assignment_metrics(holdout, candidate["centroids"])
+            stratum_metrics = assignment_metrics_by_stratum(
+                holdout_metadata, holdout, candidate["centroids"]
+            )
             labels_by_seed = [
                 (holdout @ candidate_runs[seed][k]["centroids"].T).argmax(1)
                 for seed in seeds
@@ -206,11 +301,16 @@ def main():
                 niter=a.niter,
                 columns=columns,
                 max_training_images_per_city=a.max_training_images_per_city,
+                max_training_images_per_h3=a.max_training_images_per_h3,
+                stratum_weights=weights,
+                training_sampling_seed=a.training_sampling_seed,
+                landuse_tiers_sha256=audit_json["landuse_tiers_sha256"],
+                landuse_tiers_resolution=8,
                 holdout_fraction=a.holdout_fraction,
                 holdout_split_seed=a.holdout_split_seed,
             )
             checksum=centroid_checksum(candidate["centroids"],config);model_id=build_model_id(checksum,config)
-            row.update(metrics);row.update(stability);row.update({"model_id":model_id,"training_image_count":len(training),"holdout_image_count":len(holdout),"training_city_count":training_city_count,"holdout_city_count":holdout_city_count,"holdout_strategy":config["holdout_strategy"],"stability_strategy":config["stability_strategy"],"holdout_fraction":a.holdout_fraction,"holdout_split_seed":a.holdout_split_seed,"primary_seed":a.seed,"stability_seeds":",".join(map(str,seeds))});centroid=pd.DataFrame(candidate["centroids"],columns=columns);centroid.insert(0,"training_image_count",len(training));centroid.insert(0,"embedding_dim",len(columns));centroid.insert(0,"mode_id",range(k));centroid.insert(0,"k",k);centroid.insert(0,"model_id",model_id);target=a.output_root/f"codebook_candidates/k={k}";target.mkdir(parents=True,exist_ok=True);centroid.to_parquet(target/"centroids.parquet",index=False);(target/"metrics.json").write_text(json.dumps(row,sort_keys=True))
+            row.update(metrics);row.update(stratum_metrics);row.update(stability);row.update({"model_id":model_id,"training_image_count":len(training),"holdout_image_count":len(holdout),"training_city_count":training_city_count,"holdout_city_count":holdout_city_count,"holdout_strategy":config["holdout_strategy"],"stability_strategy":config["stability_strategy"],"training_sampling_strategy":config["training_sampling_strategy"],"landuse_tiers_sha256":config["landuse_tiers_sha256"],"holdout_fraction":a.holdout_fraction,"holdout_split_seed":a.holdout_split_seed,"primary_seed":a.seed,"stability_seeds":",".join(map(str,seeds))});centroid=pd.DataFrame(candidate["centroids"],columns=columns);centroid.insert(0,"training_image_count",len(training));centroid.insert(0,"embedding_dim",len(columns));centroid.insert(0,"mode_id",range(k));centroid.insert(0,"k",k);centroid.insert(0,"model_id",model_id);target=a.output_root/f"codebook_candidates/k={k}";target.mkdir(parents=True,exist_ok=True);centroid.to_parquet(target/"centroids.parquet",index=False);(target/"metrics.json").write_text(json.dumps(row,sort_keys=True))
         rows.append(row)
     a.output_root.mkdir(parents=True,exist_ok=True);scorecard=pd.DataFrame(rows);scorecard.to_parquet(a.output_root/"scorecard.parquet",index=False)
     try:

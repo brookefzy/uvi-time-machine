@@ -19,6 +19,7 @@ PAIRWISE_DIRECT_RUNNER = REPO_ROOT / "pipeline" / "run_dinov3_pairwise_direct.ba
 PAIRWISE_RESUME_RUNNER = REPO_ROOT / "pipeline" / "run_dinov3_pairwise_resume.bash"
 PAIRWISE_RESUME_SUBMITTER = REPO_ROOT / "slurm" / "submit_dinov3_pairwise_resume_batches.bash"
 PIPELINE_INDEX = REPO_ROOT / "pipeline" / "INDEX.md"
+EMBEDDING_AUDIT_JOB = REPO_ROOT / "slurm" / "dinov3_verify_embedding_completeness.cmd"
 
 
 def test_h3_array_rewrites_legacy_city_meta_path(tmp_path: Path) -> None:
@@ -143,3 +144,12 @@ def test_b5c_job_passes_resolution_specific_pairwise_and_export_roots() -> None:
     assert 'H3_MEMBERSHIP_ROOT="${H3_MEMBERSHIP_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_hex_summary}"' in job
     assert '--b5c-agg-progress-file "${B5C_AGG_PROGRESS_FILE:-${SIMILARITY_EXPORT_FOLDER}/_aggregation_progress.json}"' in job
     assert '--duckdb-temp-dir "${B5C_DUCKDB_TEMP_DIR:-${SIMILARITY_EXPORT_FOLDER}/_duckdb_tmp}"' in job
+
+
+def test_embedding_audit_job_supports_targeted_cities_and_exhaustive_validation() -> None:
+    job = EMBEDDING_AUDIT_JOB.read_text(encoding="utf-8")
+
+    assert 'AUDIT_CITIES' in job
+    assert 'AUDIT_VALIDATE_VECTORS' in job
+    assert 'AUDIT_ARGS+=(--city "${city}")' in job
+    assert 'AUDIT_ARGS+=(--validate-vectors)' in job

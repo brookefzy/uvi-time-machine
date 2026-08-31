@@ -153,3 +153,65 @@ def test_check_all_embeddings_ignores_index_rows_with_missing_image_files(tmp_pa
     assert row["status"] == "complete"
     assert row["expected_image_count"] == 1
     assert row["missing_image_count"] == 0
+
+
+def test_check_all_embeddings_can_limit_audit_to_selected_cities(tmp_path):
+    city_meta = tmp_path / "city_meta.csv"
+    pd.DataFrame({"City": ["Alpha City", "Beta City", "Gamma City"]}).to_csv(
+        city_meta, index=False
+    )
+    valfolder = tmp_path / "val"
+    output_root = tmp_path / "embed"
+
+    beta_rows = _write_city_inputs(tmp_path, valfolder, "Beta City", [2019])
+    _write_embedding_shard(
+        output_root, "Beta City", [Path(beta_rows[0]["path"]).name]
+    )
+
+    result = check_all_embeddings(
+        city_meta=city_meta,
+        valfolder=valfolder,
+        output_root=output_root,
+        year_metadata_root=tmp_path,
+        expected_model_name="fake-dinov3",
+        selected_cities=["Beta City"],
+    )
+
+    assert [row["city"] for row in result["rows"]] == ["Beta City"]
+    assert result["summary"]["city_count"] == 1
+
+
+def test_metadata_only_audit_does_not_load_embedding_vector_values(tmp_path):
+    city_meta = tmp_path / "city_meta.csv"
+    pd.DataFrame({"City": ["Alpha City"]}).to_csv(city_meta, index=False)
+    valfolder = tmp_path / "val"
+    output_root = tmp_path / "embed"
+
+    rows = _write_city_inputs(tmp_path, valfolder, "Alpha City", [2019])
+    _write_embedding_shard(
+        output_root, "Alpha City", [Path(rows[0]["path"]).name]
+    )
+    shard = next((output_root / "alphacity").glob("*.parquet"))
+    frame = pd.read_parquet(shard)
+    frame.loc[0, "e_0000"] = float("nan")
+    frame.to_parquet(shard, index=False)
+
+    fast = check_all_embeddings(
+        city_meta=city_meta,
+        valfolder=valfolder,
+        output_root=output_root,
+        year_metadata_root=tmp_path,
+        expected_model_name="fake-dinov3",
+    )
+    exhaustive = check_all_embeddings(
+        city_meta=city_meta,
+        valfolder=valfolder,
+        output_root=output_root,
+        year_metadata_root=tmp_path,
+        expected_model_name="fake-dinov3",
+        validate_vectors=True,
+    )
+
+    assert fast["rows"][0]["status"] == "complete"
+    assert exhaustive["rows"][0]["status"] == "error"
+    assert "non-finite" in exhaustive["rows"][0]["error"]

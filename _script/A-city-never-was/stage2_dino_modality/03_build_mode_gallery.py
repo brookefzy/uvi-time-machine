@@ -12,6 +12,7 @@ if __package__ in {None, ""}:
  sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from dinov3_utils import resolve_city_file_stem
+from stage2_dino_modality.landuse_tiers import STRATA, attach_landuse_strata, load_landuse_tiers
 
 def read_parquet_dataset(path:Path)->pd.DataFrame:
  files=[path] if path.is_file() else sorted(path.rglob("*.parquet"))
@@ -44,19 +45,34 @@ def build_representatives(sampled:pd.DataFrame,centroids:pd.DataFrame,index:pd.D
   if index.city.isna().any(): raise ValueError("image-index file names do not identify sampled cities")
  candidates=work.merge(index[["city","name","path"]],on=["city","name"],how="inner")
  return select_distinct_cities_first(candidates,images_per_mode)
+
+def attach_gallery_tiers(rows:pd.DataFrame,landuse_tiers:Path)->pd.DataFrame:
+ tiers=load_landuse_tiers(landuse_tiers,expected_resolution=8)
+ enriched,_=attach_landuse_strata(rows,tiers,expected_resolution=8)
+ return enriched
+
 def render_gallery(rows:pd.DataFrame,output:Path)->None:
  output.parent.mkdir(parents=True,exist_ok=True)
- cards="".join(f"<article><h2>Mode {escape(str(r.mode_id))}</h2><p>{escape(str(getattr(r,'city','')))} · {escape(str(getattr(r,'hex_id','')))} · cosine {float(getattr(r,'assignment_cosine',0)):.4f}</p><img src='{escape(str(r.path))}'></article>" for r in rows.itertuples())
- output.write_text(f"<!doctype html><meta charset='utf-8'><title>Global DINO modes</title><style>article{{display:inline-block;width:280px;vertical-align:top;margin:8px}}img{{max-width:100%;height:180px;object-fit:contain}}</style>{cards}")
+ sections=[]
+ for mode_id,mode_rows in rows.groupby("mode_id",sort=True):
+  counts=mode_rows.training_stratum.value_counts() if "training_stratum" in mode_rows else pd.Series(dtype=int)
+  support=" · ".join(f"{stratum.replace('_',' ')} representatives: {int(counts.get(stratum,0))}" for stratum in STRATA)
+  cards="".join(
+   f"<article><p>{escape(str(getattr(r,'city','')))} · {escape(str(getattr(r,'hex_id','')))} · {escape(str(getattr(r,'landuse_tier','unknown')))} · urban intensity {float(getattr(r,'urban_intensity',float('nan'))):.4f} · cosine {float(getattr(r,'assignment_cosine',0)):.4f}</p><img src='{escape(str(r.path))}'></article>"
+   for r in mode_rows.itertuples()
+  )
+  sections.append(f"<section><h2>Mode {escape(str(mode_id))}</h2><p>{escape(support)}</p>{cards}</section>")
+ output.write_text(f"<!doctype html><meta charset='utf-8'><title>Global DINO modes</title><style>article{{display:inline-block;width:280px;vertical-align:top;margin:8px}}img{{max-width:100%;height:180px;object-fit:contain}}</style>{''.join(sections)}")
 def copy_gallery_images(rows:pd.DataFrame,output:Path)->pd.DataFrame:
  images=output.parent/"images";images.mkdir(parents=True,exist_ok=True);result=rows.copy();portable=[]
  for i,row in result.iterrows():
   source=Path(row.path);target=images/f"mode-{row.mode_id}-{i}{source.suffix}";copy2(source,target);portable.append(f"images/{target.name}")
  result["path"]=portable;return result
 def main():
- p=argparse.ArgumentParser(description=__doc__);p.add_argument("--representatives",type=Path);p.add_argument("--sampled",type=Path);p.add_argument("--centroids",type=Path);p.add_argument("--image-index",type=Path);p.add_argument("--images-per-mode",type=int,default=20);p.add_argument("--output",type=Path,required=True);a=p.parse_args()
+ p=argparse.ArgumentParser(description=__doc__);p.add_argument("--representatives",type=Path);p.add_argument("--sampled",type=Path);p.add_argument("--centroids",type=Path);p.add_argument("--image-index",type=Path);p.add_argument("--landuse-tiers",type=Path,required=True);p.add_argument("--images-per-mode",type=int,default=20);p.add_argument("--output",type=Path,required=True);a=p.parse_args()
  if a.representatives: rows=read_parquet_dataset(a.representatives)
  elif a.sampled and a.centroids and a.image_index: rows=build_representatives(read_parquet_dataset(a.sampled),read_parquet_dataset(a.centroids),read_parquet_dataset(a.image_index),a.images_per_mode)
  else: p.error("supply --representatives or --sampled --centroids --image-index")
+ rows=attach_gallery_tiers(rows,a.landuse_tiers)
  render_gallery(copy_gallery_images(rows,a.output),a.output)
 if __name__=="__main__":main()

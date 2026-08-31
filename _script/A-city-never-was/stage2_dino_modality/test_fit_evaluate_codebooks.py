@@ -116,6 +116,11 @@ def test_model_config_versions_holdout_and_stability_evaluation():
         niter=100,
         columns=["e_0000", "e_0001"],
         max_training_images_per_city=100000,
+        max_training_images_per_h3=5,
+        stratum_weights={"core": .4, "suburban": .3, "occupied_rural": .2, "no_poi": .1},
+        training_sampling_seed=42,
+        landuse_tiers_sha256="abc123",
+        landuse_tiers_resolution=8,
         holdout_fraction=.2,
         holdout_split_seed=17,
     )
@@ -124,3 +129,31 @@ def test_model_config_versions_holdout_and_stability_evaluation():
     assert config["stability_strategy"] == "all_pairs_ari_median_v1"
     assert config["stability_seeds"] == [42, 43, 44, 45, 46]
     assert config["holdout_split_seed"] == 17
+    assert config["training_sampling_strategy"] == "city_poi_stratified_v1"
+    assert config["landuse_tiers_sha256"] == "abc123"
+    assert config["stratum_weights"]["core"] == .4
+
+
+def test_fit_parser_requires_landuse_tiers_and_has_balanced_defaults(tmp_path):
+    module = load_module()
+
+    args = module.build_parser().parse_args(
+        ["--input", str(tmp_path), "--output-root", str(tmp_path), "--landuse-tiers", str(tmp_path / "tiers.csv")]
+    )
+
+    assert args.max_training_images_per_city == 2000
+    assert args.max_training_images_per_h3 == 5
+    assert args.stratum_weights == "core=.4,suburban=.3,occupied_rural=.2,no_poi=.1"
+
+
+def test_assignment_metrics_by_stratum_reports_dense_core_cohesion():
+    module = load_module()
+    holdout = pd.DataFrame({"training_stratum": ["core", "core", "suburban"]})
+    vectors = np.array([[1, 0], [.8, .2], [0, 1]], dtype=np.float32)
+    centroids = np.array([[1, 0], [0, 1]], dtype=np.float32)
+
+    metrics = module.assignment_metrics_by_stratum(holdout, vectors, centroids)
+
+    assert metrics["held_out_core_image_count"] == 2
+    assert metrics["held_out_core_mean_cohesion"] > .9
+    assert metrics["held_out_suburban_image_count"] == 1

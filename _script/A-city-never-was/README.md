@@ -282,6 +282,33 @@ python verify_dinov3_embedding_completeness.py \
   --output-json logs/dinov3_embedding_completeness.json
 ```
 
+The default audit is metadata-only: it reads image names and shard metadata but
+does not load all DINOv3 vector values. Use `--validate-vectors` for the slower
+exhaustive finite-value and L2-norm checks. To audit only selected cities, repeat
+`--city`:
+
+```bash
+python verify_dinov3_embedding_completeness.py \
+  --city-meta "${CITY_META}" \
+  --valfolder /lustre1/g/geog_pyloo/05_timemachine/_transformed/t_classifier_img_yolo8_inf_dir \
+  --output-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_embed \
+  --expected-model-name "${MODEL_NAME}" \
+  --city Amsterdam \
+  --city Fukuoka \
+  --city Houston
+```
+
+The Slurm wrapper accepts the same selection as a comma-delimited environment
+variable. City names may contain spaces; do not add spaces after commas unless
+they are part of the city name:
+
+```bash
+export AUDIT_CITIES='Sao Paulo,Amsterdam,Fukuoka,Gombe,Hindupur,Houston,Jalna,Johannesburg,Kampala,Kozhikode,Malegaon,Parbhani,Rovno,Vijayawada'
+sbatch --export=ALL slurm/dinov3_verify_embedding_completeness.cmd
+```
+
+Set `AUDIT_VALIDATE_VECTORS=1` only when the exhaustive vector audit is required.
+
 5. Aggregate embeddings to H3 with `B5e_dinov3_vector_summary.py`; confirm every city has nonzero `res=8` rows and approximately unit-norm H3 vectors. This step writes `res=6`, `res=7`, and `res=8` rows by default and includes `img_count` for the number of images included in each H3 cell. It does not exclude train/test-overlap hexagons by default because DINOv3 embeddings did not train on this city classifier split. It filters pano metadata to years 2012-2022 by default, so H3 outputs remain restricted to the analysis window even when embedding shards contain all available years.
 
 For the all-city server run, submit the H3 array after the embedding completeness check passes:

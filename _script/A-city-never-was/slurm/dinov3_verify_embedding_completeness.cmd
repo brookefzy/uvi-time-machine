@@ -37,6 +37,17 @@ fi
 cd "${REPO_DIR}"
 mkdir -p logs/slurm
 
+AUDIT_ARGS=()
+if [[ -n "${AUDIT_CITIES:-}" ]]; then
+  IFS=',' read -r -a requested_cities <<< "${AUDIT_CITIES}"
+  for city in "${requested_cities[@]}"; do
+    [[ -n "${city}" ]] && AUDIT_ARGS+=(--city "${city}")
+  done
+fi
+if [[ "${AUDIT_VALIDATE_VECTORS:-0}" == "1" || "${AUDIT_VALIDATE_VECTORS:-0}" == "true" ]]; then
+  AUDIT_ARGS+=(--validate-vectors)
+fi
+
 "${VENV_PYTHON}" "${REPO_DIR}/verify_dinov3_embedding_completeness.py" \
   --city-meta "${CITY_META}" \
   --valfolder "${VALFOLDER:-${ROOTFOLDER}/_transformed/t_classifier_img_yolo8_inf_dir}" \
@@ -44,4 +55,5 @@ mkdir -p logs/slurm
   --year-metadata-root "${YEAR_METADATA_ROOT:-${ROOTFOLDER}}" \
   --expected-model-name "${MODEL_NAME}" \
   --output-csv "${OUTPUT_CSV:-logs/dinov3_embedding_completeness.csv}" \
-  --output-json "${OUTPUT_JSON:-logs/dinov3_embedding_completeness.json}"
+  --output-json "${OUTPUT_JSON:-logs/dinov3_embedding_completeness.json}" \
+  "${AUDIT_ARGS[@]}"
