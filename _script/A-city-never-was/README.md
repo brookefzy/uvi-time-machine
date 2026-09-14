@@ -334,6 +334,30 @@ python summarize_dinov3_h3_coverage.py \
   --output-json logs/dinov3_h3_coverage.json
 ```
 
+H3 coverage is metadata-only by default and accepts repeated `--city` arguments.
+It reads only H3 identifiers, resolutions, and image counts; use
+`--validate-vectors` for the slower exhaustive finite-value scan. Live source
+image counting groups paths by directory to avoid one filesystem metadata
+request per image.
+
+```bash
+python summarize_dinov3_h3_coverage.py \
+  --city-meta "${CITY_META}" \
+  --h3-root /lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_hex_summary \
+  --valfolder /lustre1/g/geog_pyloo/05_timemachine/_transformed/t_classifier_img_yolo8_inf_dir \
+  --rootfolder /lustre1/g/geog_pyloo/05_timemachine \
+  --resolutions 6,7,8 \
+  --city Amsterdam \
+  --city Fukuoka \
+  --city Houston \
+  --output-csv logs/dinov3_h3_coverage_flagged.csv \
+  --output-json logs/dinov3_h3_coverage_flagged.json
+```
+
+The `slurm/dinov3_06_h3_coverage_res8.cmd` wrapper also accepts the
+comma-delimited `AUDIT_CITIES` and optional `AUDIT_VALIDATE_VECTORS=1`
+environment variables.
+
 6. Run pairwise cosine with the optimized B5b script against DINOv3 H3 vectors. For the first production DINOv3 run, use `--threshold -1.0` so the city-pair averages are not biased by dropping low, zero, or negative cosine similarities.
 
 For all cities with a usable resolution-8 H3 input, submit independent city-pair

@@ -5,11 +5,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+from collections import defaultdict
 from pathlib import Path
 from typing import Sequence
 
 import numpy as np
 import pandas as pd
+import pyarrow.parquet as pq
 
 from B5e_dinov3_vector_summary import (
     DEFAULT_MAX_YEAR,
@@ -46,6 +49,22 @@ def load_city_names(city_meta: str | Path) -> list[str]:
     return list(dict.fromkeys(value for value in values if value))
 
 
+def select_city_names(
+    city_meta: str | Path,
+    selected_cities: Sequence[str] | None = None,
+) -> list[str]:
+    available = load_city_names(city_meta)
+    if not selected_cities:
+        return available
+    requested = list(
+        dict.fromkeys(str(city).strip() for city in selected_cities if str(city).strip())
+    )
+    unknown = [city for city in requested if city not in set(available)]
+    if unknown:
+        raise ValueError(f"Requested cities absent from city metadata: {unknown}")
+    return requested
+
+
 def h3_output_path(
     h3_root: str | Path, city: str, res_exclude: int | None, equal_sampling: bool = False
 ) -> Path:
@@ -57,6 +76,31 @@ def _count_column(df: pd.DataFrame) -> str:
     if "img_count" in df.columns:
         return "img_count"
     raise ValueError("H3 output must contain img_count")
+
+
+def count_existing_paths(
+    paths: Sequence[str | Path],
+    directory_scan_threshold: int = 32,
+) -> int:
+    """Count existing paths while avoiding one metadata request per image."""
+    grouped: dict[Path, list[Path]] = defaultdict(list)
+    for value in paths:
+        path = Path(str(value))
+        grouped[path.parent].append(path)
+
+    count = 0
+    for parent, candidates in grouped.items():
+        if len(candidates) < directory_scan_threshold:
+            count += sum(path.exists() for path in candidates)
+            continue
+        try:
+            with os.scandir(parent) as entries:
+                existing_names = {entry.name for entry in entries}
+        except OSError:
+            count += sum(path.exists() for path in candidates)
+        else:
+            count += sum(path.name in existing_names for path in candidates)
+    return int(count)
 
 
 def source_image_count(
@@ -89,11 +133,14 @@ def source_image_count(
     pano["year"] = pd.to_numeric(pano["year"], errors="coerce")
     eligible = image_index.merge(pano, on="panoid", how="inner")
     eligible = eligible[(eligible["year"] >= min_year) & (eligible["year"] <= max_year)]
-    return int(sum(Path(str(path)).exists() for path in eligible["path"].dropna()))
+    return count_existing_paths(eligible["path"].dropna().astype(str).tolist())
 
 
 def summarize_output(
-    city: str, path: Path, resolutions: Sequence[int]
+    city: str,
+    path: Path,
+    resolutions: Sequence[int],
+    validate_vectors: bool = False,
 ) -> list[dict[str, object]]:
     if not path.exists():
         return [
@@ -117,15 +164,22 @@ def summarize_output(
         ]
 
     try:
-        df = pd.read_parquet(path)
+        schema_names = pq.read_schema(path).names
         required = {"hex_id", "res"}
-        missing = sorted(required.difference(df.columns))
+        missing = sorted(required.difference(schema_names))
         if missing:
             raise ValueError(f"{path} is missing columns: {missing}")
+        embedding_cols = discover_embedding_columns(pd.DataFrame(columns=schema_names))
+        columns = ["hex_id", "res", "img_count"]
+        if validate_vectors:
+            columns.extend(embedding_cols)
+        df = pd.read_parquet(path, columns=columns)
         count_col = _count_column(df)
-        embedding_cols = discover_embedding_columns(df)
-        values = df[embedding_cols].to_numpy(dtype=float)
-        finite_rows = np.isfinite(values).all(axis=1)
+        if validate_vectors:
+            values = df[embedding_cols].to_numpy(dtype=float)
+            finite_rows = np.isfinite(values).all(axis=1)
+        else:
+            finite_rows = np.ones(len(df), dtype=bool)
         positive_counts = pd.to_numeric(df[count_col], errors="coerce").fillna(0) > 0
         valid_rows = finite_rows & positive_counts.to_numpy()
     except Exception as exc:
@@ -193,8 +247,14 @@ def summarize_city_h3(
     rootfolder: str | Path = DEFAULT_ROOT,
     min_year: int = DEFAULT_MIN_YEAR,
     max_year: int = DEFAULT_MAX_YEAR,
+    validate_vectors: bool = False,
 ) -> list[dict[str, object]]:
-    all_rows = summarize_output(city, h3_output_path(h3_root, city, res_exclude), resolutions)
+    all_rows = summarize_output(
+        city,
+        h3_output_path(h3_root, city, res_exclude),
+        resolutions,
+        validate_vectors=validate_vectors,
+    )
     image_count = source_image_count(city, valfolder, rootfolder, min_year, max_year)
     if image_count == 0 and all(row["status"] == "missing" for row in all_rows):
         for row in all_rows:
@@ -202,7 +262,10 @@ def summarize_city_h3(
     for row in all_rows:
         row["source_image_count"] = image_count
     equal_rows = summarize_output(
-        city, h3_output_path(h3_root, city, res_exclude, equal_sampling=True), resolutions
+        city,
+        h3_output_path(h3_root, city, res_exclude, equal_sampling=True),
+        resolutions,
+        validate_vectors=validate_vectors,
     )
     for all_row, equal_row in zip(all_rows, equal_rows):
         all_row["equal_sampling_status"] = equal_row["status"]
@@ -250,12 +313,22 @@ def summarize_all_cities(
     rootfolder: str | Path = DEFAULT_ROOT,
     min_year: int = DEFAULT_MIN_YEAR,
     max_year: int = DEFAULT_MAX_YEAR,
+    selected_cities: Sequence[str] | None = None,
+    validate_vectors: bool = False,
 ) -> dict[str, object]:
     rows: list[dict[str, object]] = []
-    for city in load_city_names(city_meta):
+    for city in select_city_names(city_meta, selected_cities):
         rows.extend(
             summarize_city_h3(
-                city, h3_root, res_exclude, resolutions, valfolder, rootfolder, min_year, max_year
+                city=city,
+                h3_root=h3_root,
+                res_exclude=res_exclude,
+                resolutions=resolutions,
+                valfolder=valfolder,
+                rootfolder=rootfolder,
+                min_year=min_year,
+                max_year=max_year,
+                validate_vectors=validate_vectors,
             )
         )
     return {"summary": summarize_rows(rows), "rows": rows}
@@ -301,6 +374,17 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--max-year", type=int, default=DEFAULT_MAX_YEAR)
     parser.add_argument("--res-exclude", default=None)
     parser.add_argument("--resolutions", default="6,7,8")
+    parser.add_argument(
+        "--city",
+        action="append",
+        dest="selected_cities",
+        help="Audit only this city; may be repeated",
+    )
+    parser.add_argument(
+        "--validate-vectors",
+        action="store_true",
+        help="Read every H3 embedding value and validate finiteness",
+    )
     parser.add_argument("--output-csv")
     parser.add_argument("--output-json")
     parser.add_argument(
@@ -322,6 +406,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         max_year=args.max_year,
         res_exclude=parse_optional_res_exclude(args.res_exclude),
         resolutions=_parse_resolutions(args.resolutions),
+        selected_cities=args.selected_cities,
+        validate_vectors=args.validate_vectors,
     )
     write_outputs(result, args.output_csv, args.output_json)
     print_summary(result)

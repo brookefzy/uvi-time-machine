@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from summarize_dinov3_h3_coverage import summarize_all_cities
+from summarize_dinov3_h3_coverage import count_existing_paths, summarize_all_cities
 from dinov3_utils import resolve_city_file_stem
 
 
@@ -50,6 +50,17 @@ def _write_h3_output(output_root: Path, city: str):
     ).to_parquet(output_root / f"dinov3_city={city}_res_exclude=None.parquet", index=False)
 
 
+def test_count_existing_paths_handles_large_shared_directories(tmp_path):
+    paths = []
+    for index in range(40):
+        path = tmp_path / f"image_{index}.jpg"
+        path.touch()
+        paths.append(str(path))
+    paths.extend([str(tmp_path / "missing.jpg"), paths[0]])
+
+    assert count_existing_paths(paths, directory_scan_threshold=32) == 41
+
+
 def test_summarize_all_cities_counts_valid_h3_grids_by_resolution(tmp_path):
     city_meta = tmp_path / "city_meta.csv"
     pd.DataFrame({"City": ["Alpha City", "Missing City", "Retry City"]}).to_csv(city_meta, index=False)
@@ -77,6 +88,7 @@ def test_summarize_all_cities_counts_valid_h3_grids_by_resolution(tmp_path):
         valfolder=valfolder,
         rootfolder=rootfolder,
         resolutions=[6, 7, 8],
+        validate_vectors=True,
     )
 
     rows = {(row["city"], row["res"]): row for row in result["rows"]}
@@ -99,6 +111,47 @@ def test_summarize_all_cities_counts_valid_h3_grids_by_resolution(tmp_path):
     assert rows[("Missing City", 7)]["status"] == "ignored_no_images"
     assert rows[("Missing City", 8)]["status"] == "ignored_no_images"
     assert rows[("Retry City", 6)]["status"] == "missing"
+
+
+def test_h3_coverage_can_limit_audit_to_selected_cities(tmp_path):
+    city_meta = tmp_path / "city_meta.csv"
+    pd.DataFrame({"City": ["Alpha City", "Beta City"]}).to_csv(city_meta, index=False)
+    output_root = tmp_path / "hex"
+    _write_h3_output(output_root, "Beta City")
+
+    result = summarize_all_cities(
+        city_meta=city_meta,
+        h3_root=output_root,
+        resolutions=[6, 7, 8],
+        selected_cities=["Beta City"],
+    )
+
+    assert {row["city"] for row in result["rows"]} == {"Beta City"}
+    assert result["summary"]["city_count"] == 1
+
+
+def test_metadata_only_h3_coverage_skips_vector_value_validation(tmp_path):
+    city_meta = tmp_path / "city_meta.csv"
+    pd.DataFrame({"City": ["Alpha City"]}).to_csv(city_meta, index=False)
+    output_root = tmp_path / "hex"
+    _write_h3_output(output_root, "Alpha City")
+
+    fast = summarize_all_cities(
+        city_meta=city_meta,
+        h3_root=output_root,
+        resolutions=[8],
+    )
+    exhaustive = summarize_all_cities(
+        city_meta=city_meta,
+        h3_root=output_root,
+        resolutions=[8],
+        validate_vectors=True,
+    )
+
+    assert fast["rows"][0]["valid_h3_grid_count"] == 1
+    assert fast["rows"][0]["invalid_embedding_row_count"] == 0
+    assert exhaustive["rows"][0]["valid_h3_grid_count"] == 0
+    assert exhaustive["rows"][0]["invalid_embedding_row_count"] == 1
 
 
 def test_summary_compares_all_and_equal_sampling_counts_within_h3_units(tmp_path):

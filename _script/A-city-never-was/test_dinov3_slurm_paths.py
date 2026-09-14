@@ -20,6 +20,7 @@ PAIRWISE_RESUME_RUNNER = REPO_ROOT / "pipeline" / "run_dinov3_pairwise_resume.ba
 PAIRWISE_RESUME_SUBMITTER = REPO_ROOT / "slurm" / "submit_dinov3_pairwise_resume_batches.bash"
 PIPELINE_INDEX = REPO_ROOT / "pipeline" / "INDEX.md"
 EMBEDDING_AUDIT_JOB = REPO_ROOT / "slurm" / "dinov3_verify_embedding_completeness.cmd"
+H3_COVERAGE_JOB = REPO_ROOT / "slurm" / "dinov3_06_h3_coverage_res8.cmd"
 
 
 def test_h3_array_rewrites_legacy_city_meta_path(tmp_path: Path) -> None:
@@ -148,6 +149,15 @@ def test_b5c_job_passes_resolution_specific_pairwise_and_export_roots() -> None:
 
 def test_embedding_audit_job_supports_targeted_cities_and_exhaustive_validation() -> None:
     job = EMBEDDING_AUDIT_JOB.read_text(encoding="utf-8")
+
+    assert 'AUDIT_CITIES' in job
+    assert 'AUDIT_VALIDATE_VECTORS' in job
+    assert 'AUDIT_ARGS+=(--city "${city}")' in job
+    assert 'AUDIT_ARGS+=(--validate-vectors)' in job
+
+
+def test_h3_coverage_job_supports_targeted_cities_and_exhaustive_validation() -> None:
+    job = H3_COVERAGE_JOB.read_text(encoding="utf-8")
 
     assert 'AUDIT_CITIES' in job
     assert 'AUDIT_VALIDATE_VECTORS' in job
