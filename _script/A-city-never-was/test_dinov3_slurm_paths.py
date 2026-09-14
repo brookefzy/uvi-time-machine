@@ -133,11 +133,11 @@ def test_pairwise_resume_submitter_skips_nonempty_shards_and_batches_pending_pai
     assert '--array="1-${task_count}%${ARRAY_CONCURRENCY}"' in submitter
 
 
-def test_b5c_job_passes_resolution_specific_pairwise_and_export_roots() -> None:
+def test_b5c_job_passes_shared_pairwise_and_resolution_specific_export_roots() -> None:
     job = (REPO_ROOT / "slurm" / "dinov3_04_b5c_aggregate.cmd").read_text(encoding="utf-8")
 
     assert 'RESOLUTION="${RESOLUTION:-7}"' in job
-    assert 'PAIRWISE_ROOT="${PAIRWISE_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_similarity_by_pair_res=${RESOLUTION}}"' in job
+    assert 'PAIRWISE_ROOT="${PAIRWISE_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_similarity_by_pair}"' in job
     assert 'SIMILARITY_EXPORT_FOLDER="${SIMILARITY_EXPORT_FOLDER:-${ROOTFOLDER}/_curated/c_city_dinov3_similarity_res=${RESOLUTION}}"' in job
     assert '--pairwise-root "${PAIRWISE_ROOT}"' in job
     assert '--similarity-export-folder "${SIMILARITY_EXPORT_FOLDER}"' in job
