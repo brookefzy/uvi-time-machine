@@ -36,6 +36,17 @@ fi
 cd "${REPO_DIR}"
 mkdir -p logs/slurm
 
+AUDIT_ARGS=()
+if [[ -n "${AUDIT_CITIES:-}" ]]; then
+  IFS=',' read -r -a requested_cities <<< "${AUDIT_CITIES}"
+  for city in "${requested_cities[@]}"; do
+    [[ -n "${city}" ]] && AUDIT_ARGS+=(--city "${city}")
+  done
+fi
+if [[ "${AUDIT_VALIDATE_VECTORS:-0}" == "1" || "${AUDIT_VALIDATE_VECTORS:-0}" == "true" ]]; then
+  AUDIT_ARGS+=(--validate-vectors)
+fi
+
 "${PYTHON}" "${REPO_DIR}/summarize_dinov3_h3_coverage.py" \
   --city-meta "${CITY_META}" \
   --h3-root "${H3_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_hex_summary}" \
@@ -43,4 +54,5 @@ mkdir -p logs/slurm
   --resolutions 8 \
   --output-csv "${OUTPUT_CSV:-logs/dinov3_h3_coverage_res8.csv}" \
   --output-json "${OUTPUT_JSON:-logs/dinov3_h3_coverage_res8.json}" \
-  --allow-missing
+  --allow-missing \
+  "${AUDIT_ARGS[@]}"
