@@ -30,7 +30,7 @@ INDEX_ROOTS="${INDEX_ROOTS:-${ROOTFOLDER}/_transformed/t_classifier_img_yolo8_in
 VALFOLDER="${VALFOLDER:-${INDEX_ROOTS%%:*}}"
 EMBED_ROOT="${EMBED_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_embed}"
 ORIGINAL_H3_ROOT="${ORIGINAL_H3_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_hex_summary}"
-ORIGINAL_PAIRWISE_ROOT="${ORIGINAL_PAIRWISE_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_similarity_by_pair_res=7}"
+ORIGINAL_PAIRWISE_ROOT="${ORIGINAL_PAIRWISE_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_similarity_by_pair}"
 ORIGINAL_AGG_ROOT="${ORIGINAL_AGG_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_similarity_res=7}"
 REQUIRED_H3_ROOT="${REQUIRED_H3_ROOT:-}"
 CORE_H3_ROOT="${CORE_H3_ROOT:-}"
