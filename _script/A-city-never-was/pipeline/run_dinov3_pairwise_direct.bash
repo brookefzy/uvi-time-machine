@@ -9,7 +9,7 @@ PYTHON="${VENV_PYTHON:-${REPO_ROOT}/.venv/bin/python}"
 CITY_META="${CITY_META:-${REPO_DIR%/*}/city_meta.csv}"
 SOURCE_ROOT="${SOURCE_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_hex_summary}"
 RESOLUTION="${RESOLUTION:-6}"
-OUTPUT_ROOT="${OUTPUT_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_similarity_by_pair_res=${RESOLUTION}}"
+OUTPUT_ROOT="${OUTPUT_ROOT:-${ROOTFOLDER}/_curated/c_city_dinov3_similarity_by_pair}"
 INPUT_TEMPLATE="${INPUT_TEMPLATE:-}"
 if [[ -z "${INPUT_TEMPLATE}" ]]; then
   INPUT_TEMPLATE='dinov3_city={city}_res_exclude=None.parquet'
