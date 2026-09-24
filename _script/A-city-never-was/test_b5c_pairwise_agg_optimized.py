@@ -385,3 +385,21 @@ class TestOptimizedPairwiseAggregation(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_selected_city_keeps_full_membership(tmp_path):
+    from unittest.mock import MagicMock
+    module = load_module()
+    meta = tmp_path / "cities.csv"
+    pd.DataFrame({"City": ["Amsterdam", "Houston"]}).to_csv(meta, index=False)
+    processor = module.OptimizedUrbanSimilarityProcessor.__new__(module.OptimizedUrbanSimilarityProcessor)
+    processor.config = {"SELECTED_CITIES": ["Houston"]}
+    processor.logger = MagicMock()
+    for method in ("warn_if_pairwise_not_finished", "load_h3_membership", "write_progress", "write_audit_report", "close"):
+        setattr(processor, method, MagicMock())
+    processor.resolve_cities_to_process = MagicMock(return_value=(["Houston"], []))
+    processor.process_city_similarity = MagicMock(return_value=(0, 3))
+    processor.run(str(meta))
+    processor.load_h3_membership.assert_called_once_with(["Amsterdam", "Houston"])
+    processor.resolve_cities_to_process.assert_called_once_with(["Houston"])
+    processor.process_city_similarity.assert_called_once_with("Houston")

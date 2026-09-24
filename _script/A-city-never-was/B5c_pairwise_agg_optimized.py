@@ -59,7 +59,7 @@ class OptimizedUrbanSimilarityProcessor:
         log_dir.mkdir(exist_ok=True)
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_file = log_dir / f"urban_similarity_optimized_{timestamp}.log"
+        log_file = log_dir / f"urban_similarity_optimized_{timestamp}_{id(self)}.log"
 
         self.logger = logging.getLogger(f"{__name__}.{id(self)}")
         self.logger.setLevel(getattr(logging, log_level))
@@ -815,7 +815,11 @@ class OptimizedUrbanSimilarityProcessor:
             city_meta = pd.read_csv(city_meta_path)
             cities = city_meta["City"].dropna().tolist()
             self.load_h3_membership(cities)
-            pending_cities, completed_cities = self.resolve_cities_to_process(cities)
+            selected = self.config.get("SELECTED_CITIES") or cities
+            unknown = set(selected) - set(cities)
+            if unknown:
+                raise ValueError(f"Unknown aggregation cities: {sorted(unknown)}")
+            pending_cities, completed_cities = self.resolve_cities_to_process(selected)
             self.logger.info(
                 "Processing %d cities (%d already completed)",
                 len(pending_cities),
@@ -955,6 +959,7 @@ def main() -> None:
         default=5,
         help="Maximum examples retained for each validation status",
     )
+    parser.add_argument("--city", action="append", help="Process only this city; repeatable. Membership still uses the full metadata.")
     args = parser.parse_args()
 
     today = datetime.now().strftime("%Y%m%d")
@@ -966,6 +971,7 @@ def main() -> None:
         "CURATE_FOLDER_EXPORT2": args.pairwise_root,
         "EXPORT_FOLDER": export_folder,
         "RES_SEL": args.resolution,
+        "SELECTED_CITIES": args.city,
         "PROGRESS_PATH": args.progress_file,
         "RESUME": args.resume,
         "AGG_PROGRESS_PATH": args.agg_progress_file,

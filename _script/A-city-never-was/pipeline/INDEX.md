@@ -104,3 +104,19 @@ OUTPUT_ROOT=/lustre1/g/geog_pyloo/05_timemachine/_curated/c_city_dinov3_similari
 BATCH_SIZE=20 ARRAY_CONCURRENCY=2 POLL_SECONDS=120 \
 bash slurm/submit_dinov3_pairwise_resume_batches.bash
 ```
+
+### B5c city batches
+
+Use `slurm/submit_dinov3_b5c_batches.bash` for aggregation that exceeds one
+job's time limit. It submits `slurm/dinov3_04_b5c_array.cmd`, one city per task,
+with `BATCH_SIZE=20` and `ARRAY_CONCURRENCY=2` by default. Each worker loads full
+city metadata for H3 validation but exports only its selected city. Outputs
+remain in the shared resolution-specific aggregation folder; checkpoints,
+audits, quarantine files and spill directories are isolated under
+`_batches/$RUN_TAG/city_<row>/`.
+
+Set `RESOLUTION=8` and an explicit `RUN_TAG` to start. A new tag rebuilds outputs;
+reuse that tag to resume only while inputs and configuration stay unchanged.
+Do not run overlapping aggregation controllers against the same export folder.
+The controller uses `sbatch --wait` and stops on a failed batch. Each city has a
+96-hour limit; this split does not solve a single city exceeding that limit.
