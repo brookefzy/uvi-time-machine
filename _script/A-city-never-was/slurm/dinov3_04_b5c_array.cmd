@@ -8,7 +8,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=96G
-#SBATCH --time=96:00:00
+#SBATCH --time=24:00:00
 set -euo pipefail
 cd "${UVI_SAMPLE_REPO_DIR:?}"
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1

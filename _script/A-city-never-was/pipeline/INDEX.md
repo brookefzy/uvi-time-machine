@@ -119,4 +119,4 @@ Set `RESOLUTION=8` and an explicit `RUN_TAG` to start. A new tag rebuilds output
 reuse that tag to resume only while inputs and configuration stay unchanged.
 Do not run overlapping aggregation controllers against the same export folder.
 The controller uses `sbatch --wait` and stops on a failed batch. Each city has a
-96-hour limit; this split does not solve a single city exceeding that limit.
+24-hour limit; this split does not solve a single city exceeding that limit.
