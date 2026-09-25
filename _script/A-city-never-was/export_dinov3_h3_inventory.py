@@ -1,20 +1,6 @@
 #!/usr/bin/env python3
 """Export a compact H3/image-count inventory from DINOv3 H3 summaries."""
 
-"""
-cd /lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/_script/A-city-never-was
-
-ROOTFOLDER=/lustre1/g/geog_pyloo/05_timemachine
-VENV_PYTHON=/lustre1/g/geog_pyloo/05_timemachine/uvi-time-machine/.venv/bin/python
-INVENTORY_ROOT="$ROOTFOLDER/_curated/c_city_dinov3_h3_inventory"
-
-"$VENV_PYTHON" export_dinov3_h3_inventory.py \
-  --h3-root "$ROOTFOLDER/_curated/c_city_dinov3_hex_summary" \
-  --resolutions 6,7,8 \
-  --output-inventory "$INVENTORY_ROOT/dinov3_h3_inventory_res_6_7_8.parquet" \
-  --output-distribution-csv "$INVENTORY_ROOT/dinov3_h3_image_count_distribution_res_6_7_8.csv"
-  """
-
 
 from __future__ import annotations
 
